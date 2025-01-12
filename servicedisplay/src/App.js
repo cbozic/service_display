@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import VideoFrame from './components/VideoFrame';
 import Overlay from './components/Overlay';
+import slide from './This_Is_The_Way.png';
 
 function App() {
   const [showOverlay, setShowOverlay] = useState(false);
@@ -29,7 +30,7 @@ function App() {
     <div className="App">
       <div style={{ position: 'relative' }}>
         <VideoFrame />
-        <Overlay showOverlay={showOverlay}/>
+        <Overlay showOverlay={showOverlay} slide={slide}/>
       </div>
     </div>
   );
