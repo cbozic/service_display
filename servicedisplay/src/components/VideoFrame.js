@@ -1,13 +1,12 @@
 import './VideoFrame.css';
 
-function VideoFrame() {
+function VideoFrame(props) {
   return (
       <iframe className="VideoFrame"
-          src="https://www.youtube.com/embed/VkIrcKoA98A?" 
+          src={"https://www.youtube.com/embed/" + props.video + "?start=" + (props.start? props.start : '0') + "&autoplay=" + (props.play? '1': '0')+ "&mute=0&controls=0&loop=0"}
           title="YouTube video player" 
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-          aoutoplay
           referrerPolicy="strict-origin-when-cross-origin" 
           allowFullScreen />
   );
