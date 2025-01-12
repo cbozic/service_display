@@ -67,12 +67,14 @@ function VideoJsFrame({ start, video }) {
             playsinline: 0,
             controls: 0,
             disablekb: 1,
+            iv_load_policy: 3,
+            fs: 0,
         },
     };
 
     return (
         <>
-            <YouTube className="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChage} />
+            <YouTube className="VideoFrame" iframeClassName="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChage} />
             <Overlay showOverlay={showOverlay} slide={slide} />
         </>
     );
