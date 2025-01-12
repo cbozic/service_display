@@ -4,6 +4,36 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-opaque black */
-  pointer-events: none; /* Allows clicks to pass through */
+  background-color: rgba(0, 0, 0); /* black */
+  pointer-events: all; /* Prevents clicks from passing through */
+}
+
+.fadeOut {
+  animation: fadeOut 2s;
+  opacity: 1;
+}
+
+.fadeIn {
+  animation: fadeIn 2s;
+  opacity: 0;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
 }
