@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import VideoJsFrame from './components/VideoJsFrame';
 
 function App() {
   const [video, setVideo] = useState('VkIrcKoA98A');
-  const [startTimeInSeconds, setStartTimeInSeconds] = useState('540');
+  const [startTimeInSeconds, setStartTimeInSeconds] = useState('539');
 
   return (
     <div className="App">
