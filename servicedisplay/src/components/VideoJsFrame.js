@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './VideoFrame.css';
 import YouTube from 'react-youtube';
 
@@ -37,9 +37,9 @@ const VideoJsFrame = ({ video, start }) => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [showOverlay]);
+    }, [showOverlay, player]);
 
-    const onPlayerReady = (event) => {
+    const onPlayerReady = useCallback((event) => {
         event.target.seekTo(startSeconds);
         if (showOverlay) {
             event.target.setVolume(0);
@@ -50,9 +50,9 @@ const VideoJsFrame = ({ video, start }) => {
             event.target.playVideo();
         }
         setPlayer(event.target);
-    }
+    }, [startSeconds, showOverlay]);
 
-    const onStateChage = (event) => {
+    const onStateChage = useCallback((event) => {
         console.log('Player State Changed: ' + event.data);
         if (0 === event.data) {
             // Video has reached the end so reset the player
@@ -60,9 +60,9 @@ const VideoJsFrame = ({ video, start }) => {
             setPlay(false);
             player.seekTo(start);
         }
-    }
+    }, [player, start]);
 
-    const fadeVolume = (targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = ()=>{}) => {
+    const fadeVolume = useCallback((targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = ()=>{}) => {
         const currentVolume = player.getVolume();
         const volumeDifference = targetVolume - currentVolume;
         const steps = 50; // Number of steps for the fade effect
@@ -80,7 +80,7 @@ const VideoJsFrame = ({ video, start }) => {
                 invokeWhenFinished();
             }
         }, stepDuration);
-    }
+    }, [player]);
 
     useEffect(() => {
         console.log("play=" + play);
