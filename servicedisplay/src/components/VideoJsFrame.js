@@ -25,6 +25,12 @@ const VideoJsFrame = ({ video, start }) => {
                     setPlay(false);
                 }
             }
+            else if (event.code === 'ArrowLeft') {
+                player.seekTo(player.getCurrentTime() - 5);
+            }
+            else if (event.code === 'ArrowRight') {
+                player.seekTo(player.getCurrentTime() + 15);
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -66,11 +72,9 @@ const VideoJsFrame = ({ video, start }) => {
         const fadeInterval = setInterval(() => {
             if (currentStep < steps) {
                 const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
-                console.log('Setting volume to ' + newVolume);
                 player.setVolume(newVolume);
                 currentStep++;
             } else {
-                console.log('Setting volume to target ' + targetVolume);
                 player.setVolume(targetVolume);
                 clearInterval(fadeInterval);
                 invokeWhenFinished();
