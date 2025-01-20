@@ -6,17 +6,17 @@ import './Home.css';
 const Home: React.FC = () => {
   return (
     <IonPage>
-      <IonHeader>
+      {/* <IonHeader>
         <IonToolbar>
-          <IonTitle>Blank</IonTitle>
+          <IonTitle>Service Display</IonTitle>
         </IonToolbar>
-      </IonHeader>
+      </IonHeader> */}
       <IonContent fullscreen>
-        <IonHeader collapse="condense">
+        {/* <IonHeader collapse="condense">
           <IonToolbar>
             <IonTitle size="large">Blank</IonTitle>
           </IonToolbar>
-        </IonHeader>
+        </IonHeader> */}
         <VideoJsFrame video="VkIrcKoA98A" start={539} slidePath='' />
       </IonContent>
     </IonPage>
