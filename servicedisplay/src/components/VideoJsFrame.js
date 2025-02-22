@@ -3,7 +3,7 @@ import './VideoFrame.css';
 import YouTube from 'react-youtube';
 
 import Overlay from './Overlay';
-import slide from '../This_Is_The_Way.png';
+import slide from '../Z_WorshipTransform.jpg';
 
 const VideoJsFrame = ({ video, start }) => {
     const [player, setPlayer] = useState(null);
@@ -15,8 +15,8 @@ const VideoJsFrame = ({ video, start }) => {
     const [docElement, setDocElement] = useState(document.documentElement);
 
     const handleClick = () => {
-        setShowOverlay(!showOverlay);
-        setPlay(!play);
+        // setShowOverlay(!showOverlay);
+        // setPlay(!play);
     };
 
     useEffect(() => {
@@ -102,10 +102,10 @@ const VideoJsFrame = ({ video, start }) => {
             if (play) {
                 player.unMute();
                 player.playVideo();
-                fadeVolume(100, 2);
+                fadeVolume(100, fadeInDelayInSeconds);
             }
             else {
-                fadeVolume(0, 2, () => { player.pauseVideo(); });
+                fadeVolume(0, fadeInDelayInSeconds, () => { player.pauseVideo(); });
             }
         }
     }, [play]);
