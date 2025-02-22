@@ -1,7 +1,0 @@
-{
-  "name": "ServiceDisplayApp",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "react-vite"
-}
