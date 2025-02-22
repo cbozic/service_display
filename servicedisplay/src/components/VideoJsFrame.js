@@ -3,7 +3,6 @@ import './VideoFrame.css';
 import YouTube from 'react-youtube';
 
 import Overlay from './Overlay';
-import slide from '../Z_WorshipTransform.jpg';
 
 const VideoJsFrame = ({ video, start }) => {
     const [player, setPlayer] = useState(null);
@@ -13,6 +12,7 @@ const VideoJsFrame = ({ video, start }) => {
     const [startSeconds, setStartSeconds] = useState(start);
     const [fadeInDelayInSeconds, setFadeInDelayInSeconds] = useState(2);
     const [docElement, setDocElement] = useState(document.documentElement);
+    const [slide, setSlide] = useState("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
 
     const handleClick = () => {
         // setShowOverlay(!showOverlay);
