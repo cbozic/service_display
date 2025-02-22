@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 import VideoJsFrame from './components/VideoJsFrame';
+import { TextField, Button, Container, Box } from '@mui/material';
 
 function App() {
   const [video, setVideo] = useState('');
@@ -13,34 +14,34 @@ function App() {
   };
 
   return (
-    <div className="App">
-      {!submitted && (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <label>
-            Video ID:
-            <input
-              type="text"
-              value={video}
-              onChange={(e) => setVideo(e.target.value)}
-            />
-          </label>
-          <label>
-            Start Time (seconds):
-            <input
-              type="text"
-              value={startTimeInSeconds}
-              onChange={(e) => setStartTimeInSeconds(e.target.value)}
-            />
-          </label>
-          <button type="submit">Submit</button>
-        </form>
+    <div className='App'>
+    {!submitted && (
+        <Container>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            label="Video ID"
+            variant="outlined"
+            value={video}
+            onChange={(e) => setVideo(e.target.value)}
+          />
+          <TextField
+            label="Start Time (seconds)"
+            variant="outlined"
+            value={startTimeInSeconds}
+            onChange={(e) => setStartTimeInSeconds(e.target.value)}
+          />
+          <Button type="submit" variant="contained" color="primary">
+            Submit
+          </Button>
+        </Box>
+        </Container>
       )}
       {submitted && (
         <div style={{ position: 'relative' }}>
           <VideoJsFrame video={video} start={startTimeInSeconds} />
         </div>
       )}
-    </div>
+      </div>
   );
 }
 
