@@ -8,9 +8,16 @@ import slide from '../This_Is_The_Way.png';
 const VideoJsFrame = ({ video, start }) => {
     const [player, setPlayer] = useState(null);
     const [play, setPlay] = useState(false);
+    const [fullscreen, setFullscreen] = useState(false);
     const [showOverlay, setShowOverlay] = useState(true);
     const [startSeconds, setStartSeconds] = useState(start);
-    const [fadeInDelayInSeconds, setFadeInDelayInSeconds] = useState(1);
+    const [fadeInDelayInSeconds, setFadeInDelayInSeconds] = useState(2);
+    const [docElement, setDocElement] = useState(document.documentElement);
+
+    const handleClick = () => {
+        setShowOverlay(!showOverlay);
+        setPlay(!play);
+    };
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -31,13 +38,19 @@ const VideoJsFrame = ({ video, start }) => {
             else if (event.code === 'ArrowRight') {
                 player.seekTo(player.getCurrentTime() + 15);
             }
+            else if (event.code === 'KeyF') {
+                setFullscreen(!fullscreen);
+            }
+            else {
+                console.log('Unhandled key: ' + event.code);
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [showOverlay, player]);
+    }, [showOverlay, player, fullscreen]);
 
     const onPlayerReady = useCallback((event) => {
         event.target.seekTo(startSeconds);
@@ -62,7 +75,7 @@ const VideoJsFrame = ({ video, start }) => {
         }
     }, [player, start]);
 
-    const fadeVolume = useCallback((targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = ()=>{}) => {
+    const fadeVolume = useCallback((targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
         const currentVolume = player.getVolume();
         const volumeDifference = targetVolume - currentVolume;
         const steps = 50; // Number of steps for the fade effect
@@ -92,10 +105,42 @@ const VideoJsFrame = ({ video, start }) => {
                 fadeVolume(100, 2);
             }
             else {
-                fadeVolume(0, 2, () => {player.pauseVideo();});
+                fadeVolume(0, 2, () => { player.pauseVideo(); });
             }
         }
     }, [play]);
+
+    useEffect(() => {
+        if (docElement) {
+            if (fullscreen) {
+                openFullscreen();
+            } else {
+                closeFullscreen();
+            }
+        }
+
+    }, [fullscreen, docElement]);
+
+    function openFullscreen() {
+        if (docElement.requestFullscreen) {
+            docElement.requestFullscreen();
+        } else if (docElement.webkitRequestFullscreen) { /* Safari */
+            docElement.webkitRequestFullscreen();
+        } else if (docElement.msRequestFullscreen) { /* IE11 */
+            docElement.msRequestFullscreen();
+        }
+    }
+
+    /* Close fullscreen */
+    function closeFullscreen() {
+        if (docElement.exitFullscreen) {
+            docElement.exitFullscreen();
+        } else if (docElement.webkitExitFullscreen) { /* Safari */
+            docElement.webkitExitFullscreen();
+        } else if (docElement.msExitFullscreen) { /* IE11 */
+            docElement.msExitFullscreen();
+        }
+    }
 
     const opts = {
         minHeight: '100%',
@@ -111,10 +156,10 @@ const VideoJsFrame = ({ video, start }) => {
     };
 
     return (
-        <>
+        <div onClick={handleClick}>
             <YouTube className="VideoFrame" iframeClassName="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChage} />
             <Overlay showOverlay={showOverlay} slide={slide} />
-        </>
+        </div>
     );
 }
 
