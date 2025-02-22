@@ -4,7 +4,7 @@ import './Overlay.css';
 function Overlay(props) {
     return (
         <div style={{
-            animation: props.showOverlay ? "fadeOut 2s" : "fadeIn 2s",
+            animation: props.showOverlay ? "fadeOut " + props.fadeDurationInSeconds + "s" : "fadeIn " + props.fadeDurationInSeconds + "s",
             opacity: props.showOverlay ? "1" : "0",
             position: "absolute",
             top: "0",
