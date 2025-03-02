@@ -4,7 +4,7 @@ import YouTube from 'react-youtube';
 
 import Overlay from './Overlay';
 
-const VideoJsFrame = ({ video, start }) => {
+const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
     const [player, setPlayer] = useState(null);
     const [play, setPlay] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
@@ -158,7 +158,9 @@ const VideoJsFrame = ({ video, start }) => {
     return (
         <div onClick={handleClick}>
             <YouTube className="VideoFrame" iframeClassName="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChage} />
-            <Overlay showOverlay={showOverlay} slide={slide} fadeDurationInSeconds={fadeDurationInSeconds}/>
+            {useOverlay && (
+                <Overlay showOverlay={showOverlay} slide={slide} fadeDurationInSeconds={fadeDurationInSeconds} overlayAudio={overlayAudio}/>
+            )}
         </div>
     );
 }

@@ -14,7 +14,9 @@ function Overlay(props) {
             backgroundColor: "rgba(0, 0, 0)", /* black */
             pointerEvents: "all",
         }}>
-            {props.slide ? <img src={props.slide} height="99%" width="99%" alt="Overlay Slide" /> : <div />}
+            {props.slide ?
+                <img src={props.slide} height="99%" width="99%" alt="Overlay Slide" />
+                : <div />}
         </div>
     );
 }

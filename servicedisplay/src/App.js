@@ -4,8 +4,9 @@ import VideoJsFrame from './components/VideoJsFrame';
 import { TextField, Button, Container, Box } from '@mui/material';
 
 function App() {
-  const [video, setVideo] = useState('');
+  const [video, setVideo] = useState('xkroW79ssOk');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState('0');
+  const [overlayAudio, setOverlayAudio] = useState('fOB73qRVGJs');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (e) => {
@@ -30,6 +31,12 @@ function App() {
             value={startTimeInSeconds}
             onChange={(e) => setStartTimeInSeconds(e.target.value)}
           />
+          <TextField
+            label="Overlay Audio URL"
+            variant="outlined"
+            value={overlayAudio}
+            onChange={(e) => setOverlayAudio(e.target.value)}
+          />
           <Button type="submit" variant="contained" color="primary">
             Submit
           </Button>
@@ -38,7 +45,7 @@ function App() {
       )}
       {submitted && (
         <div style={{ position: 'relative' }}>
-          <VideoJsFrame video={video} start={startTimeInSeconds} />
+          <VideoJsFrame video={video} start={startTimeInSeconds} overlayAudio={overlayAudio} />
         </div>
       )}
       </div>
