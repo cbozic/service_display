@@ -87,17 +87,19 @@ const VideoFadeFrame = (
         const stepDuration = (fadeDurationInSeconds * 1000) / steps;
         let currentStep = 0;
 
-        const fadeInterval = setInterval(() => {
+        const fadeStep = () => {
             if (currentStep < steps) {
                 const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
                 player.setVolume(newVolume);
                 currentStep++;
+                setTimeout(fadeStep, stepDuration);
             } else {
                 player.setVolume(targetVolume);
-                clearInterval(fadeInterval);
                 invokeWhenFinished();
             }
-        }, stepDuration);
+        };
+
+        fadeStep();
     }, [player]);
 
     const isPlayerStopped = useCallback( () => {
