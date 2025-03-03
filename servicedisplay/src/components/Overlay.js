@@ -16,7 +16,9 @@ function Overlay(props) {
         }}>
             {props.slide ?
                 <img src={props.slide} height="99%" width="99%" alt="Overlay Slide" />
-                : <div />}
+                : 
+                <div />
+            }
         </div>
     );
 }
