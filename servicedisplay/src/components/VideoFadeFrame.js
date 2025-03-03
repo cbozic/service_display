@@ -1,22 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './VideoFrame.css';
+import './VideoFadeFrame.css';
 import YouTube from 'react-youtube';
 
 import Overlay from './Overlay';
 
-const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
+const VideoFadeFrame = (
+    {
+        video,
+        startSeconds,
+        useOverlay = true,
+        overlaySlide = undefined,
+        fadeDurationInSeconds = 2,
+        minHeight = '100%',
+        minWidth = '100%',
+    }) => {
     const [player, setPlayer] = useState(null);
-    const [play, setPlay] = useState(false);
+    const [startPlaying, setStartPlaying] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const [showOverlay, setShowOverlay] = useState(true);
-    const [startSeconds, setStartSeconds] = useState(start);
-    const [fadeDurationInSeconds, setFadeDurationInSeconds] = useState(2);
-    const [docElement, setDocElement] = useState(document.documentElement);
-    const [slide, setSlide] = useState("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
+    const docElement = document.documentElement;
 
     const handleClick = () => {
-        // setShowOverlay(!showOverlay);
-        // setPlay(!play);
+        //do something here if you want
     };
 
     useEffect(() => {
@@ -25,11 +30,11 @@ const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
             if (event.code === 'Space') {
                 if (showOverlay) {
                     setShowOverlay(false);
-                    setPlay(true);
+                    setStartPlaying(true);
                 }
                 else {
                     setShowOverlay(true);
-                    setPlay(false);
+                    setStartPlaying(false);
                 }
             }
             else if (event.code === 'ArrowLeft') {
@@ -70,15 +75,15 @@ const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
         if (0 === event.data) {
             // Video has reached the end so reset the player
             setShowOverlay(true);
-            setPlay(false);
-            player.seekTo(start);
+            setStartPlaying(false);
+            player.seekTo(startSeconds);
         }
-    }, [player, start]);
+    }, [player, startSeconds]);
 
-    const fadeVolume = useCallback((targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
+    const fadeToVolume = useCallback((targetVolume, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
         const currentVolume = player.getVolume();
         const volumeDifference = targetVolume - currentVolume;
-        const steps = 50; // Number of steps for the fade effect
+        const steps = 25; // Number of steps for the fade effect
         const stepDuration = (fadeDurationInSeconds * 1000) / steps;
         let currentStep = 0;
 
@@ -95,20 +100,49 @@ const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
         }, stepDuration);
     }, [player]);
 
+    const isPlayerStopped = useCallback( () => {
+        return player.getPlayerState() === 2 || player.getPlayerState() === 5 || player.getPlayerState() === 0 || player.getPlayerState() === -1;
+    }, [player]);
+
     useEffect(() => {
-        console.log("play=" + play);
-        console.log(player);
-        if (player) {
-            if (play) {
+        if (player ) {
+            console.log("playing: '" + startPlaying + "' and the player state is: '" + player.getPlayerState() + "'");
+            if (startPlaying && (isPlayerStopped())) {
                 player.unMute();
                 player.playVideo();
-                fadeVolume(100, fadeDurationInSeconds);
+                fadeToVolume(100, fadeDurationInSeconds);
             }
             else {
-                fadeVolume(0, fadeDurationInSeconds, () => { player.pauseVideo(); });
+                if (isPlayerStopped() === false) {
+                    fadeToVolume(0, fadeDurationInSeconds, () => { player.pauseVideo(); });
+                }
             }
         }
-    }, [play]);
+    }, [startPlaying, player, fadeToVolume, isPlayerStopped, fadeDurationInSeconds]);
+
+    const openFullscreen = useCallback(() => {
+        if (docElement) {
+            if (docElement.requestFullscreen) {
+                docElement.requestFullscreen();
+            } else if (docElement.webkitRequestFullscreen) { /* Safari */
+                docElement.webkitRequestFullscreen();
+            } else if (docElement.msRequestFullscreen) { /* IE11 */
+                docElement.msRequestFullscreen();
+            }
+        }
+    }, [docElement]);
+
+    const closeFullscreen = useCallback(() => {
+        if (docElement) {
+            if (docElement.exitFullscreen) {
+                docElement.exitFullscreen();
+            } else if (docElement.webkitExitFullscreen) { /* Safari */
+                docElement.webkitExitFullscreen();
+            } else if (docElement.msExitFullscreen) { /* IE11 */
+                docElement.msExitFullscreen();
+            }
+        }
+    }, [docElement]);
 
     useEffect(() => {
         if (docElement) {
@@ -119,32 +153,11 @@ const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
             }
         }
 
-    }, [fullscreen, docElement]);
-
-    function openFullscreen() {
-        if (docElement.requestFullscreen) {
-            docElement.requestFullscreen();
-        } else if (docElement.webkitRequestFullscreen) { /* Safari */
-            docElement.webkitRequestFullscreen();
-        } else if (docElement.msRequestFullscreen) { /* IE11 */
-            docElement.msRequestFullscreen();
-        }
-    }
-
-    /* Close fullscreen */
-    function closeFullscreen() {
-        if (docElement.exitFullscreen) {
-            docElement.exitFullscreen();
-        } else if (docElement.webkitExitFullscreen) { /* Safari */
-            docElement.webkitExitFullscreen();
-        } else if (docElement.msExitFullscreen) { /* IE11 */
-            docElement.msExitFullscreen();
-        }
-    }
+    }, [fullscreen, docElement, openFullscreen, closeFullscreen]);
 
     const opts = {
-        minHeight: '100%',
-        minWidth: '100%',
+        minHeight: minHeight,
+        minWidth: minWidth,
         playerVars: {
             // https://developers.google.com/youtube/player_parameters
             playsinline: 0,
@@ -159,10 +172,10 @@ const VideoJsFrame = ({ video, start, overlayAudio, useOverlay=true}, ) => {
         <div onClick={handleClick}>
             <YouTube className="VideoFrame" iframeClassName="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChage} />
             {useOverlay && (
-                <Overlay showOverlay={showOverlay} slide={slide} fadeDurationInSeconds={fadeDurationInSeconds} overlayAudio={overlayAudio}/>
+                <Overlay showOverlay={showOverlay} slide={overlaySlide} fadeDurationInSeconds={fadeDurationInSeconds} />
             )}
         </div>
     );
 }
 
-export default VideoJsFrame;
+export default VideoFadeFrame;

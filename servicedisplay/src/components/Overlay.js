@@ -1,11 +1,11 @@
 import React from 'react';
 import './Overlay.css';
 
-function Overlay(props) {
+function Overlay({ showOverlay, fadeDurationInSeconds, slide }) {
     return (
         <div style={{
-            animation: props.showOverlay ? "fadeOut " + props.fadeDurationInSeconds + "s" : "fadeIn " + props.fadeDurationInSeconds + "s",
-            opacity: props.showOverlay ? "1" : "0",
+            animation: showOverlay ? "fadeOut " + fadeDurationInSeconds + "s" : "fadeIn " + fadeDurationInSeconds + "s",
+            opacity: showOverlay ? "1" : "0",
             position: "absolute",
             top: "0",
             left: "0",
@@ -14,8 +14,8 @@ function Overlay(props) {
             backgroundColor: "rgba(0, 0, 0)", /* black */
             pointerEvents: "all",
         }}>
-            {props.slide ?
-                <img src={props.slide} height="99%" width="99%" alt="Overlay Slide" />
+            {slide ?
+                <img src={slide} height="99%" width="99%" alt="Overlay Slide" />
                 : 
                 <div />
             }
