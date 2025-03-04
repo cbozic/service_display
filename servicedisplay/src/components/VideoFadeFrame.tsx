@@ -155,7 +155,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
 
   return (
     <div onClick={handleClick}>
-      <YouTube className="VideoFrame" iframeClassName="VideoFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChange} />
+      <YouTube className="VideoFadeFrame" iframeClassName="VideoFadeFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChange} />
       {useOverlay && (
         <Overlay showOverlay={showOverlay} slide={overlaySlide} fadeDurationInSeconds={fadeDurationInSeconds} />
       )}
