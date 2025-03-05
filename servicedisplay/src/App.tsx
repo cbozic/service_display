@@ -13,7 +13,7 @@ const flexlayout_json = {
     children: [
       {
         type: "tabset",
-        weight: 50,
+        weight: 25,
         children: [
           {
             type: "tab",
@@ -24,7 +24,7 @@ const flexlayout_json = {
       },
       {
         type: "tabset",
-        weight: 50,
+        weight: 75,
         children: [
           {
             type: "tab",
@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [video, setVideo] = useState<string>('xkroW79ssOk');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
+  const videoPlayerRef = useRef(null);
 
 
   const handleSubmit = (e: FormEvent) => {
@@ -81,7 +82,7 @@ const App: React.FC = () => {
       );
     } else if (component === "video") {
       return (
-        <div style={{ position: 'relative', height: '100%' }}>
+        <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
           <VideoFadeFrame video={video} startSeconds={parseInt(startTimeInSeconds)} overlaySlide={overlaySlide} />
         </div>
       );
