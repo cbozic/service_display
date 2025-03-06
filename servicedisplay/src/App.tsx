@@ -19,7 +19,7 @@ const flexlayout_json = {
         children: [
           {
             type: "tabset",
-            weight: 67,
+            weight: 75,
             children: [
               {
                 type: "tab",
@@ -35,7 +35,7 @@ const flexlayout_json = {
           },
           {
             type: "tabset",
-            weight: 33,
+            weight: 25,
             children: [
               {
                 type: "tab",
@@ -72,6 +72,7 @@ const App: React.FC = () => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -97,11 +98,28 @@ const App: React.FC = () => {
     }
   }, [player, isPlayerReady]);
 
+  const handleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  // Handle flexlayout popout state
+  const handleTabPopout = useCallback((node: TabNode) => {
+    // When a tab is popped out, we want to exit fullscreen if it's active
+    if (node.getComponent() === 'video' && document.fullscreenElement) {
+      document.exitFullscreen().catch(e => {
+        console.log('Error exiting fullscreen:', e);
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space' && !event.repeat && isPlayerReady) {
         event.preventDefault();
         handlePlayPause();
+      } else if (event.code === 'KeyF' && !event.repeat) {
+        event.preventDefault();
+        handleFullscreen();
       }
     };
 
@@ -109,7 +127,29 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handlePlayPause, isPlayerReady]);
+  }, [handlePlayPause, isPlayerReady, handleFullscreen]);
+
+  // Handle fullscreen changes from external sources
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = Boolean(document.fullscreenElement);
+      if (isCurrentlyFullscreen !== isFullscreen) {
+        setIsFullscreen(isCurrentlyFullscreen);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [isFullscreen]);
 
   const handlePlayerReady = useCallback((playerInstance: any) => {
     setPlayer(playerInstance);
@@ -150,6 +190,7 @@ const App: React.FC = () => {
             onPlayerReady={handlePlayerReady}
             onStateChange={handleStateChange}
             isPlaying={isPlaying}
+            isFullscreen={isFullscreen}
           />
         </div>
       );
@@ -162,6 +203,7 @@ const App: React.FC = () => {
             onPlayPause={handlePlayPause}
             onFastForward={handleFastForward}
             onRewind={handleRewind}
+            onFullscreen={handleFullscreen}
             isPlaying={isPlaying}
           />
         </div>
@@ -171,7 +213,18 @@ const App: React.FC = () => {
 
   return (
     <div className='App' style={{ height: '100vh' }}>
-      <Layout model={model} factory={factory} />
+      <Layout 
+        model={model} 
+        factory={factory}
+        onModelChange={(model) => {
+          // Check if we're in a popout window
+          if (window.opener && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {
+              console.log('Error exiting fullscreen:', e);
+            });
+          }
+        }}
+      />
     </div>
   );
 }

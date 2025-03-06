@@ -15,6 +15,7 @@ interface VideoFadeFrameProps {
   onPlayerReady?: (player: any) => void;
   onStateChange?: (state: number) => void;
   isPlaying?: boolean;
+  isFullscreen?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -27,7 +28,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   minWidth = '100%',
   onPlayerReady,
   onStateChange,
-  isPlaying = false
+  isPlaying = false,
+  isFullscreen = false
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -211,14 +213,20 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   useEffect(() => {
     if (player && isPlayerReady) {
       if (isPlaying) {
-        setShowOverlay(false);
+        // Start playing first, but keep overlay visible
         try {
+          player.unMute();
           player.playVideo();
-          fadeToVolume(100, fadeDurationInSeconds);
+          // Start the fade in effect
+          fadeToVolume(100, fadeDurationInSeconds, () => {
+            // Only hide overlay after fade is complete
+            setShowOverlay(false);
+          });
         } catch (e) {
           console.log('Error starting playback:', e);
         }
       } else {
+        // Show overlay immediately when pausing
         setShowOverlay(true);
         fadeToVolume(0, fadeDurationInSeconds, () => {
           if (player && isPlayerReady) {
@@ -247,26 +255,29 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     };
 
     if (element) {
-      if (element.requestFullscreen) {
-        element.requestFullscreen();
-      } else if (element.webkitRequestFullscreen) { /* Safari */
-        element.webkitRequestFullscreen();
-      } else if (element.msRequestFullscreen) { /* IE11 */
-        element.msRequestFullscreen();
+      try {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          if (element.requestFullscreen) {
+            element.requestFullscreen();
+          } else if (element.webkitRequestFullscreen) { /* Safari */
+            element.webkitRequestFullscreen();
+          } else if (element.msRequestFullscreen) { /* IE11 */
+            element.msRequestFullscreen();
+          }
+        }
+      } catch (e) {
+        console.log('Error toggling fullscreen:', e);
       }
     }
   }, [videoContainerRef]);
 
   useEffect(() => {
-    if (fullscreen) {
-      openFullscreen();
-    }
-  }, [fullscreen, openFullscreen]);
-
-  useEffect(() => {
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        setFullscreen(false);
+      const isCurrentlyFullscreen = Boolean(document.fullscreenElement);
+      if (isCurrentlyFullscreen !== fullscreen) {
+        setFullscreen(isCurrentlyFullscreen);
       }
     };
 
@@ -274,7 +285,20 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [setFullscreen]);
+  }, [fullscreen]);
+
+  // Handle external fullscreen requests
+  useEffect(() => {
+    if (isFullscreen !== fullscreen) {
+      if (isFullscreen) {
+        openFullscreen();
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen().catch(e => {
+          console.log('Error exiting fullscreen:', e);
+        });
+      }
+    }
+  }, [isFullscreen, fullscreen, openFullscreen]);
 
   const opts: YouTubeProps['opts'] = {
     minHeight: minHeight,
@@ -289,6 +313,11 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     },
   };
 
+  // Add CSS transition for overlay opacity
+  const overlayStyle = {
+    transition: `opacity ${fadeDurationInSeconds}s ease-in-out`
+  };
+
   return (
     <div ref={videoContainerRef} onClick={handleClick}>
       <YouTube 
@@ -300,7 +329,12 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         onStateChange={onStateChangeHandler} 
       />
       {useOverlay && (
-        <Overlay showOverlay={showOverlay} slide={overlaySlide} fadeDurationInSeconds={fadeDurationInSeconds} />
+        <Overlay 
+          showOverlay={showOverlay} 
+          slide={overlaySlide} 
+          fadeDurationInSeconds={fadeDurationInSeconds}
+          style={overlayStyle}
+        />
       )}
     </div>
   );

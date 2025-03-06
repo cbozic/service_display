@@ -4,11 +4,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
 import FastRewindIcon from '@mui/icons-material/FastRewind';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
   onFastForward: () => void;
   onRewind: () => void;
+  onFullscreen: () => void;
   isPlaying: boolean;
 }
 
@@ -16,6 +18,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onPlayPause, 
   onFastForward, 
   onRewind,
+  onFullscreen,
   isPlaying 
 }) => {
   return (
@@ -53,6 +56,15 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           sx={{ color: 'white' }}
         >
           <FastForwardIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Toggle Fullscreen (F)">
+        <IconButton 
+          onClick={onFullscreen}
+          sx={{ color: 'white' }}
+        >
+          <FullscreenIcon />
         </IconButton>
       </Tooltip>
     </Box>
