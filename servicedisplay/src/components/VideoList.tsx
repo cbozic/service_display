@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Box, Card, CardMedia, CardContent } from '@mui/material';
+import { Box, Card, CardMedia, CardContent, Typography, Grid } from '@mui/material';
 
 interface VideoListProps {
-  setVideo: (value: string) => void;
+  setVideo: (videoId: string) => void;
 }
 
 interface VideoData {
@@ -46,33 +46,61 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
     fetchVideos();
   }, []);
 
+  const cardStyle = {
+    backgroundColor: 'var(--dark-surface)',
+    border: '1px solid var(--dark-border)',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      borderColor: 'var(--accent-color)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+    }
+  };
+
+  const mediaStyle = {
+    height: 140,
+    backgroundColor: 'var(--darker-bg)'
+  };
+
+  const titleStyle = {
+    color: 'var(--dark-text)',
+    fontSize: '1rem',
+    fontWeight: 500,
+    marginBottom: 1
+  };
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2 }}>
-      <h1>Video List</h1>
-      {videos.map(video => (
-        <Card key={video.videoId} sx={{ width: '100%', maxWidth: 600 }}>
-          <CardMedia
-            component="img"
-            height="200"
-            image={video.thumbnailUrl}
-            alt={video.title}
-            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-              // Fallback to medium quality thumbnail if maxresdefault is not available
-              e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
-            }}
-          />
-          <CardContent>
-            <Button 
-              onClick={() => setVideo(video.videoId)} 
-              variant="contained" 
-              color="primary"
-              fullWidth
+    <Box sx={{ padding: 2 }}>
+      <Typography variant="h5" sx={{ color: 'var(--dark-text)', marginBottom: 3 }}>
+        Video List
+      </Typography>
+      <Grid container spacing={2}>
+        {videos.map((video) => (
+          <Grid item xs={12} key={video.videoId}>
+            <Card 
+              sx={cardStyle}
+              onClick={() => setVideo(video.videoId)}
             >
-              {video.title}
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+              <CardMedia
+                component="img"
+                sx={mediaStyle}
+                image={video.thumbnailUrl}
+                alt={video.title}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
+                }}
+              />
+              <CardContent>
+                <Typography sx={titleStyle}>
+                  {video.title}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
 };
