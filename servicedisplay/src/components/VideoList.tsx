@@ -25,16 +25,13 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
         });
         const videoData = Array.from(videoDataMap.entries()).map(([videoId, title]) => ({ videoId, title }));
         setVideos(videoData);
-        if (videoData.length > 0) {
-          setVideo(videoData[0].videoId);
-        }
       } catch (error) {
         console.error('Error fetching videos:', error);
       }
     };
 
     fetchVideos();
-  }, [setVideo]);
+  }, []);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2 }}>
