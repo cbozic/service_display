@@ -2,7 +2,7 @@ import React, { useState, FormEvent, useRef } from 'react';
 import './App.css';
 import VideoFadeFrame from './components/VideoFadeFrame';
 import VideoConfigurationForm from './components/VideoConfigurationForm';
-import YoutubeIframe from './components/YoutubeIframe';
+import VideoList from './components/VideoList';
 import { Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
@@ -14,7 +14,7 @@ const flexlayout_json = {
     children: [
       {
         type: "tabset",
-        weight: 25,
+        weight: 50,
         children: [
           {
             type: "tab",
@@ -24,19 +24,43 @@ const flexlayout_json = {
         ]
       },
       {
-        type: "tabset",
+        type: "column",
         weight: 75,
         children: [
           {
-            type: "tab",
-            name: "Video Display",
-            component: "video",
-            enablePopout: true,
+            type: "row",
+            weight: 50,
+            children: [
+              {
+                type: "tabset",
+                weight: 50,
+                children: [
+                  {
+                    type: "tab",
+                    name: "Video List",
+                    component: "videoList"
+                  }
+                ]
+              }
+            ]
           },
           {
-            type: "tab",
-            name: "YouTube",
-            component: "youtube"
+            type: "row",
+            weight: 50,
+            children: [
+              {
+                type: "tabset",
+                weight: 50,
+                children: [
+                  {
+                    type: "tab",
+                    name: "Video Display",
+                    component: "video",
+                    enablePopout: true,
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
@@ -76,8 +100,8 @@ const App: React.FC = () => {
           <VideoFadeFrame video={video} startSeconds={parseInt(startTimeInSeconds)} overlaySlide={overlaySlide} />
         </div>
       );
-    } else if (component === "youtube") {
-      return <YoutubeIframe />;
+    } else if (component === "videoList") {
+      return <VideoList setVideo={setVideo} />;
     }
   };
 
