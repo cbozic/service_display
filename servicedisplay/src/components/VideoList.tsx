@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Box, Card, CardMedia, CardContent, Typography, Grid } from '@mui/material';
+import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert } from '@mui/material';
 
 interface VideoListProps {
   setVideo: (videoId: string) => void;
@@ -14,15 +14,21 @@ interface VideoData {
 
 const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
+  const [error, setError] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchVideos = async () => {
       try {
         const response = await axios.get('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
         const html = response.data;
-        console.log(html);
         const videoIds = Array.from(html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi) as IterableIterator<RegExpMatchArray>).map((match: RegExpMatchArray) => match[1]);
         const titles = Array.from(html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g) as IterableIterator<RegExpMatchArray>).map((match: RegExpMatchArray) => match[1]);
+        
+        if (!videoIds.length || !titles.length) {
+          setError(true);
+          return;
+        }
+
         const videoDataMap = new Map<string, { title: string; thumbnailUrl: string }>();
         videoIds.forEach((videoId, index) => {
           if (!videoDataMap.has(videoId)) {
@@ -40,6 +46,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
         setVideos(videoData);
       } catch (error) {
         console.error('Error fetching videos:', error);
+        setError(true);
       }
     };
 
@@ -71,33 +78,63 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
     marginBottom: 1
   };
 
+  const alertStyle = {
+    backgroundColor: 'var(--dark-surface)',
+    color: 'var(--dark-text)',
+    border: '1px solid var(--dark-border)',
+    '& .MuiAlert-icon': {
+      color: 'var(--accent-color)'
+    },
+    '& .MuiAlert-message': {
+      textAlign: 'left',
+      width: '100%'
+    }
+  };
+
   return (
     <Box sx={{ padding: 2 }}>
-      <Grid container spacing={2}>
-        {videos.map((video) => (
-          <Grid item xs={12} key={video.videoId}>
-            <Card 
-              sx={cardStyle}
-              onClick={() => setVideo(video.videoId)}
-            >
-              <CardMedia
-                component="img"
-                sx={mediaStyle}
-                image={video.thumbnailUrl}
-                alt={video.title}
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
-                }}
-              />
-              <CardContent>
-                <Typography sx={titleStyle}>
-                  {video.title}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {error ? (
+        <Alert severity="info" sx={alertStyle}>
+          <Typography variant="body1" sx={{ textAlign: 'left' }}>
+            Unable to fetch video data. You may need to:
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, textAlign: 'left' }}>
+            1. Enable Developer Mode in your browser's settings
+          </Typography>
+          <Typography variant="body2" sx={{ textAlign: 'left' }}>
+            2. Disable CORS or "cross-origin restrictions" in Advanced Developer Settings
+          </Typography>
+          <Typography variant="body2" sx={{ textAlign: 'left' }}>
+            3. Refresh the page
+          </Typography>
+        </Alert>
+      ) : (
+        <Grid container spacing={2}>
+          {videos.map((video) => (
+            <Grid item xs={12} key={video.videoId}>
+              <Card 
+                sx={cardStyle}
+                onClick={() => setVideo(video.videoId)}
+              >
+                <CardMedia
+                  component="img"
+                  sx={mediaStyle}
+                  image={video.thumbnailUrl}
+                  alt={video.title}
+                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                    e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
+                  }}
+                />
+                <CardContent>
+                  <Typography sx={titleStyle}>
+                    {video.title}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   );
 };

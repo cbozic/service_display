@@ -23,7 +23,7 @@ const flexlayout_json = {
             children: [
               {
                 type: "tab",
-                name: "Video List",
+                name: "Videos",
                 component: "videoList"
               },
               {
