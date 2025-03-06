@@ -33,21 +33,37 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     //do something here if you want
   };
 
+  const hideOverlayAndStartPlaying = useCallback(() => {
+    setShowOverlay(false);
+    setStartPlaying(true);
+  }, []);
+
+  const showOverlayAndPausePlaying = useCallback(() => {
+    setShowOverlay(true);
+    setStartPlaying(false);
+  }, []);
+
+  const rewindSeconds = useCallback((seconds: number) => {
+    player.seekTo(player.getCurrentTime() - seconds);
+  }, [player]);
+
+  const fastForwardSeconds = useCallback((seconds: number) => {
+    player.seekTo(player.getCurrentTime() + seconds);
+  }, [player]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       console.log(event.code);
       if (event.code === 'Space') {
         if (showOverlay) {
-          setShowOverlay(false);
-          setStartPlaying(true);
+          hideOverlayAndStartPlaying();
         } else {
-          setShowOverlay(true);
-          setStartPlaying(false);
+          showOverlayAndPausePlaying();
         }
       } else if (event.code === 'ArrowLeft') {
-        player.seekTo(player.getCurrentTime() - 5);
+        rewindSeconds(5);
       } else if (event.code === 'ArrowRight') {
-        player.seekTo(player.getCurrentTime() + 15);
+        fastForwardSeconds(15);
       } else if (event.code === 'KeyF') {
         setFullscreen(!fullscreen);
       } else {
@@ -59,7 +75,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showOverlay, player, fullscreen]);
+  }, [showOverlay, fullscreen, fastForwardSeconds, rewindSeconds, hideOverlayAndStartPlaying, showOverlayAndPausePlaying]);
 
   const onPlayerReady: YouTubeProps['onReady'] = useCallback((event) => {
     event.target.seekTo(startSeconds);
