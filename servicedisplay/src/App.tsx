@@ -198,14 +198,27 @@ const App: React.FC = () => {
       return <VideoList setVideo={setVideo} />;
     } else if (component === "controls") {
       return (
-        <div style={{ padding: '20px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <VideoControls 
-            onPlayPause={handlePlayPause}
-            onFastForward={handleFastForward}
-            onRewind={handleRewind}
-            onFullscreen={handleFullscreen}
-            isPlaying={isPlaying}
-          />
+        <div style={{ 
+          height: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
+          <div style={{ 
+            height: '80px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center'
+          }}>
+            <VideoControls 
+              onPlayPause={handlePlayPause}
+              onFastForward={handleFastForward}
+              onRewind={handleRewind}
+              onFullscreen={handleFullscreen}
+              isPlaying={isPlaying}
+            />
+          </div>
         </div>
       );
     }
