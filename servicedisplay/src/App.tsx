@@ -71,7 +71,7 @@ const flexlayout_json = {
 const model = Model.fromJson(flexlayout_json);
 
 const App: React.FC = () => {
-  const [video, setVideo] = useState<string>('ickhkAaLtis');
+  const [video, setVideo] = useState<string>('');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
   const videoPlayerRef = useRef(null);

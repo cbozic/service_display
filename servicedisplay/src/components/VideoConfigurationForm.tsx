@@ -1,5 +1,5 @@
 import React, { FormEvent } from 'react';
-import { TextField, Button, Box } from '@mui/material';
+import { TextField, Box } from '@mui/material';
 
 interface VideoConfigurationFormProps {
   video: string;
@@ -41,9 +41,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
         value={overlaySlide}
         onChange={(e) => setOverlaySlide(e.target.value)}
       />
-      <Button type="submit" variant="contained" color="primary">
-        Submit
-      </Button>
     </Box>
   );
 };
