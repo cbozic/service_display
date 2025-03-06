@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './VideoFadeFrame.css';
 import YouTube, { YouTubeProps } from 'react-youtube';
 
@@ -27,7 +27,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [startPlaying, setStartPlaying] = useState<boolean>(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
-  const docElement = document.documentElement;
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   const handleClick = () => {
     //do something here if you want
@@ -141,20 +141,40 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   }, [startPlaying, player, fadeToVolume, isPlayerStopped, fadeDurationInSeconds]);
 
   const openFullscreen = useCallback(() => {
-    if (docElement) {
-      if (docElement.requestFullscreen) {
-        docElement.requestFullscreen();
+    const element = videoContainerRef.current as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+      msRequestFullscreen?: () => Promise<void>;
+    };
+
+    if (element) {
+      if (element.requestFullscreen) {
+        element.requestFullscreen();
+      } else if (element.webkitRequestFullscreen) { /* Safari */
+        element.webkitRequestFullscreen();
+      } else if (element.msRequestFullscreen) { /* IE11 */
+        element.msRequestFullscreen();
       }
     }
-  }, [docElement]);
+  }, [videoContainerRef]);
 
   useEffect(() => {
-    if (docElement) {
-      if (fullscreen) {
-        openFullscreen();
-      }
+    if (fullscreen) {
+      openFullscreen();
     }
-  }, [fullscreen, docElement, openFullscreen]);
+  }, [fullscreen, openFullscreen]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFullscreen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [setFullscreen]);
 
   const opts: YouTubeProps['opts'] = {
     minHeight: minHeight,
@@ -170,7 +190,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   };
 
   return (
-    <div onClick={handleClick}>
+    <div ref={videoContainerRef} onClick={handleClick}>
       <YouTube className="VideoFadeFrame" iframeClassName="VideoFadeFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChange} />
       {useOverlay && (
         <Overlay showOverlay={showOverlay} slide={overlaySlide} fadeDurationInSeconds={fadeDurationInSeconds} />
