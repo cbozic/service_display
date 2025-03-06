@@ -1,8 +1,8 @@
 :root {
-  --dark-bg: #1e1e2e;
-  --darker-bg: #1a1b26;
-  --dark-surface: #2a2b3d;
-  --dark-border: #404258;
+  --dark-bg: #1a1a1a;
+  --darker-bg: #111111;
+  --dark-surface: #222222;
+  --dark-border: #333333;
   --dark-text: #ffffff;
   --dark-text-secondary: #c0c0d0;
   --accent-color: #3d84f7;
@@ -19,31 +19,64 @@ body {
 
 /* FlexLayout dark theme overrides */
 .flexlayout__tab {
-  background-color: var(--darker-bg) !important;
-  border: 1px solid var(--dark-border) !important;
+  background-color: var(--dark-bg) !important;
+  border: 1px solid var(--darker-border) !important;
 }
 
 .flexlayout__tabset {
   background-color: var(--dark-bg) !important;
 }
 
+.flexlayout__tabset_tabbar_outer {
+  background-color: var(--dark-bg) !important;
+}
+
+.flexlayout__tabset_tabbar_inner {
+  background-color: var(--dark-bg) !important;
+}
+
 .flexlayout__tab_button {
-  background-color: var(--dark-surface) !important;
+  background-color: var(--dark-bg) !important;
   color: var(--dark-text) !important;
-  border: 1px solid var(--dark-border) !important;
+  border: 1px solid var(--darker-border) !important;
 }
 
 .flexlayout__tab_button--selected {
-  background-color: var(--darker-bg) !important;
+  background-color: var(--dark-surface) !important;
   border-bottom: 2px solid var(--accent-color) !important;
 }
 
 .flexlayout__tab_button:hover {
-  background-color: var(--darker-bg) !important;
+  background-color: var(--dark-surface) !important;
 }
 
 .flexlayout__splitter {
   background-color: var(--dark-border) !important;
+}
+
+.flexlayout__tab_toolbar {
+  background-color: var(--darker-bg) !important;
+}
+
+.flexlayout__tab_toolbar_button {
+  background-color: var(--darker-bg) !important;
+  color: var(--dark-text) !important;
+}
+
+.flexlayout__tab_toolbar_button:hover {
+  background-color: var(--dark-surface) !important;
+}
+
+.flexlayout__tab_border_main {
+  background-color: var(--darker-bg) !important;
+}
+
+.flexlayout__border {
+  background-color: var(--darker-bg) !important;
+}
+
+.flexlayout__tab_border {
+  background-color: var(--darker-bg) !important;
 }
 
 /* Form elements */

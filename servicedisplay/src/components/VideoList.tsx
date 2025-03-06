@@ -73,9 +73,6 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
 
   return (
     <Box sx={{ padding: 2 }}>
-      <Typography variant="h5" sx={{ color: 'var(--dark-text)', marginBottom: 3 }}>
-        Video List
-      </Typography>
       <Grid container spacing={2}>
         {videos.map((video) => (
           <Grid item xs={12} key={video.videoId}>

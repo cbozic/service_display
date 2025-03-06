@@ -28,7 +28,7 @@ const flexlayout_json = {
               },
               {
                 type: "tab",
-                name: "Video Configuration",
+                name: "Settings",
                 component: "form"
               }
             ]
@@ -39,7 +39,7 @@ const flexlayout_json = {
             children: [
               {
                 type: "tab",
-                name: "Video Controls",
+                name: "Controls",
                 component: "controls"
               }
             ]
@@ -52,7 +52,7 @@ const flexlayout_json = {
         children: [
           {
             type: "tab",
-            name: "Video Display",
+            name: "Display",
             component: "video",
             enablePopout: true,
           }

@@ -61,9 +61,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
 
   return (
     <Box sx={{ padding: 2 }}>
-      <Typography variant="h5" sx={{ color: 'var(--dark-text)', marginBottom: 3 }}>
-        Video Configuration
-      </Typography>
       <Card sx={cardStyle}>
         <CardContent>
           <form onSubmit={handleSubmit}>
