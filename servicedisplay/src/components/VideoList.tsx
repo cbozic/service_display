@@ -21,8 +21,11 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
       try {
         const response = await axios.get('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
         const html = response.data;
-        const videoIds = Array.from(html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi) as IterableIterator<RegExpMatchArray>).map((match: RegExpMatchArray) => match[1]);
-        const titles = Array.from(html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g) as IterableIterator<RegExpMatchArray>).map((match: RegExpMatchArray) => match[1]);
+        const videoMatches = html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi);
+        const titleMatches = html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g);
+        
+        const videoIds = Array.from(videoMatches, (match: RegExpMatchArray) => match[1]);
+        const titles = Array.from(titleMatches, (match: RegExpMatchArray) => match[1]);
         
         if (!videoIds.length || !titles.length) {
           setError(true);
@@ -31,13 +34,14 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
 
         const videoDataMap = new Map<string, { title: string; thumbnailUrl: string }>();
         videoIds.forEach((videoId, index) => {
-          if (!videoDataMap.has(videoId)) {
+          if (index < titles.length && !videoDataMap.has(videoId)) {
             videoDataMap.set(videoId, {
               title: titles[index],
               thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
             });
           }
         });
+        
         const videoData = Array.from(videoDataMap.entries()).map(([videoId, data]) => ({
           videoId,
           title: data.title,

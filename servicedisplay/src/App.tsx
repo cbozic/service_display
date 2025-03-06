@@ -4,10 +4,10 @@ import VideoFadeFrame from './components/VideoFadeFrame';
 import VideoConfigurationForm from './components/VideoConfigurationForm';
 import VideoList from './components/VideoList';
 import VideoControls from './components/VideoControls';
-import { Layout, Model, TabNode } from 'flexlayout-react';
+import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
-const flexlayout_json = {
+const flexlayout_json: IJsonModel = {
   global: {},
   borders: [],
   layout: {
@@ -68,7 +68,7 @@ const App: React.FC = () => {
   const [video, setVideo] = useState<string>('oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
-  const videoPlayerRef = useRef(null);
+  const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
@@ -229,7 +229,7 @@ const App: React.FC = () => {
       <Layout 
         model={model} 
         factory={factory}
-        onModelChange={(model) => {
+        onModelChange={(model: Model) => {
           // Check if we're in a popout window
           if (window.opener && document.fullscreenElement) {
             document.exitFullscreen().catch(e => {
