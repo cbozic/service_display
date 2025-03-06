@@ -1,8 +1,9 @@
-import React, { useState, FormEvent, useRef } from 'react';
+import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 import VideoFadeFrame from './components/VideoFadeFrame';
 import VideoConfigurationForm from './components/VideoConfigurationForm';
 import VideoList from './components/VideoList';
+import VideoControls from './components/VideoControls';
 import { Layout, Model, TabNode } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
@@ -13,54 +14,47 @@ const flexlayout_json = {
     type: "row",
     children: [
       {
-        type: "tabset",
-        weight: 50,
-        children: [
-          {
-            type: "tab",
-            name: "Video Configuration",
-            component: "form"
-          }
-        ]
-      },
-      {
         type: "column",
-        weight: 75,
+        weight: 25,
         children: [
           {
-            type: "row",
-            weight: 50,
+            type: "tabset",
+            weight: 67,
             children: [
               {
-                type: "tabset",
-                weight: 50,
-                children: [
-                  {
-                    type: "tab",
-                    name: "Video List",
-                    component: "videoList"
-                  }
-                ]
+                type: "tab",
+                name: "Video List",
+                component: "videoList"
+              },
+              {
+                type: "tab",
+                name: "Video Configuration",
+                component: "form"
               }
             ]
           },
           {
-            type: "row",
-            weight: 50,
+            type: "tabset",
+            weight: 33,
             children: [
               {
-                type: "tabset",
-                weight: 50,
-                children: [
-                  {
-                    type: "tab",
-                    name: "Video Display",
-                    component: "video",
-                    enablePopout: true,
-                  }
-                ]
+                type: "tab",
+                name: "Video Controls",
+                component: "controls"
               }
             ]
+          }
+        ]
+      },
+      {
+        type: "tabset",
+        weight: 75,
+        children: [
+          {
+            type: "tab",
+            name: "Video Display",
+            component: "video",
+            enablePopout: true,
           }
         ]
       }
@@ -71,14 +65,66 @@ const flexlayout_json = {
 const model = Model.fromJson(flexlayout_json);
 
 const App: React.FC = () => {
-  const [video, setVideo] = useState<string>('');
+  const [video, setVideo] = useState<string>('oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
   const videoPlayerRef = useRef(null);
+  const [player, setPlayer] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
   };
+
+  const handlePlayPause = useCallback(() => {
+    if (isPlayerReady) {
+      setIsPlaying(prev => !prev);
+    }
+  }, [isPlayerReady]);
+
+  const handleFastForward = useCallback(() => {
+    if (player && isPlayerReady) {
+      const currentTime = player.getCurrentTime();
+      player.seekTo(currentTime + 15, true);
+    }
+  }, [player, isPlayerReady]);
+
+  const handleRewind = useCallback(() => {
+    if (player && isPlayerReady) {
+      const currentTime = player.getCurrentTime();
+      player.seekTo(currentTime - 5, true);
+    }
+  }, [player, isPlayerReady]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && !event.repeat && isPlayerReady) {
+        event.preventDefault();
+        handlePlayPause();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handlePlayPause, isPlayerReady]);
+
+  const handlePlayerReady = useCallback((playerInstance: any) => {
+    setPlayer(playerInstance);
+    setIsPlayerReady(true);
+  }, []);
+
+  const handleStateChange = useCallback((state: number) => {
+    if (!isPlayerReady) return;
+    
+    // Only update playing state if it's different from current state
+    const shouldBePlaying = state === 1;
+    if (shouldBePlaying !== isPlaying) {
+      setIsPlaying(shouldBePlaying);
+    }
+  }, [isPlaying, isPlayerReady]);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -97,11 +143,29 @@ const App: React.FC = () => {
     } else if (component === "video") {
       return (
         <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
-          <VideoFadeFrame video={video} startSeconds={parseInt(startTimeInSeconds)} overlaySlide={overlaySlide} />
+          <VideoFadeFrame 
+            video={video} 
+            startSeconds={parseInt(startTimeInSeconds)} 
+            overlaySlide={overlaySlide}
+            onPlayerReady={handlePlayerReady}
+            onStateChange={handleStateChange}
+            isPlaying={isPlaying}
+          />
         </div>
       );
     } else if (component === "videoList") {
       return <VideoList setVideo={setVideo} />;
+    } else if (component === "controls") {
+      return (
+        <div style={{ padding: '20px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <VideoControls 
+            onPlayPause={handlePlayPause}
+            onFastForward={handleFastForward}
+            onRewind={handleRewind}
+            isPlaying={isPlaying}
+          />
+        </div>
+      );
     }
   };
 

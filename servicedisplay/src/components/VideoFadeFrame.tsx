@@ -12,6 +12,9 @@ interface VideoFadeFrameProps {
   fadeDurationInSeconds?: number;
   minHeight?: string;
   minWidth?: string;
+  onPlayerReady?: (player: any) => void;
+  onStateChange?: (state: number) => void;
+  isPlaying?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -22,52 +25,43 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   fadeDurationInSeconds = 2,
   minHeight = '100%',
   minWidth = '100%',
+  onPlayerReady,
+  onStateChange,
+  isPlaying = false
 }) => {
   const [player, setPlayer] = useState<any>(null);
-  const [startPlaying, setStartPlaying] = useState<boolean>(false);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleClick = () => {
     //do something here if you want
   };
 
-  const hideOverlayAndStartPlaying = useCallback(() => {
-    setShowOverlay(false);
-    setStartPlaying(true);
-  }, []);
-
-  const showOverlayAndPausePlaying = useCallback(() => {
-    setShowOverlay(true);
-    setStartPlaying(false);
-  }, []);
-
   const rewindSeconds = useCallback((seconds: number) => {
-    player.seekTo(player.getCurrentTime() - seconds);
-  }, [player]);
+    if (player && isPlayerReady) {
+      const currentTime = player.getCurrentTime();
+      player.seekTo(currentTime - seconds);
+    }
+  }, [player, isPlayerReady]);
 
   const fastForwardSeconds = useCallback((seconds: number) => {
-    player.seekTo(player.getCurrentTime() + seconds);
-  }, [player]);
+    if (player && isPlayerReady) {
+      const currentTime = player.getCurrentTime();
+      player.seekTo(currentTime + seconds);
+    }
+  }, [player, isPlayerReady]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log(event.code);
-      if (event.code === 'Space') {
-        if (showOverlay) {
-          hideOverlayAndStartPlaying();
-        } else {
-          showOverlayAndPausePlaying();
-        }
-      } else if (event.code === 'ArrowLeft') {
+      if (event.code === 'ArrowLeft') {
         rewindSeconds(5);
       } else if (event.code === 'ArrowRight') {
         fastForwardSeconds(15);
       } else if (event.code === 'KeyF') {
         setFullscreen(!fullscreen);
-      } else {
-        console.log('Unhandled key: ' + event.code);
       }
     };
 
@@ -75,70 +69,176 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showOverlay, fullscreen, fastForwardSeconds, rewindSeconds, hideOverlayAndStartPlaying, showOverlayAndPausePlaying]);
+  }, [fullscreen, fastForwardSeconds, rewindSeconds]);
 
-  const onPlayerReady: YouTubeProps['onReady'] = useCallback((event) => {
-    event.target.seekTo(startSeconds);
-    if (showOverlay) {
-      event.target.setVolume(0);
-      event.target.pauseVideo();
-    } else {
-      event.target.setVolume(100);
-      event.target.playVideo();
-    }
-    setPlayer(event.target);
-  }, [startSeconds, showOverlay]);
+  const onPlayerReadyHandler: YouTubeProps['onReady'] = useCallback((event) => {
+    const playerInstance = event.target;
+    
+    // Wait a short moment to ensure player is fully initialized
+    setTimeout(() => {
+      try {
+        playerInstance.seekTo(startSeconds);
+        playerInstance.mute(); // Use mute instead of setVolume(0)
+        playerInstance.pauseVideo();
+        setPlayer(playerInstance);
+        setIsPlayerReady(true);
+        onPlayerReady?.(playerInstance);
+      } catch (e) {
+        console.log('Error initializing player:', e);
+      }
+    }, 100);
+  }, [startSeconds, onPlayerReady]);
 
-  const onStateChange: YouTubeProps['onStateChange'] = useCallback((event) => {
+  const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event) => {
+    if (!isPlayerReady) return;
+
     console.log('Player State Changed: ' + event.data);
     if (event.data === 0) {
       // Video has reached the end so reset the player
       setShowOverlay(true);
-      setStartPlaying(false);
       player.seekTo(startSeconds);
+      onStateChange?.(0);
+    } else {
+      onStateChange?.(event.data);
     }
-  }, [player, startSeconds]);
+  }, [player, startSeconds, onStateChange, isPlayerReady]);
 
   const fadeToVolume = useCallback((targetVolume: number, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
-    const currentVolume = player.getVolume();
-    const volumeDifference = targetVolume - currentVolume;
-    const steps = 25; // Number of steps for the fade effect
-    const stepDuration = (fadeDurationInSeconds * 1000) / steps;
-    let currentStep = 0;
+    if (!player || !isPlayerReady) {
+      invokeWhenFinished();
+      return;
+    }
+    
+    // Clear any existing fade timeout
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+    }
 
-    const fadeStep = () => {
-      if (currentStep < steps) {
-        const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
-        player.setVolume(newVolume);
-        currentStep++;
-        setTimeout(fadeStep, stepDuration);
-      } else {
-        player.setVolume(targetVolume);
-        invokeWhenFinished();
+    // For immediate volume changes, just set directly
+    if (fadeDurationInSeconds === 0) {
+      try {
+        if (targetVolume === 0) {
+          player.mute();
+        } else {
+          player.unMute();
+          player.setVolume(targetVolume);
+        }
+      } catch (e) {
+        console.log('Error setting volume directly:', e);
+      }
+      invokeWhenFinished();
+      return;
+    }
+    
+    // For fade effects
+    try {
+      let currentVolume = 0;
+      try {
+        currentVolume = player.getVolume();
+        if (isNaN(currentVolume)) currentVolume = 0;
+      } catch (e) {
+        console.log('Error getting volume:', e);
+      }
+
+      const volumeDifference = targetVolume - currentVolume;
+      const steps = 25;
+      const stepDuration = (fadeDurationInSeconds * 1000) / steps;
+      let currentStep = 0;
+
+      const fadeStep = () => {
+        if (!player || !isPlayerReady) {
+          invokeWhenFinished();
+          return;
+        }
+
+        if (currentStep < steps) {
+          const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
+          try {
+            if (newVolume === 0) {
+              player.mute();
+            } else {
+              player.unMute();
+              player.setVolume(newVolume);
+            }
+            currentStep++;
+            fadeTimeoutRef.current = setTimeout(fadeStep, stepDuration);
+          } catch (e) {
+            console.log('Error in fade step:', e);
+            // Skip to end
+            try {
+              if (targetVolume === 0) {
+                player.mute();
+              } else {
+                player.unMute();
+                player.setVolume(targetVolume);
+              }
+            } catch (e) {
+              console.log('Error setting final volume:', e);
+            }
+            fadeTimeoutRef.current = null;
+            invokeWhenFinished();
+          }
+        } else {
+          try {
+            if (targetVolume === 0) {
+              player.mute();
+            } else {
+              player.unMute();
+              player.setVolume(targetVolume);
+            }
+          } catch (e) {
+            console.log('Error setting final volume:', e);
+          }
+          fadeTimeoutRef.current = null;
+          invokeWhenFinished();
+        }
+      };
+
+      fadeStep();
+    } catch (e) {
+      console.log('Error in fade setup:', e);
+      invokeWhenFinished();
+    }
+
+    return () => {
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = null;
       }
     };
-
-    fadeStep();
-  }, [player]);
-
-  const isPlayerStopped = useCallback(() => {
-    return player.getPlayerState() === 2 || player.getPlayerState() === 5 || player.getPlayerState() === 0 || player.getPlayerState() === -1;
-  }, [player]);
+  }, [player, isPlayerReady]);
 
   useEffect(() => {
-    if (player) {
-      console.log("playing: '" + startPlaying + "' and the player state is: '" + player.getPlayerState() + "'");
-      if (startPlaying && isPlayerStopped()) {
-        player.unMute();
-        player.playVideo();
-        fadeToVolume(100, fadeDurationInSeconds);
-      } else {
-        if (!isPlayerStopped()) {
-          fadeToVolume(0, fadeDurationInSeconds, () => { player.pauseVideo(); });
+    if (player && isPlayerReady) {
+      if (isPlaying) {
+        setShowOverlay(false);
+        try {
+          player.playVideo();
+          fadeToVolume(100, fadeDurationInSeconds);
+        } catch (e) {
+          console.log('Error starting playback:', e);
         }
+      } else {
+        setShowOverlay(true);
+        fadeToVolume(0, fadeDurationInSeconds, () => {
+          if (player && isPlayerReady) {
+            try {
+              player.pauseVideo();
+            } catch (e) {
+              console.log('Error pausing video:', e);
+            }
+          }
+        });
       }
     }
-  }, [startPlaying, player, fadeToVolume, isPlayerStopped, fadeDurationInSeconds]);
+    
+    return () => {
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = null;
+      }
+    };
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume]);
 
   const openFullscreen = useCallback(() => {
     const element = videoContainerRef.current as HTMLElement & {
@@ -191,7 +291,14 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
 
   return (
     <div ref={videoContainerRef} onClick={handleClick}>
-      <YouTube className="VideoFadeFrame" iframeClassName="VideoFadeFrame" opts={opts} videoId={video} onReady={onPlayerReady} onStateChange={onStateChange} />
+      <YouTube 
+        className="VideoFadeFrame" 
+        iframeClassName="VideoFadeFrame" 
+        opts={opts} 
+        videoId={video} 
+        onReady={onPlayerReadyHandler} 
+        onStateChange={onStateChangeHandler} 
+      />
       {useOverlay && (
         <Overlay showOverlay={showOverlay} slide={overlaySlide} fadeDurationInSeconds={fadeDurationInSeconds} />
       )}
