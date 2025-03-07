@@ -10,7 +10,6 @@ interface VideoConfigurationFormProps {
   setOverlaySlide: (value: string) => void;
   playlistUrl: string;
   setPlaylistUrl: (value: string) => void;
-  handleSubmit: (e: React.FormEvent) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -22,7 +21,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   setOverlaySlide,
   playlistUrl,
   setPlaylistUrl,
-  handleSubmit,
 }) => {
   const cardStyle = {
     backgroundColor: 'var(--dark-surface)',
@@ -54,20 +52,11 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
     marginBottom: 2,
   };
 
-  const buttonStyle = {
-    backgroundColor: 'var(--accent-color)',
-    color: 'var(--dark-text)',
-    '&:hover': {
-      backgroundColor: 'var(--accent-hover)',
-    },
-    padding: '10px 24px',
-  };
-
   return (
     <Box sx={{ padding: 2 }}>
       <Card sx={cardStyle}>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <div>
             <TextField
               fullWidth
               label="Video ID"
@@ -103,16 +92,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
               sx={inputStyle}
               placeholder="https://www.youtube.com/playlist?list=..."
             />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-              <Button
-                type="submit"
-                variant="contained"
-                sx={buttonStyle}
-              >
-                Apply Changes
-              </Button>
-            </Box>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </Box>

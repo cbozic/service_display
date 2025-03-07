@@ -180,7 +180,6 @@ const App: React.FC = () => {
           setOverlaySlide={setOverlaySlide}
           playlistUrl={playlistUrl}
           setPlaylistUrl={setPlaylistUrl}
-          handleSubmit={handleSubmit}
         />
       );
     } else if (component === "video") {
