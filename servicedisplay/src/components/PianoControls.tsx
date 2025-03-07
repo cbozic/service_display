@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Piano, KeyboardShortcuts, MidiNumbers } from 'react-piano';
+import { Piano, MidiNumbers } from 'react-piano';
 import 'react-piano/dist/styles.css';
 import HiddenVideoPlayer from './HiddenVideoPlayer';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
@@ -8,11 +8,6 @@ import { VolumeUp, VolumeOff } from '@mui/icons-material';
 // Constants for piano configuration
 const FIRST_NOTE = MidiNumbers.fromNote('c3');
 const LAST_NOTE = MidiNumbers.fromNote('b3');
-const keyboardShortcuts = KeyboardShortcuts.create({
-  firstNote: FIRST_NOTE,
-  lastNote: LAST_NOTE,
-  keyboardConfig: KeyboardShortcuts.HOME_ROW,
-});
 
 // Map MIDI numbers to video IDs (replace these with your actual video IDs)
 // Videos are from https://www.youtube.com/@VishalBhojane
@@ -287,7 +282,6 @@ const PianoControls: React.FC<PianoControlsProps> = ({
           playNote={handleNotePlay}
           stopNote={handleNoteStop}
           width={pianoWidth}
-          keyboardShortcuts={keyboardShortcuts}
         />
       </Box>
       {Object.entries(VIDEO_MAP).map(([midiNumber, videoId]) => (
