@@ -4,6 +4,7 @@ import VideoFadeFrame from './components/VideoFadeFrame';
 import VideoConfigurationForm from './components/VideoConfigurationForm';
 import VideoList from './components/VideoList';
 import VideoControls from './components/VideoControls';
+import PianoControls from './components/PianoControls';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
@@ -41,6 +42,11 @@ const flexlayout_json: IJsonModel = {
                 type: "tab",
                 name: "Controls",
                 component: "controls"
+              },
+              {
+                type: "tab",
+                name: "Piano",
+                component: "piano"
               }
             ]
           }
@@ -221,6 +227,21 @@ const App: React.FC = () => {
               isPlaying={isPlaying}
             />
           </div>
+        </div>
+      );
+    } else if (component === "piano") {
+      return (
+        <div style={{ 
+          height: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
+          <PianoControls 
+            onNotePlay={(midiNumber) => console.log('Note played:', midiNumber)}
+            onNoteStop={(midiNumber) => console.log('Note stopped:', midiNumber)}
+          />
         </div>
       );
     }
