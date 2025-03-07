@@ -33,21 +33,30 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
         const containerHeight = containerRef.current.clientHeight;
         
         // Calculate ideal form width based on container dimensions
+        // Use a more conservative width calculation to prevent scrollbars
         const maxWidth = Math.min(
-          containerWidth * 0.9, // 90% of container width
-          600 // Maximum width in pixels
+          containerWidth - 32, // Account for padding
+          500 // Slightly reduced maximum width for better fit
         );
         
-        // Ensure form isn't too wide relative to height
-        const heightBasedWidth = containerHeight * 1.5;
+        // Ensure form has good proportions relative to height
+        const heightBasedWidth = containerHeight * 1.2; // Reduced multiplier
         const targetWidth = Math.min(maxWidth, heightBasedWidth);
         
-        setFormWidth(`${Math.max(280, targetWidth)}px`); // Minimum width of 280px
+        // Set width with a minimum of 250px (reduced from 280px)
+        setFormWidth(`${Math.max(250, targetWidth)}px`);
       }
     };
 
+    // Debounce the resize updates for better performance
+    let timeoutId: number;
+    const debouncedUpdateSize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(updateFormSize, 100);
+    };
+
     resizeObserverRef.current = new ResizeObserver(() => {
-      window.requestAnimationFrame(updateFormSize);
+      window.requestAnimationFrame(debouncedUpdateSize);
     });
 
     if (containerRef.current) {
@@ -60,6 +69,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
       }
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -69,15 +79,18 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 2,
+    padding: '16px',
+    overflow: 'hidden', // Prevent scrollbars
+    boxSizing: 'border-box' as const,
   };
 
   const cardStyle = {
     width: formWidth,
+    maxWidth: '100%', // Ensure card never exceeds container
     backgroundColor: 'var(--dark-surface)',
     border: '1px solid var(--dark-border)',
     borderRadius: '8px',
-    transition: 'all 0.2s ease',
+    transition: 'width 0.2s ease',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   };
 
@@ -85,6 +98,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 2,
+    width: '100%', // Ensure form takes full width of card
   };
 
   const inputStyle = {
@@ -111,7 +125,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   return (
     <Box ref={containerRef} sx={containerStyle}>
       <Card sx={cardStyle}>
-        <CardContent>
+        <CardContent sx={{ padding: '16px' }}>
           <Box sx={formStyle}>
             <TextField
               fullWidth
