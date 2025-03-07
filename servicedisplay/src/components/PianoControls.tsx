@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Piano, KeyboardShortcuts, MidiNumbers } from 'react-piano';
 import 'react-piano/dist/styles.css';
 import HiddenVideoPlayer from './HiddenVideoPlayer';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip, Slider } from '@mui/material';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
 
 // Constants for piano configuration
@@ -41,6 +41,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   onNoteStop,
 }) => {
   const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(25);
   const [activeNote, setActiveNote] = useState<number | null>(null);
   const [pianoWidth, setPianoWidth] = useState(400);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,7 +103,22 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     display: 'flex',
     gap: '8px',
     justifyContent: 'center',
+    alignItems: 'center',
     width: '100%',
+  };
+
+  const sliderStyle = {
+    width: '120px',
+    color: 'var(--dark-text)',
+    '& .MuiSlider-thumb': {
+      color: 'var(--dark-text)',
+    },
+    '& .MuiSlider-track': {
+      color: 'var(--dark-text)',
+    },
+    '& .MuiSlider-rail': {
+      color: 'rgba(255, 255, 255, 0.3)',
+    },
   };
 
   const buttonStyle = {
@@ -113,9 +129,22 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     },
   };
 
+  const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
+    const value = Array.isArray(newValue) ? newValue[0] : newValue;
+    setVolume(value);
+    if (value === 0) {
+      setIsMuted(true);
+    } else if (isMuted) {
+      setIsMuted(false);
+    }
+  };
+
   const handleToggleMute = () => {
     setIsMuted(!isMuted);
-    if (!isMuted) {
+    if (isMuted) {
+      // Restore previous volume when unmuting
+      if (volume === 0) setVolume(100);
+    } else {
       setActiveNote(null);
     }
   };
@@ -146,6 +175,14 @@ const PianoControls: React.FC<PianoControlsProps> = ({
             {isMuted ? <VolumeOff /> : <VolumeUp />}
           </IconButton>
         </Tooltip>
+        <Slider
+          value={isMuted ? 0 : volume}
+          onChange={handleVolumeChange}
+          aria-label="Volume"
+          min={0}
+          max={100}
+          sx={sliderStyle}
+        />
       </Box>
       <Box sx={pianoWrapperStyle}>
         <Piano
@@ -162,6 +199,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
           videoId={videoId}
           isPlaying={parseInt(midiNumber) === activeNote}
           onVideoEnd={handleVideoEnd}
+          volume={isMuted ? 0 : volume}
         />
       ))}
     </Box>

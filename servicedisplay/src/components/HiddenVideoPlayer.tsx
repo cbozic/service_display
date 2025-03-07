@@ -10,7 +10,8 @@ declare global {
 interface HiddenVideoPlayerProps {
   videoId: string;
   isPlaying: boolean;
-  onVideoEnd: () => void;
+  onVideoEnd?: () => void;
+  volume?: number;
 }
 
 const loadYouTubeAPI = (): Promise<void> => {
@@ -36,6 +37,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   videoId,
   isPlaying,
   onVideoEnd,
+  volume = 25,
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -52,23 +54,26 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     const player = event.target;
     player.mute(); // Mute initially to prevent any sound
     player.pauseVideo(); // Ensure video is paused on load
+    player.setVolume(volume); // Set initial volume
     setPlayer(player);
     setIsPlayerReady(true);
   };
 
   const onStateChange: YouTubeProps['onStateChange'] = (event) => {
     if (event.data === 0) { // Video ended
-      onVideoEnd();
+      onVideoEnd?.();
       setHasStarted(false);
     }
   };
 
+  // Consolidated player control effect
   useEffect(() => {
     if (isPlayerReady && player) {
       try {
         if (isPlaying && !hasStarted) {
           player.seekTo(0);
           player.unMute();
+          player.setVolume(volume);
           player.playVideo();
           setHasStarted(true);
         } else if (!isPlaying && hasStarted) {
@@ -76,12 +81,15 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
           player.seekTo(0);
           player.mute();
           setHasStarted(false);
+        } else if (hasStarted) {
+          // Update volume while playing
+          player.setVolume(volume);
         }
       } catch (error) {
         console.error('Error controlling video:', error);
       }
     }
-  }, [isPlaying, isPlayerReady, player, hasStarted]);
+  }, [isPlaying, isPlayerReady, player, hasStarted, volume]);
 
   const opts: YouTubeProps['opts'] = {
     height: '1',
