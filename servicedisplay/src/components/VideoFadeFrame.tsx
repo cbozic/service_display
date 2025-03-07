@@ -310,7 +310,10 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       disablekb: 1,
       iv_load_policy: 3,
       fs: 0,
+      modestbranding: 1,
     },
+    width: '100%',
+    height: '100%',
   };
 
   // Add CSS transition for overlay opacity
@@ -319,23 +322,40 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   };
 
   return (
-    <div ref={videoContainerRef} onClick={handleClick}>
-      <YouTube 
-        className="VideoFadeFrame" 
-        iframeClassName="VideoFadeFrame" 
-        opts={opts} 
-        videoId={video} 
-        onReady={onPlayerReadyHandler} 
-        onStateChange={onStateChangeHandler} 
-      />
-      {useOverlay && (
-        <Overlay 
-          showOverlay={showOverlay} 
-          slide={overlaySlide} 
-          fadeDurationInSeconds={fadeDurationInSeconds}
-          style={overlayStyle}
+    <div ref={videoContainerRef} onClick={handleClick} style={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden'
+    }}>
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <YouTube 
+          className="VideoFadeFrame" 
+          iframeClassName="VideoFadeFrame" 
+          opts={opts} 
+          videoId={video} 
+          onReady={onPlayerReadyHandler} 
+          onStateChange={onStateChangeHandler} 
         />
-      )}
+        {useOverlay && (
+          <Overlay 
+            showOverlay={showOverlay} 
+            slide={overlaySlide} 
+            fadeDurationInSeconds={fadeDurationInSeconds}
+            style={overlayStyle}
+          />
+        )}
+      </div>
     </div>
   );
 }
