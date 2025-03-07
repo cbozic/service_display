@@ -45,7 +45,7 @@ const flexlayout_json: IJsonModel = {
               },
               {
                 type: "tab",
-                name: "Piano",
+                name: "Keys",
                 component: "piano"
               }
             ]
