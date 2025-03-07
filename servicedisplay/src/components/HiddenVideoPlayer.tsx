@@ -37,7 +37,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   videoId,
   isPlaying,
   onVideoEnd,
-  volume = 25,
+  volume = 15,
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -67,14 +67,16 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     }
 
     let startVolume = currentVolume;
-    const steps = 20; // Number of steps in the fade
-    const interval = 2000 / steps; // Total time = 2000ms
+    const steps = 30; // More steps for smoother fade
+    const interval = 3000 / steps; // Total time = 3000ms
     const volumeStep = startVolume / steps;
     let currentStep = 0;
 
     fadeIntervalRef.current = window.setInterval(() => {
       currentStep++;
-      const newVolume = Math.max(0, startVolume - (volumeStep * currentStep));
+      // Use exponential fade for more natural sound decay
+      const fadeProgress = currentStep / steps;
+      const newVolume = Math.max(0, startVolume * Math.pow(1 - fadeProgress, 1.5));
       
       if (player && newVolume > 0) {
         player.setVolume(newVolume);

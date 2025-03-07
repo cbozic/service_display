@@ -41,25 +41,57 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   onNoteStop,
 }) => {
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(25);
+  const [volume, setVolume] = useState(15);
   const [activeNote, setActiveNote] = useState<number | null>(null);
   const [pianoWidth, setPianoWidth] = useState(400);
   const containerRef = useRef<HTMLDivElement>(null);
   const fadeIntervalRef = useRef<number | null>(null);
   const previousVolumeRef = useRef(volume);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
     const updatePianoSize = () => {
       if (containerRef.current) {
-        // Leave some padding on the sides
-        const newWidth = containerRef.current.clientWidth - 32;
-        setPianoWidth(Math.max(200, newWidth)); // Minimum width of 200px
+        const containerWidth = containerRef.current.clientWidth;
+        const containerHeight = containerRef.current.clientHeight;
+        
+        // Calculate ideal key height (roughly 1/4 of container height)
+        const idealKeyHeight = containerHeight * 0.25;
+        // Piano width should be about 6 times the key height for good proportions
+        const widthFromHeight = idealKeyHeight * 6;
+        
+        // Also consider width-based calculation (85% of container width)
+        const widthFromContainer = containerWidth * 0.85;
+        
+        // Use the smaller of the two widths to ensure piano fits
+        const targetWidth = Math.min(widthFromHeight, widthFromContainer);
+        
+        // Apply minimum width constraint
+        const newWidth = Math.max(200, targetWidth - 32);
+        setPianoWidth(newWidth);
       }
     };
 
+    // Set up ResizeObserver
+    resizeObserverRef.current = new ResizeObserver((entries) => {
+      window.requestAnimationFrame(() => {
+        updatePianoSize();
+      });
+    });
+
+    if (containerRef.current) {
+      resizeObserverRef.current.observe(containerRef.current);
+    }
+
+    // Initial size update
     updatePianoSize();
-    window.addEventListener('resize', updatePianoSize);
-    return () => window.removeEventListener('resize', updatePianoSize);
+
+    // Cleanup
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
   }, []);
 
   const containerStyle = {
@@ -74,6 +106,17 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     gap: '16px',
     width: '100%',
     height: '100%',
+    overflow: 'hidden',
+    position: 'relative' as const,
+  };
+
+  const controlsStyle = {
+    display: 'flex',
+    gap: '8px',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    padding: '0 16px',
   };
 
   const pianoWrapperStyle = {
@@ -82,8 +125,17 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     width: '100%',
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
+    flex: '1 1 auto',
+    minHeight: 0,
+    position: 'relative' as const,
+    margin: 'auto',
     '& .ReactPiano__Keyboard': {
       height: 'auto',
+      maxHeight: '100%',
+      position: 'relative',
+      left: '50%',
+      transform: 'translateX(-50%)',
     },
     '& .ReactPiano__Key--active': {
       backgroundColor: 'var(--accent-color)',
@@ -99,14 +151,6 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     '& .ReactPiano__Key': {
       transition: 'all 0.1s ease',
     },
-  };
-
-  const controlsStyle = {
-    display: 'flex',
-    gap: '8px',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
   };
 
   const sliderStyle = {
@@ -136,16 +180,26 @@ const PianoControls: React.FC<PianoControlsProps> = ({
       clearInterval(fadeIntervalRef.current);
     }
 
-    const steps = 20; // Number of steps in the fade
-    const interval = 2000 / steps; // Total time = 2000ms
-    const volumeStep = (end - start) / steps;
+    const steps = 30; // More steps for smoother fade
+    const interval = 3000 / steps; // Total time = 3000ms
     let currentStep = 0;
 
     setVolume(start);
     fadeIntervalRef.current = window.setInterval(() => {
       currentStep++;
-      const newVolume = Math.max(0, Math.min(100, start + (volumeStep * currentStep)));
+      const fadeProgress = currentStep / steps;
       
+      // Use exponential fade for more natural sound decay
+      let newVolume;
+      if (end > start) {
+        // Fade in: inverse exponential curve
+        newVolume = start + (end - start) * (1 - Math.pow(1 - fadeProgress, 1.5));
+      } else {
+        // Fade out: exponential curve
+        newVolume = start * Math.pow(1 - fadeProgress, 1.5);
+      }
+      
+      newVolume = Math.max(0, Math.min(100, newVolume));
       setVolume(newVolume);
 
       if (currentStep >= steps) {

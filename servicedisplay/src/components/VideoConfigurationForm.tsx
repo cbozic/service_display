@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Box, TextField, Typography, Card, CardContent, Button } from '@mui/material';
 
 interface VideoConfigurationFormProps {
@@ -22,12 +22,69 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   playlistUrl,
   setPlaylistUrl,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [formWidth, setFormWidth] = useState('100%');
+
+  useEffect(() => {
+    const updateFormSize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const containerHeight = containerRef.current.clientHeight;
+        
+        // Calculate ideal form width based on container dimensions
+        const maxWidth = Math.min(
+          containerWidth * 0.9, // 90% of container width
+          600 // Maximum width in pixels
+        );
+        
+        // Ensure form isn't too wide relative to height
+        const heightBasedWidth = containerHeight * 1.5;
+        const targetWidth = Math.min(maxWidth, heightBasedWidth);
+        
+        setFormWidth(`${Math.max(280, targetWidth)}px`); // Minimum width of 280px
+      }
+    };
+
+    resizeObserverRef.current = new ResizeObserver(() => {
+      window.requestAnimationFrame(updateFormSize);
+    });
+
+    if (containerRef.current) {
+      resizeObserverRef.current.observe(containerRef.current);
+    }
+
+    updateFormSize();
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  const containerStyle = {
+    height: '100%',
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  };
+
   const cardStyle = {
+    width: formWidth,
     backgroundColor: 'var(--dark-surface)',
     border: '1px solid var(--dark-border)',
     borderRadius: '8px',
     transition: 'all 0.2s ease',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  };
+
+  const formStyle = {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 2,
   };
 
   const inputStyle = {
@@ -49,14 +106,13 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
     '& .MuiOutlinedInput-input': {
       color: 'var(--dark-text)',
     },
-    marginBottom: 2,
   };
 
   return (
-    <Box sx={{ padding: 2 }}>
+    <Box ref={containerRef} sx={containerStyle}>
       <Card sx={cardStyle}>
         <CardContent>
-          <div>
+          <Box sx={formStyle}>
             <TextField
               fullWidth
               label="Video ID"
@@ -82,7 +138,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
               variant="outlined"
               sx={inputStyle}
             />
-
             <TextField
               fullWidth
               label="Playlist URL"
@@ -92,7 +147,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
               sx={inputStyle}
               placeholder="https://www.youtube.com/playlist?list=..."
             />
-          </div>
+          </Box>
         </CardContent>
       </Card>
     </Box>

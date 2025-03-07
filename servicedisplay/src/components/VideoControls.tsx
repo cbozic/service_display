@@ -1,5 +1,5 @@
-import React from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import React, { useRef, useEffect, useState } from 'react';
+import { IconButton, Tooltip, Box } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
@@ -21,15 +21,75 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onFullscreen,
   isPlaying
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [controlSize, setControlSize] = useState({
+    iconSize: 24,
+    padding: 8,
+  });
+
+  useEffect(() => {
+    const updateControlSizes = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const containerHeight = containerRef.current.clientHeight;
+
+        // Calculate sizes based on container dimensions
+        const minDimension = Math.min(containerWidth / 5, containerHeight / 2);
+        const iconSize = Math.max(20, Math.min(36, minDimension * 0.5));
+        const padding = Math.max(6, Math.min(12, minDimension * 0.25));
+
+        setControlSize({
+          iconSize: Math.round(iconSize),
+          padding: Math.round(padding),
+        });
+      }
+    };
+
+    resizeObserverRef.current = new ResizeObserver(() => {
+      window.requestAnimationFrame(updateControlSizes);
+    });
+
+    if (containerRef.current) {
+      resizeObserverRef.current.observe(containerRef.current);
+    }
+
+    updateControlSizes();
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  const containerStyle = {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: `${controlSize.padding}px`,
+    padding: `${controlSize.padding}px`,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: '12px',
+  };
+
   const buttonStyle = {
     color: 'var(--dark-text)',
+    padding: `${controlSize.padding}px`,
+    transition: 'all 0.2s ease',
     '&:hover': {
       backgroundColor: 'rgba(255, 255, 255, 0.1)'
+    },
+    '& .MuiSvgIcon-root': {
+      fontSize: `${controlSize.iconSize}px`,
+      transition: 'font-size 0.2s ease',
     }
   };
 
   return (
-    <div className="video-controls">
+    <Box ref={containerRef} sx={containerStyle}>
       <Tooltip title="Rewind 5s (Left Arrow)" placement="top">
         <IconButton onClick={onRewind} sx={buttonStyle}>
           <FastRewindIcon />
@@ -53,7 +113,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           <FullscreenIcon />
         </IconButton>
       </Tooltip>
-    </div>
+    </Box>
   );
 };
 
