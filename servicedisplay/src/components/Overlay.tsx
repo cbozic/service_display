@@ -1,32 +1,30 @@
-import React from 'react';
+import React, { CSSProperties } from 'react';
 import './Overlay.css';
 
 interface OverlayProps {
   showOverlay: boolean;
-  fadeDurationInSeconds: number;
   slide?: string;
+  fadeDurationInSeconds: number;
+  style?: CSSProperties;
 }
 
-const Overlay: React.FC<OverlayProps> = ({ showOverlay, fadeDurationInSeconds, slide }) => {
+const Overlay: React.FC<OverlayProps> = ({ 
+  showOverlay, 
+  slide, 
+  fadeDurationInSeconds,
+  style = {}
+}) => {
+  const overlayStyle: CSSProperties = {
+    ...style,
+    opacity: showOverlay ? 1 : 0,
+    pointerEvents: showOverlay ? 'auto' : 'none',
+  };
+
   return (
-    <div style={{
-      animation: showOverlay ? `fadeOut ${fadeDurationInSeconds}s` : `fadeIn ${fadeDurationInSeconds}s`,
-      opacity: showOverlay ? "1" : "0",
-      position: "absolute",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0, 0, 0)", /* black */
-      pointerEvents: "all",
-    }}>
-      {slide ?
-        <img src={slide} height="99%" width="99%" alt="Overlay Slide" />
-        : 
-        <div />
-      }
+    <div className="overlay" style={overlayStyle}>
+      {slide && <img src={slide} alt="Overlay" />}
     </div>
   );
-}
+};
 
 export default Overlay;

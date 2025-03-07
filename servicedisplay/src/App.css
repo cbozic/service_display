@@ -1,5 +1,88 @@
 .App {
   text-align: center;
+  background-color: var(--dark-bg);
+  min-height: 100vh;
+}
+
+/* Import dark theme */
+@import './DarkTheme.css';
+
+/* Video container styles */
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: var(--darker-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* VideoFadeFrame styles */
+.VideoFadeFrame {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.VideoFadeFrame iframe {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  border: none !important;
+  overflow: hidden !important;
+  object-fit: contain !important;
+}
+
+/* Configuration form styles */
+.config-form {
+  padding: 20px;
+  background-color: var(--dark-surface);
+  border-radius: 8px;
+  margin: 16px;
+}
+
+.config-form label {
+  color: var(--dark-text);
+  margin-bottom: 8px;
+  display: block;
+  text-align: left;
+}
+
+.config-form input {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* Material UI icon overrides */
+.MuiSvgIcon-root {
+  color: var(--dark-text) !important;
+}
+
+/* Tooltip styles */
+.MuiTooltip-tooltip {
+  background-color: var(--dark-surface) !important;
+  color: var(--dark-text) !important;
+  border: 1px solid var(--dark-border) !important;
+}
+
+/* Layout container styles */
+.layout-container {
+  display: flex;
+  height: 100vh;
+  background-color: var(--dark-bg);
+}
+
+/* Popout window styles */
+.flexlayout__tab_frame_popout {
+  background-color: var(--dark-bg) !important;
 }
 
 .App-logo {
