@@ -213,15 +213,13 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   useEffect(() => {
     if (player && isPlayerReady) {
       if (isPlaying) {
-        // Start playing first, but keep overlay visible
         try {
+          // Start fading out overlay immediately
+          setShowOverlay(false);
           player.unMute();
           player.playVideo();
-          // Start the fade in effect
-          fadeToVolume(100, fadeDurationInSeconds, () => {
-            // Only hide overlay after fade is complete
-            setShowOverlay(false);
-          });
+          // Start the fade in effect for volume
+          fadeToVolume(100, fadeDurationInSeconds);
         } catch (e) {
           console.log('Error starting playback:', e);
         }
