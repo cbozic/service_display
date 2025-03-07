@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 
 declare global {
@@ -43,6 +43,8 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isApiReady, setIsApiReady] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [currentVolume, setCurrentVolume] = useState(volume);
+  const fadeIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadYouTubeAPI().then(() => {
@@ -50,40 +52,92 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     });
   }, []);
 
+  // Clean up fade interval on unmount
+  useEffect(() => {
+    return () => {
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const fadeOut = () => {
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+    }
+
+    let startVolume = currentVolume;
+    const steps = 20; // Number of steps in the fade
+    const interval = 2000 / steps; // Total time = 2000ms
+    const volumeStep = startVolume / steps;
+    let currentStep = 0;
+
+    fadeIntervalRef.current = window.setInterval(() => {
+      currentStep++;
+      const newVolume = Math.max(0, startVolume - (volumeStep * currentStep));
+      
+      if (player && newVolume > 0) {
+        player.setVolume(newVolume);
+        setCurrentVolume(newVolume);
+      } else {
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
+        }
+        if (player) {
+          player.pauseVideo();
+          player.seekTo(0);
+          player.mute();
+        }
+        setHasStarted(false);
+      }
+    }, interval);
+  };
+
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     const player = event.target;
-    player.mute(); // Mute initially to prevent any sound
-    player.pauseVideo(); // Ensure video is paused on load
-    player.setVolume(volume); // Set initial volume
+    player.mute();
+    player.pauseVideo();
+    player.setVolume(volume);
+    setCurrentVolume(volume);
     setPlayer(player);
     setIsPlayerReady(true);
   };
 
   const onStateChange: YouTubeProps['onStateChange'] = (event) => {
-    if (event.data === 0) { // Video ended
+    if (event.data === 0) {
       onVideoEnd?.();
       setHasStarted(false);
     }
   };
 
-  // Consolidated player control effect
+  // Update current volume when volume prop changes
+  useEffect(() => {
+    setCurrentVolume(volume);
+  }, [volume]);
+
   useEffect(() => {
     if (isPlayerReady && player) {
       try {
         if (isPlaying && !hasStarted) {
+          // Clear any existing fade out
+          if (fadeIntervalRef.current) {
+            clearInterval(fadeIntervalRef.current);
+            fadeIntervalRef.current = null;
+          }
           player.seekTo(0);
           player.unMute();
           player.setVolume(volume);
+          setCurrentVolume(volume);
           player.playVideo();
           setHasStarted(true);
         } else if (!isPlaying && hasStarted) {
-          player.pauseVideo();
-          player.seekTo(0);
-          player.mute();
-          setHasStarted(false);
+          // Start fade out
+          fadeOut();
         } else if (hasStarted) {
           // Update volume while playing
           player.setVolume(volume);
+          setCurrentVolume(volume);
         }
       } catch (error) {
         console.error('Error controlling video:', error);

@@ -45,6 +45,8 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   const [activeNote, setActiveNote] = useState<number | null>(null);
   const [pianoWidth, setPianoWidth] = useState(400);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
+  const previousVolumeRef = useRef(volume);
 
   useEffect(() => {
     const updatePianoSize = () => {
@@ -129,9 +131,47 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     },
   };
 
+  const fadeVolume = (start: number, end: number, onComplete?: () => void) => {
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+    }
+
+    const steps = 20; // Number of steps in the fade
+    const interval = 2000 / steps; // Total time = 2000ms
+    const volumeStep = (end - start) / steps;
+    let currentStep = 0;
+
+    setVolume(start);
+    fadeIntervalRef.current = window.setInterval(() => {
+      currentStep++;
+      const newVolume = Math.max(0, Math.min(100, start + (volumeStep * currentStep)));
+      
+      setVolume(newVolume);
+
+      if (currentStep >= steps) {
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
+        }
+        setVolume(end);
+        onComplete?.();
+      }
+    }, interval);
+  };
+
+  // Clean up fade interval on unmount
+  useEffect(() => {
+    return () => {
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const value = Array.isArray(newValue) ? newValue[0] : newValue;
     setVolume(value);
+    previousVolumeRef.current = value;
     if (value === 0) {
       setIsMuted(true);
     } else if (isMuted) {
@@ -140,12 +180,15 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   };
 
   const handleToggleMute = () => {
-    setIsMuted(!isMuted);
-    if (isMuted) {
-      // Restore previous volume when unmuting
-      if (volume === 0) setVolume(100);
+    if (!isMuted) {
+      // Fade out to mute
+      previousVolumeRef.current = volume;
+      fadeVolume(volume, 0, () => setIsMuted(true));
     } else {
-      setActiveNote(null);
+      // Fade in to previous volume
+      const targetVolume = previousVolumeRef.current || 25;
+      setIsMuted(false);
+      fadeVolume(0, targetVolume);
     }
   };
 
