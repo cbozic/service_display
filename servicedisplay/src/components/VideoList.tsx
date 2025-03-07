@@ -20,12 +20,12 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
     const fetchVideos = async () => {
       try {
         const response = await axios.get('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
-        const html = response.data;
-        const videoMatches = html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi);
-        const titleMatches = html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g);
+        const html = response.data as string;
+        const videoMatches = Array.from(html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi));
+        const titleMatches = Array.from(html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g));
         
-        const videoIds = Array.from(videoMatches, (match: RegExpMatchArray) => match[1]);
-        const titles = Array.from(titleMatches, (match: RegExpMatchArray) => match[1]);
+        const videoIds = videoMatches.map(match => match[1]);
+        const titles = titleMatches.map(match => match[1]);
         
         if (!videoIds.length || !titles.length) {
           setError(true);

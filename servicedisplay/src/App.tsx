@@ -232,7 +232,7 @@ const App: React.FC = () => {
         onModelChange={(model: Model) => {
           // Check if we're in a popout window
           if (window.opener && document.fullscreenElement) {
-            document.exitFullscreen().catch(e => {
+            document.exitFullscreen().catch((e: Error) => {
               console.log('Error exiting fullscreen:', e);
             });
           }
