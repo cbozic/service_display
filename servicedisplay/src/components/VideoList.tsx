@@ -4,6 +4,7 @@ import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert } from '@mui
 
 interface VideoListProps {
   setVideo: (videoId: string) => void;
+  playlistUrl: string;
 }
 
 interface VideoData {
@@ -12,14 +13,19 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
+const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const response = await axios.get('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
+        if (!playlistUrl) {
+          setError(true);
+          return;
+        }
+
+        const response = await axios.get(playlistUrl);
         const html = response.data as string;
         const videoMatches = Array.from(html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi));
         const titleMatches = Array.from(html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g));
@@ -55,7 +61,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo }) => {
     };
 
     fetchVideos();
-  }, []);
+  }, [playlistUrl]);
 
   const cardStyle = {
     backgroundColor: 'var(--dark-surface)',

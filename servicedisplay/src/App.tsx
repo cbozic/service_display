@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [video, setVideo] = useState<string>('oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>("https://images.planningcenterusercontent.com/v1/transform?bucket=resources-production&disposition=inline&expires_at=1740812399&key=uploads%2F218466%2Fmaxn6olpajhzg7ty8fdg6fpy4w6h&thumb=960x540%23&signature=05d893630eebbf978d6229fab26240632e7d41d51f0a840b19e90d5a3ab68723");
+  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -177,6 +178,8 @@ const App: React.FC = () => {
           setStartTimeInSeconds={setStartTimeInSeconds}
           overlaySlide={overlaySlide}
           setOverlaySlide={setOverlaySlide}
+          playlistUrl={playlistUrl}
+          setPlaylistUrl={setPlaylistUrl}
           handleSubmit={handleSubmit}
         />
       );
@@ -195,7 +198,7 @@ const App: React.FC = () => {
         </div>
       );
     } else if (component === "videoList") {
-      return <VideoList setVideo={setVideo} />;
+      return <VideoList setVideo={setVideo} playlistUrl={playlistUrl} />;
     } else if (component === "controls") {
       return (
         <div style={{ 

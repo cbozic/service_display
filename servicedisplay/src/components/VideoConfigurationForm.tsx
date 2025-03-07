@@ -8,6 +8,8 @@ interface VideoConfigurationFormProps {
   setStartTimeInSeconds: (value: string) => void;
   overlaySlide: string;
   setOverlaySlide: (value: string) => void;
+  playlistUrl: string;
+  setPlaylistUrl: (value: string) => void;
   handleSubmit: (e: React.FormEvent) => void;
 }
 
@@ -18,6 +20,8 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   setStartTimeInSeconds,
   overlaySlide,
   setOverlaySlide,
+  playlistUrl,
+  setPlaylistUrl,
   handleSubmit,
 }) => {
   const cardStyle = {
@@ -88,6 +92,16 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
               onChange={(e) => setOverlaySlide(e.target.value)}
               variant="outlined"
               sx={inputStyle}
+            />
+
+            <TextField
+              fullWidth
+              label="Playlist URL"
+              value={playlistUrl}
+              onChange={(e) => setPlaylistUrl(e.target.value)}
+              variant="outlined"
+              sx={inputStyle}
+              placeholder="https://www.youtube.com/playlist?list=..."
             />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
               <Button
