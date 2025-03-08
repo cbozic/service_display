@@ -227,6 +227,10 @@ const App: React.FC = () => {
 
   const handleFramesUpdate = useCallback((frames: string[]) => {
     framesRef.current = frames;
+    if (frames.length > 0) {
+      setOverlaySlide(frames[0]);
+      setCurrentFrameIndex(0);
+    }
   }, []);
 
   const handleUnderlayToggle = useCallback(() => {
