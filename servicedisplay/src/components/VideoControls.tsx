@@ -9,6 +9,7 @@ import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
 import StopIcon from '@mui/icons-material/Stop';
 import PictureInPictureIcon from '@mui/icons-material/PictureInPicture';
 import PictureInPictureAltIcon from '@mui/icons-material/PictureInPictureAlt';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -17,6 +18,7 @@ interface VideoControlsProps {
   onFullscreen: () => void;
   onSlideAnimationToggle: () => void;
   onUnderlayToggle: () => void;
+  onRestart: () => void;
   isPlaying: boolean;
   isSlideAnimationEnabled: boolean;
   isUnderlayMode: boolean;
@@ -29,6 +31,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onFullscreen,
   onSlideAnimationToggle,
   onUnderlayToggle,
+  onRestart,
   isPlaying,
   isSlideAnimationEnabled,
   isUnderlayMode
@@ -132,6 +135,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
+      <Tooltip title="Restart Video" placement="top">
+        <IconButton onClick={onRestart} sx={buttonStyle}>
+          <RestartAltIcon />
+        </IconButton>
+      </Tooltip>
+
       <Tooltip title="Rewind 5s (Left Arrow)" placement="top">
         <IconButton onClick={onRewind} sx={buttonStyle}>
           <FastRewindIcon />

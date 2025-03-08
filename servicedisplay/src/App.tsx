@@ -167,6 +167,15 @@ const App: React.FC = () => {
     setIsUnderlayMode(prev => !prev);
   }, []);
 
+  const handleRestart = useCallback(() => {
+    if (player && isPlayerReady) {
+      player.seekTo(0, true);
+      if (!isPlaying) {
+        setIsPlaying(true);
+      }
+    }
+  }, [player, isPlayerReady, isPlaying]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -308,6 +317,7 @@ const App: React.FC = () => {
               onFullscreen={handleFullscreen}
               onSlideAnimationToggle={handleSlideAnimationToggle}
               onUnderlayToggle={handleUnderlayToggle}
+              onRestart={handleRestart}
               isPlaying={isPlaying}
               isSlideAnimationEnabled={isSlideAnimationEnabled}
               isUnderlayMode={isUnderlayMode}
