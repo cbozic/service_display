@@ -87,6 +87,10 @@ const App: React.FC = () => {
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [gifPath, setGifPath] = useState<string>('');
+  const [isSlideAnimationEnabled, setIsSlideAnimationEnabled] = useState<boolean>(false);
+  const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
+  const framesRef = useRef<string[]>([]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -180,8 +184,48 @@ const App: React.FC = () => {
     }
   }, [isPlaying, isPlayerReady]);
 
-  const handleFrameSelect = useCallback((frameUrl: string) => {
+  // Reset animation when loading new GIF
+  useEffect(() => {
+    setIsSlideAnimationEnabled(false);
+    setCurrentFrameIndex(0);
+    framesRef.current = [];
+    if (slideAnimationTimerRef.current) {
+      clearInterval(slideAnimationTimerRef.current);
+      slideAnimationTimerRef.current = null;
+    }
+  }, [gifPath]);
+
+  // Handle slide animation
+  useEffect(() => {
+    if (isSlideAnimationEnabled && framesRef.current.length > 0) {
+      slideAnimationTimerRef.current = setInterval(() => {
+        setCurrentFrameIndex(prevIndex => {
+          const nextIndex = (prevIndex + 1) % framesRef.current.length;
+          setOverlaySlide(framesRef.current[nextIndex]);
+          return nextIndex;
+        });
+      }, 15000);
+    }
+
+    return () => {
+      if (slideAnimationTimerRef.current) {
+        clearInterval(slideAnimationTimerRef.current);
+        slideAnimationTimerRef.current = null;
+      }
+    };
+  }, [isSlideAnimationEnabled]);
+
+  const handleSlideAnimationToggle = useCallback(() => {
+    setIsSlideAnimationEnabled(prev => !prev);
+  }, []);
+
+  const handleFrameSelect = useCallback((frameUrl: string, index: number) => {
     setOverlaySlide(frameUrl);
+    setCurrentFrameIndex(index);
+  }, []);
+
+  const handleFramesUpdate = useCallback((frames: string[]) => {
+    framesRef.current = frames;
   }, []);
 
   const factory = (node: TabNode) => {
@@ -237,7 +281,9 @@ const App: React.FC = () => {
               onFastForward={handleFastForward}
               onRewind={handleRewind}
               onFullscreen={handleFullscreen}
+              onSlideAnimationToggle={handleSlideAnimationToggle}
               isPlaying={isPlaying}
+              isSlideAnimationEnabled={isSlideAnimationEnabled}
             />
           </div>
         </div>
@@ -258,7 +304,15 @@ const App: React.FC = () => {
         </div>
       );
     } else if (component === "slides") {
-      return <GifFrameDisplay gifPath={gifPath} onFrameSelect={handleFrameSelect} />;
+      return (
+        <GifFrameDisplay 
+          gifPath={gifPath} 
+          onFrameSelect={handleFrameSelect} 
+          onFramesUpdate={handleFramesUpdate}
+          currentFrameIndex={currentFrameIndex}
+          isAnimationEnabled={isSlideAnimationEnabled}
+        />
+      );
     }
   };
 

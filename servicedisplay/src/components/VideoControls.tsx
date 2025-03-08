@@ -5,13 +5,17 @@ import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
 import FastRewindIcon from '@mui/icons-material/FastRewind';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
+import StopIcon from '@mui/icons-material/Stop';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
   onFastForward: () => void;
   onRewind: () => void;
   onFullscreen: () => void;
+  onSlideAnimationToggle: () => void;
   isPlaying: boolean;
+  isSlideAnimationEnabled: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -19,7 +23,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onFastForward,
   onRewind,
   onFullscreen,
-  isPlaying
+  onSlideAnimationToggle,
+  isPlaying,
+  isSlideAnimationEnabled
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -88,6 +94,21 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     }
   };
 
+  const slideshowButtonStyle = {
+    ...buttonStyle,
+    color: isSlideAnimationEnabled ? '#4CAF50' : 'var(--dark-text)',
+    '&:hover': {
+      backgroundColor: isSlideAnimationEnabled 
+        ? 'rgba(76, 175, 80, 0.1)' 
+        : 'rgba(255, 255, 255, 0.1)'
+    },
+    '& .MuiSvgIcon-root': {
+      fontSize: `${controlSize.iconSize}px`,
+      transition: 'all 0.2s ease',
+      color: isSlideAnimationEnabled ? '#4CAF50' : 'var(--dark-text)',
+    }
+  };
+
   return (
     <Box ref={containerRef} sx={containerStyle}>
       <Tooltip title="Rewind 5s (Left Arrow)" placement="top">
@@ -111,6 +132,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <Tooltip title="Toggle Fullscreen (F)" placement="top">
         <IconButton onClick={onFullscreen} sx={buttonStyle}>
           <FullscreenIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title={isSlideAnimationEnabled ? "Disable Slide Animation" : "Enable Slide Animation"}>
+        <IconButton onClick={onSlideAnimationToggle} sx={slideshowButtonStyle}>
+          {isSlideAnimationEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
         </IconButton>
       </Tooltip>
     </Box>

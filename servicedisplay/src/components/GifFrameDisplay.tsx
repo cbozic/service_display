@@ -4,14 +4,34 @@ import { parseGIF, decompressFrames } from 'gifuct-js';
 
 interface GifFrameDisplayProps {
   gifPath: string;
-  onFrameSelect?: (frameUrl: string) => void;
+  onFrameSelect?: (frameUrl: string, index: number) => void;
+  onFramesUpdate?: (frames: string[]) => void;
+  currentFrameIndex?: number;
+  isAnimationEnabled?: boolean;
 }
 
-const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelect }) => {
+const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ 
+  gifPath, 
+  onFrameSelect,
+  onFramesUpdate,
+  currentFrameIndex = -1,
+  isAnimationEnabled = false
+}) => {
   const [frames, setFrames] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFrame, setSelectedFrame] = useState<number | null>(null);
+  const selectedFrameRef = useRef<HTMLLIElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to selected frame
+  useEffect(() => {
+    if (selectedFrameRef.current && containerRef.current && currentFrameIndex >= 0) {
+      selectedFrameRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [currentFrameIndex]);
 
   useEffect(() => {
     const loadGif = async () => {
@@ -20,7 +40,6 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
       setLoading(true);
       setError(null);
       setFrames([]);
-      setSelectedFrame(null);
 
       try {
         const response = await fetch(gifPath);
@@ -57,6 +76,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
         });
 
         setFrames(frameUrls);
+        onFramesUpdate?.(frameUrls);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load GIF');
         console.error('Error loading GIF:', err);
@@ -66,11 +86,10 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
     };
 
     loadGif();
-  }, [gifPath]);
+  }, [gifPath, onFramesUpdate]);
 
   const handleFrameClick = (index: number, frameUrl: string) => {
-    setSelectedFrame(index);
-    onFrameSelect?.(frameUrl);
+    onFrameSelect?.(frameUrl, index);
   };
 
   if (!gifPath) {
@@ -118,14 +137,18 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
   }
 
   return (
-    <Box sx={{ 
-      height: '100%',
-      backgroundColor: '#282c34',
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      padding: 2,
-      boxSizing: 'border-box'
-    }}>
+    <Box 
+      ref={containerRef}
+      sx={{ 
+        height: '100%',
+        backgroundColor: isAnimationEnabled ? '#1a332a' : '#282c34',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        padding: 2,
+        boxSizing: 'border-box',
+        transition: 'background-color 0.3s ease'
+      }}
+    >
       <List sx={{ 
         width: '100%',
         padding: 0,
@@ -136,6 +159,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
         {frames.map((frameUrl, index) => (
           <ListItem 
             key={index}
+            ref={currentFrameIndex === index ? selectedFrameRef : undefined}
             sx={{ 
               mb: 2,
               p: 0,
@@ -151,17 +175,19 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
               sx={{ 
                 width: '100%',
                 p: 2,
-                backgroundColor: selectedFrame === index ? '#2c2c2c' : '#1e1e1e',
+                backgroundColor: currentFrameIndex === index 
+                  ? (isAnimationEnabled ? '#264d3d' : '#2c2c2c')
+                  : '#1e1e1e',
                 color: 'white',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
-                border: selectedFrame === index ? '2px solid #4a90e2' : 'none',
+                border: currentFrameIndex === index ? '2px solid #4a90e2' : 'none',
                 transition: 'all 0.2s ease',
                 boxSizing: 'border-box',
                 '&:hover': {
-                  backgroundColor: '#2c2c2c',
+                  backgroundColor: isAnimationEnabled ? '#264d3d' : '#2c2c2c',
                   transform: 'scale(1.01)'
                 }
               }}
@@ -172,7 +198,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ gifPath, onFrameSelec
                 textAlign: 'center',
                 wordBreak: 'break-word'
               }}>
-                Frame {index + 1} {selectedFrame === index ? '(Selected)' : ''}
+                Frame {index + 1} {currentFrameIndex === index ? '(Selected)' : ''}
               </Typography>
               <Box 
                 sx={{ 
