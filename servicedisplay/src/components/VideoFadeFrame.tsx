@@ -16,6 +16,7 @@ interface VideoFadeFrameProps {
   onStateChange?: (state: number) => void;
   isPlaying?: boolean;
   isFullscreen?: boolean;
+  isUnderlayMode?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -29,7 +30,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   onPlayerReady,
   onStateChange,
   isPlaying = false,
-  isFullscreen = false
+  isFullscreen = false,
+  isUnderlayMode = false
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -299,19 +301,17 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   }, [isFullscreen, fullscreen, openFullscreen]);
 
   const opts: YouTubeProps['opts'] = {
-    minHeight: minHeight,
-    minWidth: minWidth,
+    width: '100%',
+    height: '100%',
     playerVars: {
       // https://developers.google.com/youtube/player_parameters
-      playsinline: 0,
+      playsinline: 1,
       controls: 0,
       disablekb: 1,
       iv_load_policy: 3,
       fs: 0,
       modestbranding: 1,
     },
-    width: '100%',
-    height: '100%',
   };
 
   // Add CSS transition for overlay opacity
@@ -319,41 +319,104 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     transition: `opacity ${fadeDurationInSeconds}s ease-in-out`
   };
 
+  const videoContainerStyle: React.CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    overflow: 'hidden',
+  };
+
+  const underlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    overflow: 'hidden',
+    backgroundColor: 'black',
+    opacity: isUnderlayMode ? 1 : 0,
+    transition: 'opacity 2s ease-in-out',
+    pointerEvents: isUnderlayMode ? 'auto' : 'none',
+  };
+
+  const underlayImageStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+  };
+
+  const videoWrapperStyle: React.CSSProperties = {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    zIndex: isUnderlayMode ? 2 : 'auto',
+  };
+
+  const youtubeContainerStyle: React.CSSProperties = {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    transition: 'all 2s ease-in-out',
+    transform: isUnderlayMode ? 'scale(0.2) translate(4%, 4%)' : 'none',
+    transformOrigin: '0 0',
+    backgroundColor: isUnderlayMode ? 'rgba(0, 0, 0, 0.8)' : 'transparent',
+    borderRadius: isUnderlayMode ? '8px' : '0',
+    boxShadow: isUnderlayMode ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
+  };
+
+  useEffect(() => {
+    if (player && isPlayerReady) {
+      // Force player to resize when underlay mode changes
+      try {
+        player.getIframe().style.width = '100%';
+        player.getIframe().style.height = '100%';
+      } catch (e) {
+        console.log('Error resizing player:', e);
+      }
+    }
+  }, [isUnderlayMode, player, isPlayerReady]);
+
   return (
-    <div ref={videoContainerRef} onClick={handleClick} style={{ 
-      position: 'relative', 
-      width: '100%', 
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden'
-    }}>
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <YouTube 
-          className="VideoFadeFrame" 
-          iframeClassName="VideoFadeFrame" 
-          opts={opts} 
-          videoId={video} 
-          onReady={onPlayerReadyHandler} 
-          onStateChange={onStateChangeHandler} 
-        />
-        {useOverlay && (
-          <Overlay 
-            showOverlay={showOverlay} 
-            slide={overlaySlide} 
-            fadeDurationInSeconds={fadeDurationInSeconds}
-            style={overlayStyle}
+    <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
+      {isUnderlayMode && overlaySlide && (
+        <div style={underlayStyle}>
+          <img 
+            src={overlaySlide} 
+            alt="Background"
+            style={underlayImageStyle}
           />
-        )}
+        </div>
+      )}
+      <div style={videoWrapperStyle}>
+        <div style={youtubeContainerStyle}>
+          <YouTube 
+            key="youtube-player"
+            className="VideoFadeFrame" 
+            iframeClassName="VideoFadeFrame" 
+            opts={opts}
+            videoId={video} 
+            onReady={onPlayerReadyHandler} 
+            onStateChange={onStateChangeHandler} 
+          />
+        </div>
       </div>
+      {useOverlay && !isUnderlayMode && (
+        <Overlay 
+          showOverlay={showOverlay} 
+          slide={overlaySlide} 
+          fadeDurationInSeconds={fadeDurationInSeconds}
+          style={overlayStyle}
+        />
+      )}
     </div>
   );
 }

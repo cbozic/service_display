@@ -7,6 +7,8 @@ import FastRewindIcon from '@mui/icons-material/FastRewind';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
 import StopIcon from '@mui/icons-material/Stop';
+import PictureInPictureIcon from '@mui/icons-material/PictureInPicture';
+import PictureInPictureAltIcon from '@mui/icons-material/PictureInPictureAlt';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -14,8 +16,10 @@ interface VideoControlsProps {
   onRewind: () => void;
   onFullscreen: () => void;
   onSlideAnimationToggle: () => void;
+  onUnderlayToggle: () => void;
   isPlaying: boolean;
   isSlideAnimationEnabled: boolean;
+  isUnderlayMode: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -24,8 +28,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onRewind,
   onFullscreen,
   onSlideAnimationToggle,
+  onUnderlayToggle,
   isPlaying,
-  isSlideAnimationEnabled
+  isSlideAnimationEnabled,
+  isUnderlayMode
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -109,6 +115,21 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     }
   };
 
+  const underlayButtonStyle = {
+    ...buttonStyle,
+    color: isUnderlayMode ? '#2196F3' : 'var(--dark-text)',
+    '&:hover': {
+      backgroundColor: isUnderlayMode 
+        ? 'rgba(33, 150, 243, 0.1)' 
+        : 'rgba(255, 255, 255, 0.1)'
+    },
+    '& .MuiSvgIcon-root': {
+      fontSize: `${controlSize.iconSize}px`,
+      transition: 'all 0.2s ease',
+      color: isUnderlayMode ? '#2196F3' : 'var(--dark-text)',
+    }
+  };
+
   return (
     <Box ref={containerRef} sx={containerStyle}>
       <Tooltip title="Rewind 5s (Left Arrow)" placement="top">
@@ -138,6 +159,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <Tooltip title={isSlideAnimationEnabled ? "Disable Slide Animation" : "Enable Slide Animation"}>
         <IconButton onClick={onSlideAnimationToggle} sx={slideshowButtonStyle}>
           {isSlideAnimationEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title={isUnderlayMode ? "Return to Overlay Mode" : "Switch to Underlay Mode"}>
+        <IconButton onClick={onUnderlayToggle} sx={underlayButtonStyle}>
+          {isUnderlayMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
         </IconButton>
       </Tooltip>
     </Box>
