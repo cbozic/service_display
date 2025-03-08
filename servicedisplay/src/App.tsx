@@ -91,6 +91,7 @@ const App: React.FC = () => {
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
+  const [isUnderlayMode, setIsUnderlayMode] = useState<boolean>(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -228,6 +229,10 @@ const App: React.FC = () => {
     framesRef.current = frames;
   }, []);
 
+  const handleUnderlayToggle = useCallback(() => {
+    setIsUnderlayMode(prev => !prev);
+  }, []);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -256,6 +261,7 @@ const App: React.FC = () => {
             onStateChange={handleStateChange}
             isPlaying={isPlaying}
             isFullscreen={isFullscreen}
+            isUnderlayMode={isUnderlayMode}
           />
         </div>
       );
@@ -282,8 +288,10 @@ const App: React.FC = () => {
               onRewind={handleRewind}
               onFullscreen={handleFullscreen}
               onSlideAnimationToggle={handleSlideAnimationToggle}
+              onUnderlayToggle={handleUnderlayToggle}
               isPlaying={isPlaying}
               isSlideAnimationEnabled={isSlideAnimationEnabled}
+              isUnderlayMode={isUnderlayMode}
             />
           </div>
         </div>
