@@ -5,6 +5,7 @@ import VideoConfigurationForm from './components/VideoConfigurationForm';
 import VideoList from './components/VideoList';
 import VideoControls from './components/VideoControls';
 import PianoControls from './components/PianoControls';
+import GifFrameDisplay from './components/GifFrameDisplay';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
@@ -26,6 +27,11 @@ const flexlayout_json: IJsonModel = {
                 type: "tab",
                 name: "Videos",
                 component: "videoList"
+              },
+              {
+                type: "tab",
+                name: "Slides",
+                component: "slides"
               },
               {
                 type: "tab",
@@ -80,6 +86,7 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [gifPath, setGifPath] = useState<string>('');
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -173,6 +180,10 @@ const App: React.FC = () => {
     }
   }, [isPlaying, isPlayerReady]);
 
+  const handleFrameSelect = useCallback((frameUrl: string) => {
+    setOverlaySlide(frameUrl);
+  }, []);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -186,6 +197,8 @@ const App: React.FC = () => {
           setOverlaySlide={setOverlaySlide}
           playlistUrl={playlistUrl}
           setPlaylistUrl={setPlaylistUrl}
+          gifPath={gifPath}
+          setGifPath={setGifPath}
         />
       );
     } else if (component === "video") {
@@ -244,6 +257,8 @@ const App: React.FC = () => {
           />
         </div>
       );
+    } else if (component === "slides") {
+      return <GifFrameDisplay gifPath={gifPath} onFrameSelect={handleFrameSelect} />;
     }
   };
 
