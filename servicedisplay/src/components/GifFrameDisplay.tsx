@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, List, ListItem, Paper, CircularProgress, Typography } from '@mui/material';
 import { parseGIF, decompressFrames } from 'gifuct-js';
+import CountdownOverlay from './CountdownOverlay';
 
 interface GifFrameDisplayProps {
   gifPath: string;
@@ -209,7 +210,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                   justifyContent: 'center',
                   borderRadius: 1,
                   overflow: 'hidden',
-                  backgroundColor: '#000000'
+                  backgroundColor: '#000000',
+                  position: 'relative'
                 }}
               >
                 <img 
@@ -222,6 +224,12 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                     maxHeight: '50vh'
                   }}
                 />
+                {currentFrameIndex === index && (
+                  <CountdownOverlay 
+                    isVisible={isAnimationEnabled}
+                    intervalDuration={15000}
+                  />
+                )}
               </Box>
             </Paper>
           </ListItem>

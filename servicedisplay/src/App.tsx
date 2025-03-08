@@ -131,6 +131,43 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handlePlayerReady = useCallback((playerInstance: any) => {
+    setPlayer(playerInstance);
+    setIsPlayerReady(true);
+  }, []);
+
+  const handleStateChange = useCallback((state: number) => {
+    if (!isPlayerReady) return;
+    
+    // Only update playing state if it's different from current state
+    const shouldBePlaying = state === 1;
+    if (shouldBePlaying !== isPlaying) {
+      setIsPlaying(shouldBePlaying);
+    }
+  }, [isPlaying, isPlayerReady]);
+
+  const handleSlideAnimationToggle = useCallback(() => {
+    setIsSlideAnimationEnabled(prev => !prev);
+  }, []);
+
+  const handleFrameSelect = useCallback((frameUrl: string, index: number) => {
+    setOverlaySlide(frameUrl);
+    setCurrentFrameIndex(index);
+  }, []);
+
+  const handleFramesUpdate = useCallback((frames: string[]) => {
+    framesRef.current = frames;
+    if (frames.length > 0) {
+      setOverlaySlide(frames[0]);
+      setCurrentFrameIndex(0);
+    }
+  }, []);
+
+  const handleUnderlayToggle = useCallback(() => {
+    setIsUnderlayMode(prev => !prev);
+  }, []);
+
+  // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space' && !event.repeat && isPlayerReady) {
@@ -139,6 +176,21 @@ const App: React.FC = () => {
       } else if (event.code === 'KeyF' && !event.repeat) {
         event.preventDefault();
         handleFullscreen();
+      } else if (event.code === 'ArrowDown' && !event.repeat) {
+        event.preventDefault();
+        if (framesRef.current.length > 0) {
+          const nextIndex = (currentFrameIndex + 1) % framesRef.current.length;
+          handleFrameSelect(framesRef.current[nextIndex], nextIndex);
+        }
+      } else if (event.code === 'ArrowUp' && !event.repeat) {
+        event.preventDefault();
+        if (framesRef.current.length > 0) {
+          const prevIndex = currentFrameIndex <= 0 ? framesRef.current.length - 1 : currentFrameIndex - 1;
+          handleFrameSelect(framesRef.current[prevIndex], prevIndex);
+        }
+      } else if (event.code === 'KeyS' && !event.repeat) {
+        event.preventDefault();
+        handleSlideAnimationToggle();
       }
     };
 
@@ -146,7 +198,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handlePlayPause, isPlayerReady, handleFullscreen]);
+  }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, handleSlideAnimationToggle]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -169,21 +221,6 @@ const App: React.FC = () => {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, [isFullscreen]);
-
-  const handlePlayerReady = useCallback((playerInstance: any) => {
-    setPlayer(playerInstance);
-    setIsPlayerReady(true);
-  }, []);
-
-  const handleStateChange = useCallback((state: number) => {
-    if (!isPlayerReady) return;
-    
-    // Only update playing state if it's different from current state
-    const shouldBePlaying = state === 1;
-    if (shouldBePlaying !== isPlaying) {
-      setIsPlaying(shouldBePlaying);
-    }
-  }, [isPlaying, isPlayerReady]);
 
   // Reset animation when loading new GIF
   useEffect(() => {
@@ -216,27 +253,6 @@ const App: React.FC = () => {
     };
   }, [isSlideAnimationEnabled]);
 
-  const handleSlideAnimationToggle = useCallback(() => {
-    setIsSlideAnimationEnabled(prev => !prev);
-  }, []);
-
-  const handleFrameSelect = useCallback((frameUrl: string, index: number) => {
-    setOverlaySlide(frameUrl);
-    setCurrentFrameIndex(index);
-  }, []);
-
-  const handleFramesUpdate = useCallback((frames: string[]) => {
-    framesRef.current = frames;
-    if (frames.length > 0) {
-      setOverlaySlide(frames[0]);
-      setCurrentFrameIndex(0);
-    }
-  }, []);
-
-  const handleUnderlayToggle = useCallback(() => {
-    setIsUnderlayMode(prev => !prev);
-  }, []);
-
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -264,11 +280,12 @@ const App: React.FC = () => {
             isPlaying={isPlaying}
             isFullscreen={isFullscreen}
             isUnderlayMode={isUnderlayMode}
+            isSlideAnimationEnabled={isSlideAnimationEnabled}
           />
         </div>
       );
     } else if (component === "videoList") {
-      return <VideoList setVideo={setVideo} playlistUrl={playlistUrl} />;
+      return <VideoList setVideo={setVideo} playlistUrl={playlistUrl} currentVideo={video} />;
     } else if (component === "controls") {
       return (
         <div style={{ 

@@ -5,6 +5,7 @@ import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert } from '@mui
 interface VideoListProps {
   setVideo: (videoId: string) => void;
   playlistUrl: string;
+  currentVideo: string;
 }
 
 interface VideoData {
@@ -13,7 +14,7 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl }) => {
+const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
 
@@ -76,6 +77,13 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl }) => {
     }
   };
 
+  const selectedCardStyle = {
+    ...cardStyle,
+    backgroundColor: '#264d3d',
+    borderColor: '#4a90e2',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+  };
+
   const mediaStyle = {
     height: 140,
     backgroundColor: 'var(--darker-bg)'
@@ -123,7 +131,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl }) => {
           {videos.map((video) => (
             <Grid item xs={12} key={video.videoId}>
               <Card 
-                sx={cardStyle}
+                sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
                 onClick={() => setVideo(video.videoId)}
               >
                 <CardMedia

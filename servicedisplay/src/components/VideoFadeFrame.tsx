@@ -17,6 +17,7 @@ interface VideoFadeFrameProps {
   isPlaying?: boolean;
   isFullscreen?: boolean;
   isUnderlayMode?: boolean;
+  isSlideAnimationEnabled?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -31,7 +32,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   onStateChange,
   isPlaying = false,
   isFullscreen = false,
-  isUnderlayMode = false
+  isUnderlayMode = false,
+  isSlideAnimationEnabled = false
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
