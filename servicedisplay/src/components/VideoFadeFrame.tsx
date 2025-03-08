@@ -329,7 +329,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     overflow: 'hidden',
   };
 
-  const underlayStyle: React.CSSProperties = isUnderlayMode ? {
+  const underlayStyle: React.CSSProperties = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -341,7 +341,10 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     zIndex: 1,
     overflow: 'hidden',
     backgroundColor: 'black',
-  } : {};
+    opacity: isUnderlayMode ? 1 : 0,
+    transition: 'opacity 2s ease-in-out',
+    pointerEvents: isUnderlayMode ? 'auto' : 'none',
+  };
 
   const underlayImageStyle: React.CSSProperties = {
     width: '100%',
@@ -362,8 +365,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     width: '100%',
     height: '100%',
     overflow: 'hidden',
-    transition: 'all 0.3s ease-in-out',
-    transform: isUnderlayMode ? 'scale(0.2) translate(20%, 340%)' : 'none',
+    transition: 'all 2s ease-in-out',
+    transform: isUnderlayMode ? 'scale(0.2) translate(4%, 4%)' : 'none',
     transformOrigin: '0 0',
     backgroundColor: isUnderlayMode ? 'rgba(0, 0, 0, 0.8)' : 'transparent',
     borderRadius: isUnderlayMode ? '8px' : '0',
