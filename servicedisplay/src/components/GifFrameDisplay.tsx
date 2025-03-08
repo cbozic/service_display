@@ -192,13 +192,15 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                 }
               }}
             >
-              <Typography variant="h6" sx={{ 
+              <Typography variant="body2" sx={{ 
                 color: 'white',
                 width: '100%',
                 textAlign: 'center',
-                wordBreak: 'break-word'
+                wordBreak: 'break-word',
+                fontSize: '0.8rem',
+                opacity: 0.8
               }}>
-                Frame {index + 1} {currentFrameIndex === index ? '(Selected)' : ''}
+                Slide {index + 1} {currentFrameIndex === index ? '(Selected)' : ''}
               </Typography>
               <Box 
                 sx={{ 
