@@ -6,6 +6,7 @@ import VideoList from './components/VideoList';
 import VideoControls from './components/VideoControls';
 import PianoControls from './components/PianoControls';
 import GifFrameDisplay from './components/GifFrameDisplay';
+import ChromaticTuner from './components/ChromaticTuner';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 
@@ -53,6 +54,11 @@ const flexlayout_json: IJsonModel = {
                 type: "tab",
                 name: "Keys",
                 component: "piano"
+              },
+              {
+                type: "tab",
+                name: "Tuner",
+                component: "tuner"
               }
             ]
           }
@@ -340,6 +346,8 @@ const App: React.FC = () => {
           />
         </div>
       );
+    } else if (component === "tuner") {
+      return <ChromaticTuner />;
     } else if (component === "slides") {
       return (
         <GifFrameDisplay 
