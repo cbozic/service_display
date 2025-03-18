@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './VideoFadeFrame.css';
-import YouTube, { YouTubeProps } from 'react-youtube';
+import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 
 import Overlay from './Overlay';
 
@@ -77,7 +77,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     };
   }, [fullscreen, fastForwardSeconds, rewindSeconds]);
 
-  const onPlayerReadyHandler: YouTubeProps['onReady'] = useCallback((event) => {
+  const onPlayerReadyHandler: YouTubeProps['onReady'] = useCallback((event: YouTubeEvent) => {
     const playerInstance = event.target;
     
     // Wait a short moment to ensure player is fully initialized
@@ -95,7 +95,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }, 100);
   }, [startSeconds, onPlayerReady]);
 
-  const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event) => {
+  const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady) return;
 
     console.log('Player State Changed: ' + event.data);
