@@ -122,6 +122,7 @@ const App: React.FC = () => {
   const [isUnderlayMode, setIsUnderlayMode] = useState<boolean>(false);
   const [tabValue, setTabValue] = useState<number>(0);
   const [videoCuePlayer, setVideoCuePlayer] = useState<any>(null);
+  const [videoVolume, setVideoVolume] = useState<number>(100);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -337,6 +338,7 @@ const App: React.FC = () => {
             isFullscreen={isFullscreen}
             isUnderlayMode={isUnderlayMode}
             isSlideAnimationEnabled={isSlideAnimationEnabled}
+            volume={videoVolume}
           />
         </div>
       );
@@ -365,9 +367,11 @@ const App: React.FC = () => {
               onSlideAnimationToggle={handleSlideAnimationToggle}
               onUnderlayToggle={handleUnderlayToggle}
               onRestart={handleRestart}
+              onVolumeChange={setVideoVolume}
               isPlaying={isPlaying}
               isSlideAnimationEnabled={isSlideAnimationEnabled}
               isUnderlayMode={isUnderlayMode}
+              volume={videoVolume}
             />
           </div>
         </div>

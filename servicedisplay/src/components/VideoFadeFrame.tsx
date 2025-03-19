@@ -18,6 +18,7 @@ interface VideoFadeFrameProps {
   isFullscreen?: boolean;
   isUnderlayMode?: boolean;
   isSlideAnimationEnabled?: boolean;
+  volume?: number;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -33,7 +34,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   isPlaying = false,
   isFullscreen = false,
   isUnderlayMode = false,
-  isSlideAnimationEnabled = false
+  isSlideAnimationEnabled = false,
+  volume = 100
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -386,6 +388,13 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       }
     }
   }, [isUnderlayMode, player, isPlayerReady]);
+
+  // Make sure to set the volume on the player when it changes
+  useEffect(() => {
+    if (player) {
+      player.setVolume(volume);
+    }
+  }, [player, volume]);
 
   return (
     <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
