@@ -322,8 +322,6 @@ const App: React.FC = () => {
           setStartTimeInSeconds={setStartTimeInSeconds}
           playlistUrl={playlistUrl}
           setPlaylistUrl={setPlaylistUrl}
-          gifPath={gifPath}
-          setGifPath={setGifPath}
         />
       );
     } else if (component === "video") {
@@ -399,6 +397,7 @@ const App: React.FC = () => {
           onFramesUpdate={handleFramesUpdate}
           currentFrameIndex={currentFrameIndex}
           isAnimationEnabled={isSlideAnimationEnabled}
+          setGifPath={setGifPath}
         />
       );
     } else if (component === "videoCue") {

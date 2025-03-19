@@ -8,8 +8,6 @@ interface VideoConfigurationFormProps {
   setStartTimeInSeconds: (value: string) => void;
   playlistUrl: string;
   setPlaylistUrl: (value: string) => void;
-  gifPath: string;
-  setGifPath: (value: string) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -18,37 +16,11 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   startTimeInSeconds,
   setStartTimeInSeconds,
   playlistUrl,
-  setPlaylistUrl,
-  gifPath,
-  setGifPath
+  setPlaylistUrl
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [formWidth, setFormWidth] = useState('100%');
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Create a blob URL for the file
-      const blobUrl = URL.createObjectURL(file);
-      setGifPath(blobUrl);
-
-      // Store the blob URL to revoke it later
-      if (gifPath && gifPath.startsWith('blob:')) {
-        URL.revokeObjectURL(gifPath);
-      }
-    }
-  };
-
-  // Clean up blob URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      if (gifPath && gifPath.startsWith('blob:')) {
-        URL.revokeObjectURL(gifPath);
-      }
-    };
-  }, []);
 
   // Handle container resizing
   useEffect(() => {
@@ -170,39 +142,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
                   },
                 }}
               />
-            </Box>
-
-            <Box>
-              <Typography sx={{ color: 'white', mb: 1 }}>
-                GIF File
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <input
-                  type="file"
-                  accept=".gif"
-                  style={{ display: 'none' }}
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                />
-                <Button
-                  variant="contained"
-                  onClick={() => fileInputRef.current?.click()}
-                  sx={{
-                    backgroundColor: '#1e1e1e',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: '#2c2c2c'
-                    }
-                  }}
-                >
-                  Choose GIF File
-                </Button>
-                {gifPath && (
-                  <Typography sx={{ color: 'white', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {gifPath.startsWith('blob:') ? 'Local file selected' : gifPath}
-                  </Typography>
-                )}
-              </Box>
             </Box>
           </Box>
         </CardContent>
