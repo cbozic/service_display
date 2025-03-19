@@ -11,6 +11,9 @@ import PictureInPictureIcon from '@mui/icons-material/PictureInPicture';
 import PictureInPictureAltIcon from '@mui/icons-material/PictureInPictureAlt';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
+import VolumeDownIcon from '@mui/icons-material/VolumeDown';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
+import VolumeMuteIcon from '@mui/icons-material/VolumeMute';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -21,10 +24,12 @@ interface VideoControlsProps {
   onUnderlayToggle: () => void;
   onRestart: () => void;
   onVolumeChange: (volume: number) => void;
+  onDuckingToggle: () => void;
   isPlaying: boolean;
   isSlideAnimationEnabled: boolean;
   isUnderlayMode: boolean;
   volume: number;
+  isDucking: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -36,10 +41,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onUnderlayToggle,
   onRestart,
   onVolumeChange,
+  onDuckingToggle,
   isPlaying,
   isSlideAnimationEnabled,
   isUnderlayMode,
-  volume
+  volume,
+  isDucking,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -177,6 +184,27 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     },
   };
 
+  const duckingButtonStyle = {
+    ...buttonStyle,
+    color: isDucking ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isDucking ? '#FFA726' : 'transparent',
+    '&:hover': {
+      backgroundColor: isDucking 
+        ? '#FF9800'
+        : 'rgba(255, 255, 255, 0.1)'
+    },
+    '& .MuiSvgIcon-root': {
+      fontSize: `${controlSize.iconSize}px`,
+      transition: 'all 0.2s ease',
+    },
+    transition: 'all 0.2s ease',
+    borderRadius: '8px',
+    padding: `${controlSize.padding * 0.75}px`,
+    border: isDucking 
+      ? '2px solid #FFA726'
+      : '2px solid transparent',
+  };
+
   return (
     <Box ref={containerRef} sx={containerStyle}>
       <Tooltip title="Restart Video" placement="top">
@@ -212,7 +240,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Tooltip title={isMuted ? 'Unmute' : 'Mute'}>
           <IconButton onClick={handleToggleMute} sx={buttonStyle}>
-            {isMuted ? <VolumeOff /> : <VolumeUp />}
+            {isMuted ? <VolumeOffIcon /> : <VolumeUp />}
           </IconButton>
         </Tooltip>
         <Slider
@@ -223,6 +251,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           max={100}
           sx={sliderStyle}
         />
+        <Tooltip title={isDucking ? "Disable Volume Ducking (D)" : "Enable Volume Ducking (D)"}>
+          <IconButton onClick={onDuckingToggle} sx={duckingButtonStyle}>
+            <VolumeDownIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       <Tooltip title={isSlideAnimationEnabled ? "Disable Slide Animation" : "Enable Slide Animation"}>

@@ -123,6 +123,8 @@ const App: React.FC = () => {
   const [tabValue, setTabValue] = useState<number>(0);
   const [videoCuePlayer, setVideoCuePlayer] = useState<any>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
+  const [isDucking, setIsDucking] = useState<boolean>(false);
+  const preDuckVolume = useRef<number>(100);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -226,6 +228,17 @@ const App: React.FC = () => {
     setVideoCuePlayer(playerInstance);
   }, []);
 
+  const handleDuckingToggle = useCallback(() => {
+    if (!isDucking) {
+      preDuckVolume.current = videoVolume;
+      setVideoVolume(Math.round(videoVolume * 0.75));
+      setIsDucking(true);
+    } else {
+      setVideoVolume(preDuckVolume.current);
+      setIsDucking(false);
+    }
+  }, [isDucking, videoVolume]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -250,6 +263,11 @@ const App: React.FC = () => {
       } else if (event.code === 'KeyS' && !event.repeat) {
         event.preventDefault();
         handleSlideAnimationToggle();
+      } else if (event.code === 'KeyD' && !event.repeat) {
+        event.preventDefault();
+        const newVolume = isDucking ? preDuckVolume.current : Math.round(videoVolume * 0.75);
+        setVideoVolume(newVolume);
+        setIsDucking(!isDucking);
       }
     };
 
@@ -257,7 +275,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, handleSlideAnimationToggle]);
+  }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, handleSlideAnimationToggle, videoVolume, isDucking]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -368,9 +386,11 @@ const App: React.FC = () => {
               onUnderlayToggle={handleUnderlayToggle}
               onRestart={handleRestart}
               onVolumeChange={setVideoVolume}
+              onDuckingToggle={handleDuckingToggle}
               isPlaying={isPlaying}
               isSlideAnimationEnabled={isSlideAnimationEnabled}
               isUnderlayMode={isUnderlayMode}
+              isDucking={isDucking}
               volume={videoVolume}
             />
           </div>
