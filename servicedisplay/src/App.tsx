@@ -7,8 +7,10 @@ import VideoControls from './components/VideoControls';
 import PianoControls from './components/PianoControls';
 import GifFrameDisplay from './components/GifFrameDisplay';
 import ChromaticTuner from './components/ChromaticTuner';
+import VideoCue from './components/VideoCue';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
+import { Box, Tabs, Tab } from '@mui/material';
 
 const flexlayout_json: IJsonModel = {
   global: {},
@@ -33,6 +35,11 @@ const flexlayout_json: IJsonModel = {
                 type: "tab",
                 name: "Slides",
                 component: "slides"
+              },
+              {
+                type: "tab",
+                name: "Video Cue",
+                component: "videoCue"
               },
               {
                 type: "tab",
@@ -98,6 +105,8 @@ const App: React.FC = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
   const [isUnderlayMode, setIsUnderlayMode] = useState<boolean>(false);
+  const [tabValue, setTabValue] = useState<number>(0);
+  const [videoCuePlayer, setVideoCuePlayer] = useState<any>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -113,15 +122,23 @@ const App: React.FC = () => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime + 15, true);
+      
+      if (videoCuePlayer) {
+        videoCuePlayer.seekTo(currentTime + 15, true);
+      }
     }
-  }, [player, isPlayerReady]);
+  }, [player, isPlayerReady, videoCuePlayer]);
 
   const handleRewind = useCallback(() => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime - 5, true);
+      
+      if (videoCuePlayer) {
+        videoCuePlayer.seekTo(currentTime - 5, true);
+      }
     }
-  }, [player, isPlayerReady]);
+  }, [player, isPlayerReady, videoCuePlayer]);
 
   const handleFullscreen = useCallback(() => {
     setIsFullscreen(prev => !prev);
@@ -179,8 +196,19 @@ const App: React.FC = () => {
       if (!isPlaying) {
         setIsPlaying(true);
       }
+      
+      if (videoCuePlayer) {
+        videoCuePlayer.seekTo(0, true);
+        if (!isPlaying) {
+          videoCuePlayer.playVideo();
+        }
+      }
     }
-  }, [player, isPlayerReady, isPlaying]);
+  }, [player, isPlayerReady, isPlaying, videoCuePlayer]);
+
+  const handleCuePlayerReady = useCallback((playerInstance: any) => {
+    setVideoCuePlayer(playerInstance);
+  }, []);
 
   // Keyboard controls for video and slides
   useEffect(() => {
@@ -358,11 +386,18 @@ const App: React.FC = () => {
           isAnimationEnabled={isSlideAnimationEnabled}
         />
       );
+    } else if (component === "videoCue") {
+      return (
+        <VideoCue 
+          mainPlayer={player}
+          videoId={video}
+        />
+      );
     }
   };
 
   return (
-    <div className='App' style={{ height: '100vh' }}>
+    <Box sx={{ height: '100vh' }}>
       <Layout 
         model={model} 
         factory={factory}
@@ -375,7 +410,7 @@ const App: React.FC = () => {
           }
         }}
       />
-    </div>
+    </Box>
   );
 }
 
