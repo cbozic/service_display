@@ -142,32 +142,44 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   const slideshowButtonStyle = {
     ...buttonStyle,
-    color: isSlideAnimationEnabled ? '#4CAF50' : 'var(--dark-text)',
+    color: isSlideAnimationEnabled ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isSlideAnimationEnabled ? '#4CAF50' : 'transparent',
     '&:hover': {
       backgroundColor: isSlideAnimationEnabled 
-        ? 'rgba(76, 175, 80, 0.1)' 
+        ? '#388E3C'  // Darker green on hover
         : 'rgba(255, 255, 255, 0.1)'
     },
     '& .MuiSvgIcon-root': {
       fontSize: `${controlSize.iconSize}px`,
       transition: 'all 0.2s ease',
-      color: isSlideAnimationEnabled ? '#4CAF50' : 'var(--dark-text)',
-    }
+    },
+    transition: 'all 0.2s ease',
+    borderRadius: '8px',
+    padding: `${controlSize.padding * 0.75}px`,
+    border: isSlideAnimationEnabled 
+      ? '2px solid #4CAF50'
+      : '2px solid transparent',
   };
 
   const underlayButtonStyle = {
     ...buttonStyle,
-    color: isUnderlayMode ? '#2196F3' : 'var(--dark-text)',
+    color: isUnderlayMode ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isUnderlayMode ? '#2196F3' : 'transparent',
     '&:hover': {
       backgroundColor: isUnderlayMode 
-        ? 'rgba(33, 150, 243, 0.1)' 
+        ? '#1976D2'  // Darker blue on hover
         : 'rgba(255, 255, 255, 0.1)'
     },
     '& .MuiSvgIcon-root': {
       fontSize: `${controlSize.iconSize}px`,
       transition: 'all 0.2s ease',
-      color: isUnderlayMode ? '#2196F3' : 'var(--dark-text)',
-    }
+    },
+    transition: 'all 0.2s ease',
+    borderRadius: '8px',
+    padding: `${controlSize.padding * 0.75}px`,
+    border: isUnderlayMode 
+      ? '2px solid #2196F3'
+      : '2px solid transparent',
   };
 
   const sliderStyle = {
@@ -190,7 +202,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     backgroundColor: isDucking ? '#FFA726' : 'transparent',
     '&:hover': {
       backgroundColor: isDucking 
-        ? '#FF9800'
+        ? '#FF9800'  // Darker orange on hover
         : 'rgba(255, 255, 255, 0.1)'
     },
     '& .MuiSvgIcon-root': {
@@ -201,7 +213,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     borderRadius: '8px',
     padding: `${controlSize.padding * 0.75}px`,
     border: isDucking 
-      ? '2px solid #FFA726'
+      ? '2px solid #FFA726'  // Back to orange border
       : '2px solid transparent',
   };
 
