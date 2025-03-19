@@ -28,7 +28,7 @@ const flexlayout_json: IJsonModel = {
         children: [
           {
             type: "tabset",
-            weight: 60,
+            weight: 75,
             enableClose: false,
             children: [
               {
@@ -45,6 +45,12 @@ const flexlayout_json: IJsonModel = {
               },
               {
                 type: "tab",
+                name: "Video Cue",
+                component: "videoCue",
+                enableClose: false,
+              },
+              {
+                type: "tab",
                 name: "Settings",
                 component: "form",
                 enableClose: false,
@@ -53,9 +59,15 @@ const flexlayout_json: IJsonModel = {
           },
           {
             type: "tabset",
-            weight: 40,
+            weight: 25,
             enableClose: false,
             children: [
+              {
+                type: "tab",
+                name: "Controls",
+                component: "controls",
+                enableClose: false,
+              },
               {
                 type: "tab",
                 name: "Keys",
@@ -73,41 +85,16 @@ const flexlayout_json: IJsonModel = {
         ]
       },
       {
-        type: "column",
+        type: "tabset",
         weight: 75,
+        enableClose: false,
         children: [
           {
-            type: "tabset",
-            weight: 75,
+            type: "tab",
+            name: "Display",
+            component: "video",
+            enablePopout: true,
             enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Display",
-                component: "video",
-                enablePopout: true,
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Video Cue",
-                component: "videoCue",
-                enableClose: false,
-              }
-            ]
-          },
-          {
-            type: "tabset",
-            weight: 25,
-            enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Controls",
-                component: "controls",
-                enableClose: false,
-              }
-            ]
           }
         ]
       }
