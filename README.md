@@ -3,6 +3,6 @@ A frontend to facilitate displaying streamed service videos to groups of remote 
 
 TODO:
 * Toggle for setup and service layouts
-* Voume control for the main video
 * Volume duck button/hotkey
+* make the controls more "responsive" by stacking in groups
 * Audio nudge
