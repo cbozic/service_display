@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert } from '@mui/material';
+import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert, Dialog, DialogContent, DialogActions, Button, DialogContentText } from '@mui/material';
 
 interface VideoListProps {
   setVideo: (videoId: string) => void;
@@ -17,6 +17,9 @@ interface VideoData {
 const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [pendingVideoId, setPendingVideoId] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -54,7 +57,11 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
           title: data.title,
           thumbnailUrl: data.thumbnailUrl
         }));
+        
         setVideos(videoData);
+        
+        // Mark that we've loaded video data
+        setInitialized(true);
       } catch (error) {
         console.error('Error fetching videos:', error);
         setError(true);
@@ -63,6 +70,40 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
 
     fetchVideos();
   }, [playlistUrl]);
+
+  // This useEffect runs only once after videos are loaded successfully
+  useEffect(() => {
+    // Only run if we have videos and we're now initialized
+    if (videos.length > 0 && initialized) {
+      // Force select the first video regardless of currentVideo state
+      setVideo(videos[0].videoId);
+      
+      // We've run this effect, no need to run it again
+      setInitialized(false);
+    }
+  }, [videos, initialized, setVideo]);
+
+  const handleVideoClick = (videoId: string) => {
+    if (currentVideo && currentVideo !== videoId) {
+      setPendingVideoId(videoId);
+      setDialogOpen(true);
+    } else {
+      setVideo(videoId);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (pendingVideoId) {
+      setVideo(pendingVideoId);
+    }
+    setDialogOpen(false);
+    setPendingVideoId(null);
+  };
+
+  const handleCancel = () => {
+    setDialogOpen(false);
+    setPendingVideoId(null);
+  };
 
   const cardStyle = {
     backgroundColor: 'var(--dark-surface)',
@@ -109,6 +150,25 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
     }
   };
 
+  // Add styles for the dialog components
+  const dialogStyle = {
+    '& .MuiPaper-root': {
+      backgroundColor: 'var(--dark-surface)',
+      border: '1px solid var(--dark-border)',
+      borderRadius: '8px',
+      color: 'var(--dark-text)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+    }
+  };
+  
+  const dialogContentStyle = {
+    color: 'var(--dark-text)'
+  };
+  
+  const buttonStyle = {
+    color: 'var(--accent-color)'
+  };
+
   return (
     <Box sx={{ padding: 2 }}>
       {error ? (
@@ -132,7 +192,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
             <Grid item xs={12} key={video.videoId}>
               <Card 
                 sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
-                onClick={() => setVideo(video.videoId)}
+                onClick={() => handleVideoClick(video.videoId)}
               >
                 <CardMedia
                   component="img"
@@ -153,6 +213,27 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
           ))}
         </Grid>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCancel}
+        aria-describedby="alert-dialog-description"
+        sx={dialogStyle}
+      >
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description" sx={dialogContentStyle}>
+            Selecting a new video will replace the currently selected one.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancel} sx={buttonStyle}>
+            Nevermind
+          </Button>
+          <Button onClick={handleConfirm} sx={buttonStyle} autoFocus>
+            Continue
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
