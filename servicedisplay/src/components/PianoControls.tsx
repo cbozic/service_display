@@ -163,11 +163,19 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   };
 
   const buttonStyle = {
-    color: 'var(--dark-text)',
-    backgroundColor: 'transparent',
+    color: isMuted ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isMuted ? '#ef5350' : 'transparent',
     '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: isMuted 
+        ? '#d32f2f'  // Darker red on hover
+        : 'rgba(255, 255, 255, 0.1)'
     },
+    transition: 'all 0.2s ease',
+    borderRadius: '8px',
+    padding: '8px',
+    border: isMuted 
+      ? '2px solid #ef5350'
+      : '2px solid transparent',
   };
 
   const fadeVolume = (start: number, end: number, onComplete?: () => void) => {
@@ -259,7 +267,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   return (
     <Box ref={containerRef} sx={containerStyle}>
       <Box sx={controlsStyle}>
-        <Tooltip title={isMuted ? 'Unmute' : 'Mute'}>
+        <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
           <IconButton
             onClick={handleToggleMute}
             sx={buttonStyle}
