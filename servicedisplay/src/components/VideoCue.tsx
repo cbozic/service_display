@@ -46,6 +46,7 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
   const playerIdRef = useRef<string>(`yt-cue-${Math.random().toString(36).substr(2, 9)}`);
   const playerRef = useRef<any>(null);
   const syncIntervalRef = useRef<number | null>(null);
+  const initializedRef = useRef<boolean>(false); // Track if we've initialized
   
   // Initialize the YouTube API once
   useEffect(() => {
@@ -62,6 +63,9 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
   useEffect(() => {
     // Only proceed if we have a container and videoId
     if (!containerRef.current || !videoId) return;
+    
+    // Reset initialization flag when video ID changes
+    initializedRef.current = false;
     
     // Clear any previous player
     if (playerRef.current && typeof playerRef.current.destroy === 'function') {
@@ -83,28 +87,44 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
     // Wait for YT API and create player
     const initPlayer = () => {
       if (window.YT && window.YT.Player) {
-        playerRef.current = new window.YT.Player(playerIdRef.current, {
-          videoId: videoId,
-          width: '100%',
-          height: '100%',
-          playerVars: {
-            controls: 0,
-            modestbranding: 1,
-            rel: 0,
-            showinfo: 0,
-            autoplay: 0,
-            mute: 1,
-            enablejsapi: 1
-          },
-          events: {
-            onReady: (event) => {
-              // Player is ready, start sync process if main player exists
-              if (mainPlayer) {
-                startSyncWithMainPlayer();
+        try {
+          playerRef.current = new window.YT.Player(playerIdRef.current, {
+            videoId: videoId,
+            width: '100%',
+            height: '100%',
+            playerVars: {
+              controls: 0,
+              modestbranding: 1,
+              rel: 0,
+              showinfo: 0,
+              autoplay: 0,
+              mute: 1,
+              enablejsapi: 1
+            },
+            events: {
+              onReady: (event) => {
+                // Only apply styles once
+                if (!initializedRef.current && containerRef.current) {
+                  initializedRef.current = true;
+                  
+                  // Find the iframe
+                  const iframe = containerRef.current.querySelector('iframe');
+                  if (iframe) {
+                    // Apply pointer-events style directly to iframe
+                    iframe.style.pointerEvents = 'none';
+                  }
+                }
+                
+                // Player is ready, start sync process if main player exists
+                if (mainPlayer) {
+                  startSyncWithMainPlayer();
+                }
               }
             }
-          }
-        });
+          });
+        } catch (error) {
+          console.error('Error initializing YouTube player:', error);
+        }
       } else {
         // Try again in 100ms
         setTimeout(initPlayer, 100);
@@ -126,8 +146,7 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
   
   // Handle main player changes
   useEffect(() => {
-    // Only start sync if both players exist
-    if (mainPlayer && playerRef.current) {
+    if (mainPlayer && playerRef.current && initializedRef.current) {
       startSyncWithMainPlayer();
     }
     
@@ -141,7 +160,7 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
   
   // Function to start synchronizing with the main player
   const startSyncWithMainPlayer = () => {
-    // Clear any existing interval
+    // Don't setup multiple intervals
     if (syncIntervalRef.current) {
       window.clearInterval(syncIntervalRef.current);
     }
@@ -162,11 +181,16 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
       const mainState = mainPlayer.getPlayerState();
       const cueState = playerRef.current.getPlayerState();
       
+      // Only sync if we have valid states
+      if (typeof mainState === 'undefined' || typeof cueState === 'undefined') {
+        return;
+      }
+      
       // Sync time if difference is greater than 0.5 seconds
       const mainTime = mainPlayer.getCurrentTime();
       const cueTime = playerRef.current.getCurrentTime();
       
-      if (Math.abs(mainTime - cueTime) > 0.5) {
+      if (!isNaN(mainTime) && !isNaN(cueTime) && Math.abs(mainTime - cueTime) > 0.5) {
         playerRef.current.seekTo(mainTime, true);
       }
       
@@ -192,9 +216,13 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
         backgroundColor: 'var(--dark-surface)',
         borderRadius: '8px',
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        '& iframe': {
+          pointerEvents: 'none !important' // Add CSS rule to target iframe
+        }
       }}
       ref={containerRef}
+      onClick={(e) => e.preventDefault()} // Catch any clicks at the container level
     />
   );
 };
