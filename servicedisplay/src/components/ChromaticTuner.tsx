@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pitchy from 'pitchy';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, IconButton, Tooltip } from '@mui/material';
+import MicIcon from '@mui/icons-material/Mic';
+import MicOffIcon from '@mui/icons-material/MicOff';
 
 const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -18,52 +20,77 @@ const ChromaticTuner: React.FC = () => {
   const [note, setNote] = useState<string>('-');
   const [cents, setCents] = useState<number>(0);
   const [isListening, setIsListening] = useState(false);
+  const [isMicEnabled, setIsMicEnabled] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
+  const startListening = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      audioContextRef.current = new AudioContext();
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      source.connect(analyserRef.current);
+
+      const detector = pitchy.PitchDetector.forFloat32Array(analyserRef.current.fftSize);
+      const input = new Float32Array(detector.inputLength);
+
+      const updatePitch = () => {
+        analyserRef.current!.getFloatTimeDomainData(input);
+        const [pitch, clarity] = detector.findPitch(input, audioContextRef.current!.sampleRate);
+
+        if (clarity > 0.8 && pitch > 20) {
+          setPitch(pitch);
+          const { noteName, octave, cents: detectedCents } = getNoteFromFrequency(pitch);
+          setNote(`${noteName}${octave}`);
+          setCents(detectedCents);
+        }
+
+        rafIdRef.current = requestAnimationFrame(updatePitch);
+      };
+
+      updatePitch();
+      setIsListening(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
+  };
+
+  const stopListening = () => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsListening(false);
+    setPitch(null);
+    setNote('-');
+    setCents(0);
+  };
+
+  const toggleMicrophone = () => {
+    if (isMicEnabled) {
+      stopListening();
+    } else {
+      startListening();
+    }
+    setIsMicEnabled(!isMicEnabled);
+  };
+
+  // Clean up on unmount
   useEffect(() => {
-    const startListening = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContextRef.current = new AudioContext();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        source.connect(analyserRef.current);
-
-        const detector = pitchy.PitchDetector.forFloat32Array(analyserRef.current.fftSize);
-        const input = new Float32Array(detector.inputLength);
-
-        const updatePitch = () => {
-          analyserRef.current!.getFloatTimeDomainData(input);
-          const [pitch, clarity] = detector.findPitch(input, audioContextRef.current!.sampleRate);
-
-          if (clarity > 0.8 && pitch > 20) { // Filter out noise
-            setPitch(pitch);
-            const { noteName, octave, cents: detectedCents } = getNoteFromFrequency(pitch);
-            setNote(`${noteName}${octave}`);
-            setCents(detectedCents);
-          }
-
-          rafIdRef.current = requestAnimationFrame(updatePitch);
-        };
-
-        updatePitch();
-        setIsListening(true);
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-      }
-    };
-
-    startListening();
-
     return () => {
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      stopListening();
     };
   }, []);
 
@@ -105,6 +132,22 @@ const ChromaticTuner: React.FC = () => {
     transition: 'all 0.1s ease-out'
   };
 
+  const micButtonStyle = {
+    color: isMicEnabled ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isMicEnabled ? '#4CAF50' : 'transparent',
+    '&:hover': {
+      backgroundColor: isMicEnabled 
+        ? '#388E3C'
+        : 'rgba(255, 255, 255, 0.1)'
+    },
+    transition: 'all 0.2s ease',
+    borderRadius: '8px',
+    padding: '8px',
+    border: isMicEnabled 
+      ? '2px solid #4CAF50'
+      : '2px solid transparent',
+  };
+
   return (
     <Box sx={{ 
       width: '100%', 
@@ -115,9 +158,21 @@ const ChromaticTuner: React.FC = () => {
       backgroundColor: '#1e1e1e'
     }}>
       <Box sx={tunerStyle}>
-        <Typography variant="h6" sx={{ opacity: 0.7 }}>
-          {isListening ? 'Listening...' : 'Starting...'}
-        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2, 
+          marginBottom: 2 
+        }}>
+          <Typography variant="h6" sx={{ opacity: 0.7 }}>
+            {isListening ? 'Listening...' : 'Microphone Off'}
+          </Typography>
+          <Tooltip title={isMicEnabled ? "Disable Microphone" : "Enable Microphone"}>
+            <IconButton onClick={toggleMicrophone} sx={micButtonStyle}>
+              {isMicEnabled ? <MicIcon /> : <MicOffIcon />}
+            </IconButton>
+          </Tooltip>
+        </Box>
         <Typography sx={noteStyle}>
           {note}
         </Typography>
