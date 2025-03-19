@@ -13,7 +13,11 @@ import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
 
 const flexlayout_json: IJsonModel = {
-  global: {},
+  global: {
+    tabEnableClose: false,
+    tabSetEnableClose: false,
+    tabSetEnableMaximize: true,
+  },
   borders: [],
   layout: {
     type: "row",
@@ -25,47 +29,56 @@ const flexlayout_json: IJsonModel = {
           {
             type: "tabset",
             weight: 75,
+            enableClose: false,
             children: [
               {
                 type: "tab",
                 name: "Videos",
-                component: "videoList"
+                component: "videoList",
+                enableClose: false,
               },
               {
                 type: "tab",
                 name: "Slides",
-                component: "slides"
+                component: "slides",
+                enableClose: false,
               },
               {
                 type: "tab",
                 name: "Video Cue",
-                component: "videoCue"
+                component: "videoCue",
+                enableClose: false,
               },
               {
                 type: "tab",
                 name: "Settings",
-                component: "form"
+                component: "form",
+                enableClose: false,
               }
             ]
           },
           {
             type: "tabset",
             weight: 25,
+            enableClose: false,
             children: [
               {
                 type: "tab",
                 name: "Controls",
-                component: "controls"
+                component: "controls",
+                enableClose: false,
               },
               {
                 type: "tab",
                 name: "Keys",
-                component: "piano"
+                component: "piano",
+                enableClose: false,
               },
               {
                 type: "tab",
                 name: "Tuner",
-                component: "tuner"
+                component: "tuner",
+                enableClose: false,
               }
             ]
           }
@@ -74,12 +87,14 @@ const flexlayout_json: IJsonModel = {
       {
         type: "tabset",
         weight: 75,
+        enableClose: false,
         children: [
           {
             type: "tab",
             name: "Display",
             component: "video",
             enablePopout: true,
+            enableClose: false,
           }
         ]
       }
