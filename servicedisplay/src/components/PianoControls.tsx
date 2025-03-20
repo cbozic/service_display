@@ -94,19 +94,31 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   }, [mainPlayersReady]);
 
   const containerStyle = {
-    backgroundColor: 'rgba(42, 43, 61, 0.8)',
-    backdropFilter: 'blur(8px)',
+    backgroundColor: 'var(--dark-surface)', // Match video controls background
     borderRadius: '8px',
     padding: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    position: 'relative' as const,
+    minHeight: '200px',
+  };
+
+  const pianoGroupStyle = {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Keep the inner box semi-transparent
+    padding: '16px',
+    borderRadius: '12px',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
     gap: '16px',
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-    position: 'relative' as const,
+    maxHeight: '80%',
+    border: '1px solid rgba(255, 255, 255, 0.1)', // Subtle border
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' // Optional: adds subtle depth
   };
 
   const controlsStyle = {
@@ -125,8 +137,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    flex: '1 1 auto',
-    minHeight: 0,
+    flex: '0 0 auto',
     position: 'relative' as const,
     margin: 'auto',
     '& .ReactPiano__Keyboard': {
@@ -270,31 +281,33 @@ const PianoControls: React.FC<PianoControlsProps> = ({
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
-      <Box sx={controlsStyle}>
-        <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
-          <IconButton
-            onClick={handleToggleMute}
-            sx={buttonStyle}
-          >
-            {isMuted ? <VolumeOff /> : <VolumeUp />}
-          </IconButton>
-        </Tooltip>
-        <Slider
-          value={isMuted ? 0 : volume}
-          onChange={handleVolumeChange}
-          aria-label="Volume"
-          min={0}
-          max={100}
-          sx={sliderStyle}
-        />
-      </Box>
-      <Box sx={pianoWrapperStyle}>
-        <Piano
-          noteRange={{ first: FIRST_NOTE, last: LAST_NOTE }}
-          playNote={handleNotePlay}
-          stopNote={handleNoteStop}
-          width={pianoWidth}
-        />
+      <Box sx={pianoGroupStyle}>
+        <Box sx={controlsStyle}>
+          <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+            <IconButton
+              onClick={handleToggleMute}
+              sx={buttonStyle}
+            >
+              {isMuted ? <VolumeOff /> : <VolumeUp />}
+            </IconButton>
+          </Tooltip>
+          <Slider
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            aria-label="Volume"
+            min={0}
+            max={100}
+            sx={sliderStyle}
+          />
+        </Box>
+        <Box sx={pianoWrapperStyle}>
+          <Piano
+            noteRange={{ first: FIRST_NOTE, last: LAST_NOTE }}
+            playNote={handleNotePlay}
+            stopNote={handleNoteStop}
+            width={pianoWidth}
+          />
+        </Box>
       </Box>
       {Object.entries(VIDEO_MAP).map(([midiNumber, videoId]) => (
         <HiddenVideoPlayer
