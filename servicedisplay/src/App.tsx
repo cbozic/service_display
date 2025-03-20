@@ -45,12 +45,6 @@ const flexlayout_json: IJsonModel = {
               },
               {
                 type: "tab",
-                name: "Monitor",
-                component: "videoMonitor",
-                enableClose: false,
-              },
-              {
-                type: "tab",
                 name: "Settings",
                 component: "form",
                 enableClose: false,
@@ -94,6 +88,12 @@ const flexlayout_json: IJsonModel = {
             name: "Display",
             component: "video",
             enablePopout: true,
+            enableClose: false,
+          },
+          {
+            type: "tab",
+            name: "Monitor",
+            component: "videoMonitor",
             enableClose: false,
           }
         ]
