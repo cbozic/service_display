@@ -58,8 +58,8 @@ const flexlayout_json: IJsonModel = {
             children: [
               {
                 type: "tab",
-                name: "Controls",
-                component: "controls",
+                name: "Tuner",
+                component: "tuner",
                 enableClose: false,
               },
               {
@@ -67,34 +67,47 @@ const flexlayout_json: IJsonModel = {
                 name: "Keys",
                 component: "piano",
                 enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Tuner",
-                component: "tuner",
-                enableClose: false,
               }
             ]
           }
         ]
       },
       {
-        type: "tabset",
+        type: "column",
         weight: 75,
-        enableClose: false,
         children: [
           {
-            type: "tab",
-            name: "Display",
-            component: "video",
-            enablePopout: true,
+            type: "tabset",
+            weight: 85,
             enableClose: false,
+            children: [
+              {
+                type: "tab",
+                name: "Display",
+                component: "video",
+                enablePopout: true,
+                enableClose: false,
+              },
+              {
+                type: "tab",
+                name: "Monitor",
+                component: "videoMonitor",
+                enableClose: false,
+              }
+            ]
           },
           {
-            type: "tab",
-            name: "Monitor",
-            component: "videoMonitor",
+            type: "tabset",
+            weight: 15,
             enableClose: false,
+            children: [
+              {
+                type: "tab",
+                name: "Controls",
+                component: "controls",
+                enableClose: false,
+              }
+            ]
           }
         ]
       }
