@@ -46,10 +46,16 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   const [currentVolume, setCurrentVolume] = useState(volume);
   const fadeIntervalRef = useRef<number | null>(null);
 
+  // Add initialization delay
   useEffect(() => {
-    loadYouTubeAPI().then(() => {
-      setIsApiReady(true);
-    });
+    // Delay the API initialization by 2 seconds
+    const timer = setTimeout(() => {
+      loadYouTubeAPI().then(() => {
+        setIsApiReady(true);
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Clean up fade interval on unmount

@@ -4,6 +4,7 @@ import 'react-piano/dist/styles.css';
 import HiddenVideoPlayer from './HiddenVideoPlayer';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
+import { useYouTube } from '../contexts/YouTubeContext';
 
 // Constants for piano configuration
 const FIRST_NOTE = MidiNumbers.fromNote('c3');
@@ -43,8 +44,11 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   const fadeIntervalRef = useRef<number | null>(null);
   const previousVolumeRef = useRef(volume);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const { mainPlayersReady } = useYouTube();
 
   useEffect(() => {
+    if (!mainPlayersReady) return;
+    
     const updatePianoSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
@@ -87,7 +91,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
         resizeObserverRef.current.disconnect();
       }
     };
-  }, []);
+  }, [mainPlayersReady]);
 
   const containerStyle = {
     backgroundColor: 'rgba(42, 43, 61, 0.8)',

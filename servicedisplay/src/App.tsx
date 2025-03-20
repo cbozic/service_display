@@ -11,6 +11,7 @@ import VideoMonitor from './components/VideoMonitor';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
+import { YouTubeProvider } from './contexts/YouTubeContext';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -58,14 +59,14 @@ const flexlayout_json: IJsonModel = {
             children: [
               {
                 type: "tab",
-                name: "Tuner",
-                component: "tuner",
+                name: "Keys",
+                component: "piano",
                 enableClose: false,
               },
               {
                 type: "tab",
-                name: "Keys",
-                component: "piano",
+                name: "Tuner",
+                component: "tuner",
                 enableClose: false,
               }
             ]
@@ -472,18 +473,19 @@ const App: React.FC = () => {
 
   return (
     <Box sx={{ height: '100vh' }}>
-      <Layout 
-        model={model} 
-        factory={factory}
-        onModelChange={(model: Model) => {
-          // Check if we're in a popout window
-          if (window.opener && document.fullscreenElement) {
-            document.exitFullscreen().catch((e: Error) => {
-              console.log('Error exiting fullscreen:', e);
-            });
-          }
-        }}
-      />
+      <YouTubeProvider>
+        <Layout 
+          model={model} 
+          factory={factory}
+          onModelChange={(model: Model) => {
+            if (window.opener && document.fullscreenElement) {
+              document.exitFullscreen().catch((e: Error) => {
+                console.log('Error exiting fullscreen:', e);
+              });
+            }
+          }}
+        />
+      </YouTubeProvider>
     </Box>
   );
 }

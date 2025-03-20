@@ -3,6 +3,7 @@ import './VideoFadeFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 
 import Overlay from './Overlay';
+import { useYouTube } from '../contexts/YouTubeContext';
 
 interface VideoFadeFrameProps {
   video: string;
@@ -43,6 +44,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { setMainPlayersReady } = useYouTube();
 
   const handleClick = () => {
     //do something here if you want
@@ -82,20 +84,20 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const onPlayerReadyHandler: YouTubeProps['onReady'] = useCallback((event: YouTubeEvent) => {
     const playerInstance = event.target;
     
-    // Wait a short moment to ensure player is fully initialized
     setTimeout(() => {
       try {
         playerInstance.seekTo(startSeconds);
-        playerInstance.mute(); // Use mute instead of setVolume(0)
+        playerInstance.mute();
         playerInstance.pauseVideo();
         setPlayer(playerInstance);
         setIsPlayerReady(true);
         onPlayerReady?.(playerInstance);
+        setMainPlayersReady(true);
       } catch (e) {
         console.log('Error initializing player:', e);
       }
     }, 100);
-  }, [startSeconds, onPlayerReady]);
+  }, [startSeconds, onPlayerReady, setMainPlayersReady]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady) return;
