@@ -16,8 +16,8 @@ interface VideoFadeFrameProps {
   onStateChange?: (state: number) => void;
   isPlaying?: boolean;
   isFullscreen?: boolean;
-  isUnderlayMode?: boolean;
-  isSlideAnimationEnabled?: boolean;
+  isPipMode?: boolean;
+  isSlideTransitionsEnabled?: boolean;
   volume?: number;
 }
 
@@ -33,8 +33,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   onStateChange,
   isPlaying = false,
   isFullscreen = false,
-  isUnderlayMode = false,
-  isSlideAnimationEnabled = false,
+  isPipMode = false,
+  isSlideTransitionsEnabled = false,
   volume = 100
 }) => {
   const [player, setPlayer] = useState<any>(null);
@@ -345,9 +345,9 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     zIndex: 1,
     overflow: 'hidden',
     backgroundColor: 'black',
-    opacity: isUnderlayMode ? 1 : 0,
+    opacity: isPipMode ? 1 : 0,
     transition: 'opacity 2s ease-in-out',
-    pointerEvents: isUnderlayMode ? 'auto' : 'none',
+    pointerEvents: isPipMode ? 'auto' : 'none',
   };
 
   const underlayImageStyle: React.CSSProperties = {
@@ -361,7 +361,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     width: '100%',
     height: '100%',
     overflow: 'hidden',
-    zIndex: isUnderlayMode ? 2 : 'auto',
+    zIndex: isPipMode ? 2 : 'auto',
   };
 
   const youtubeContainerStyle: React.CSSProperties = {
@@ -370,11 +370,11 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     height: '100%',
     overflow: 'hidden',
     transition: 'all 2s ease-in-out',
-    transform: isUnderlayMode ? 'scale(0.2) translate(4%, 4%)' : 'none',
+    transform: isPipMode ? 'scale(0.2) translate(4%, 4%)' : 'none',
     transformOrigin: '0 0',
-    backgroundColor: isUnderlayMode ? 'rgba(0, 0, 0, 0.8)' : 'transparent',
-    borderRadius: isUnderlayMode ? '8px' : '0',
-    boxShadow: isUnderlayMode ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
+    backgroundColor: isPipMode ? 'rgba(0, 0, 0, 0.8)' : 'transparent',
+    borderRadius: isPipMode ? '8px' : '0',
+    boxShadow: isPipMode ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
   };
 
   useEffect(() => {
@@ -387,7 +387,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         console.log('Error resizing player:', e);
       }
     }
-  }, [isUnderlayMode, player, isPlayerReady]);
+  }, [isPipMode, player, isPlayerReady]);
 
   // Make sure to set the volume on the player when it changes
   useEffect(() => {
@@ -398,7 +398,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
 
   return (
     <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
-      {isUnderlayMode && overlaySlide && (
+      {isPipMode && overlaySlide && (
         <div style={underlayStyle}>
           <img 
             src={overlaySlide} 
@@ -428,7 +428,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           }} />
         </div>
       </div>
-      {useOverlay && !isUnderlayMode && (
+      {useOverlay && !isPipMode && (
         <Overlay 
           showOverlay={showOverlay} 
           slide={overlaySlide} 

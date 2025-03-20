@@ -17,41 +17,43 @@ import VolumeMuteIcon from '@mui/icons-material/VolumeMute';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
-  onFastForward: () => void;
-  onRewind: () => void;
+  onSkipForward: () => void;
+  onSkipBack: () => void;
   onFullscreen: () => void;
-  onSlideAnimationToggle: () => void;
-  onUnderlayToggle: () => void;
+  onSlideTransitionsToggle: () => void;
+  onPipToggle: () => void;
   onRestart: () => void;
   onVolumeChange: (volume: number) => void;
   onDuckingToggle: () => void;
+  onToggleMute: () => void;
   isPlaying: boolean;
-  isSlideAnimationEnabled: boolean;
-  isUnderlayMode: boolean;
+  isSlideTransitionsEnabled: boolean;
+  isPipMode: boolean;
   volume: number;
   isDucking: boolean;
+  isMuted: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
   onPlayPause,
-  onFastForward,
-  onRewind,
+  onSkipForward,
+  onSkipBack,
   onFullscreen,
-  onSlideAnimationToggle,
-  onUnderlayToggle,
+  onSlideTransitionsToggle,
+  onPipToggle,
   onRestart,
   onVolumeChange,
   onDuckingToggle,
+  onToggleMute,
   isPlaying,
-  isSlideAnimationEnabled,
-  isUnderlayMode,
+  isSlideTransitionsEnabled,
+  isPipMode,
   volume,
   isDucking,
+  isMuted,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const previousVolumeRef = useRef(volume);
   const [controlSize, setControlSize] = useState({
     iconSize: 24,
     padding: 8,
@@ -95,24 +97,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const value = Array.isArray(newValue) ? newValue[0] : newValue;
     onVolumeChange(value);
-    previousVolumeRef.current = value;
-    if (value === 0) {
-      setIsMuted(true);
-    } else if (isMuted) {
-      setIsMuted(false);
-    }
-  };
-
-  const handleToggleMute = () => {
-    if (!isMuted) {
-      previousVolumeRef.current = volume;
-      onVolumeChange(0);
-      setIsMuted(true);
-    } else {
-      const targetVolume = previousVolumeRef.current || 25;
-      setIsMuted(false);
-      onVolumeChange(targetVolume);
-    }
   };
 
   const containerStyle = {
@@ -127,9 +111,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     borderRadius: '12px',
   };
 
+  const spacerStyle = {
+    flexGrow: 1,
+    minWidth: `${controlSize.padding}px`, // Match the gap size
+  };
+
   const buttonStyle = {
     color: 'var(--dark-text)',
-    padding: `${controlSize.padding}px`,
     transition: 'all 0.2s ease',
     '&:hover': {
       backgroundColor: 'rgba(255, 255, 255, 0.1)'
@@ -137,16 +125,33 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     '& .MuiSvgIcon-root': {
       fontSize: `${controlSize.iconSize}px`,
       transition: 'font-size 0.2s ease',
-    }
+    },
+    padding: `${controlSize.padding * 0.75}px`,
+    borderRadius: '8px',
+    border: '2px solid transparent',
   };
 
-  const slideshowButtonStyle = {
+  const volumeButtonStyle = {
     ...buttonStyle,
-    color: isSlideAnimationEnabled ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isSlideAnimationEnabled ? '#4CAF50' : 'transparent',
+    color: isMuted ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isMuted ? '#ef5350' : 'transparent',
     '&:hover': {
-      backgroundColor: isSlideAnimationEnabled 
-        ? '#388E3C'  // Darker green on hover
+      backgroundColor: isMuted 
+        ? '#d32f2f'  // Darker red on hover
+        : 'rgba(255, 255, 255, 0.1)'
+    },
+    border: isMuted 
+      ? '2px solid #ef5350'
+      : '2px solid transparent',
+  };
+
+  const slideTransitionsButtonStyle = {
+    ...buttonStyle,
+    color: isSlideTransitionsEnabled ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isSlideTransitionsEnabled ? '#4CAF50' : 'transparent',
+    '&:hover': {
+      backgroundColor: isSlideTransitionsEnabled 
+        ? '#388E3C'
         : 'rgba(255, 255, 255, 0.1)'
     },
     '& .MuiSvgIcon-root': {
@@ -156,18 +161,18 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     transition: 'all 0.2s ease',
     borderRadius: '8px',
     padding: `${controlSize.padding * 0.75}px`,
-    border: isSlideAnimationEnabled 
+    border: isSlideTransitionsEnabled 
       ? '2px solid #4CAF50'
       : '2px solid transparent',
   };
 
-  const underlayButtonStyle = {
+  const pipButtonStyle = {
     ...buttonStyle,
-    color: isUnderlayMode ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isUnderlayMode ? '#2196F3' : 'transparent',
+    color: isPipMode ? '#ffffff' : 'var(--dark-text)',
+    backgroundColor: isPipMode ? '#2196F3' : 'transparent',
     '&:hover': {
-      backgroundColor: isUnderlayMode 
-        ? '#1976D2'  // Darker blue on hover
+      backgroundColor: isPipMode 
+        ? '#1976D2'
         : 'rgba(255, 255, 255, 0.1)'
     },
     '& .MuiSvgIcon-root': {
@@ -177,7 +182,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     transition: 'all 0.2s ease',
     borderRadius: '8px',
     padding: `${controlSize.padding * 0.75}px`,
-    border: isUnderlayMode 
+    border: isPipMode 
       ? '2px solid #2196F3'
       : '2px solid transparent',
   };
@@ -225,8 +230,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Rewind 5s (Left Arrow)" placement="top">
-        <IconButton onClick={onRewind} sx={buttonStyle}>
+      <Tooltip title="Skip Back 5s (Left Arrow)" placement="top">
+        <IconButton onClick={onSkipBack} sx={buttonStyle}>
           <FastRewindIcon />
         </IconButton>
       </Tooltip>
@@ -237,21 +242,15 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </IconButton>
       </Tooltip>
       
-      <Tooltip title="Fast Forward 15s (Right Arrow)" placement="top">
-        <IconButton onClick={onFastForward} sx={buttonStyle}>
+      <Tooltip title="Skip Forward 15s (Right Arrow)" placement="top">
+        <IconButton onClick={onSkipForward} sx={buttonStyle}>
           <FastForwardIcon />
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Toggle Fullscreen (F)" placement="top">
-        <IconButton onClick={onFullscreen} sx={buttonStyle}>
-          <FullscreenIcon />
-        </IconButton>
-      </Tooltip>
-
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Tooltip title={isMuted ? 'Unmute' : 'Mute'}>
-          <IconButton onClick={handleToggleMute} sx={buttonStyle}>
+        <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+          <IconButton onClick={onToggleMute} sx={volumeButtonStyle}>
             {isMuted ? <VolumeOffIcon /> : <VolumeUp />}
           </IconButton>
         </Tooltip>
@@ -270,15 +269,21 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </Tooltip>
       </Box>
 
-      <Tooltip title={isSlideAnimationEnabled ? "Disable Slide Animation" : "Enable Slide Animation"}>
-        <IconButton onClick={onSlideAnimationToggle} sx={slideshowButtonStyle}>
-          {isSlideAnimationEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
+      <Tooltip title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"}>
+        <IconButton onClick={onSlideTransitionsToggle} sx={slideTransitionsButtonStyle}>
+          {isSlideTransitionsEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
         </IconButton>
       </Tooltip>
 
-      <Tooltip title={isUnderlayMode ? "Return to Overlay Mode" : "Switch to Underlay Mode"}>
-        <IconButton onClick={onUnderlayToggle} sx={underlayButtonStyle}>
-          {isUnderlayMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
+      <Tooltip title={isPipMode ? "Exit Picture-in-Picture (P)" : "Enter Picture-in-Picture (P)"}>
+        <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
+          {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Toggle Fullscreen (F)" placement="top">
+        <IconButton onClick={onFullscreen} sx={buttonStyle}>
+          <FullscreenIcon />
         </IconButton>
       </Tooltip>
     </Box>

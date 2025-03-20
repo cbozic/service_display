@@ -115,16 +115,18 @@ const App: React.FC = () => {
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [gifPath, setGifPath] = useState<string>('');
-  const [isSlideAnimationEnabled, setIsSlideAnimationEnabled] = useState<boolean>(false);
+  const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
-  const [isUnderlayMode, setIsUnderlayMode] = useState<boolean>(false);
+  const [isPipMode, setIsPipMode] = useState<boolean>(false);
   const [tabValue, setTabValue] = useState<number>(0);
   const [videoCuePlayer, setVideoCuePlayer] = useState<any>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const previousVolumeRef = useRef<number>(100);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -136,7 +138,7 @@ const App: React.FC = () => {
     }
   }, [isPlayerReady]);
 
-  const handleFastForward = useCallback(() => {
+  const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime + 15, true);
@@ -147,7 +149,7 @@ const App: React.FC = () => {
     }
   }, [player, isPlayerReady, videoCuePlayer]);
 
-  const handleRewind = useCallback(() => {
+  const handleSkipBack = useCallback(() => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime - 5, true);
@@ -187,8 +189,8 @@ const App: React.FC = () => {
     }
   }, [isPlaying, isPlayerReady]);
 
-  const handleSlideAnimationToggle = useCallback(() => {
-    setIsSlideAnimationEnabled(prev => !prev);
+  const handleSlideTransitionsToggle = useCallback(() => {
+    setIsSlideTransitionsEnabled(prev => !prev);
   }, []);
 
   const handleFrameSelect = useCallback((frameUrl: string, index: number) => {
@@ -204,8 +206,8 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleUnderlayToggle = useCallback(() => {
-    setIsUnderlayMode(prev => !prev);
+  const handlePipToggle = useCallback(() => {
+    setIsPipMode(prev => !prev);
   }, []);
 
   const handleRestart = useCallback(() => {
@@ -239,6 +241,18 @@ const App: React.FC = () => {
     }
   }, [isDucking, videoVolume]);
 
+  const handleToggleMute = useCallback(() => {
+    if (!isMuted) {
+      previousVolumeRef.current = videoVolume;
+      setVideoVolume(0);
+      setIsMuted(true);
+    } else {
+      const targetVolume = previousVolumeRef.current || 25;
+      setIsMuted(false);
+      setVideoVolume(targetVolume);
+    }
+  }, [isMuted, videoVolume]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -260,14 +274,20 @@ const App: React.FC = () => {
           const prevIndex = currentFrameIndex <= 0 ? framesRef.current.length - 1 : currentFrameIndex - 1;
           handleFrameSelect(framesRef.current[prevIndex], prevIndex);
         }
-      } else if (event.code === 'KeyS' && !event.repeat) {
+      } else if (event.code === 'KeyT' && !event.repeat) {
         event.preventDefault();
-        handleSlideAnimationToggle();
+        handleSlideTransitionsToggle();
       } else if (event.code === 'KeyD' && !event.repeat) {
         event.preventDefault();
         const newVolume = isDucking ? preDuckVolume.current : Math.round(videoVolume * 0.75);
         setVideoVolume(newVolume);
         setIsDucking(!isDucking);
+      } else if (event.code === 'KeyP' && !event.repeat) {
+        event.preventDefault();
+        handlePipToggle();
+      } else if (event.code === 'KeyM' && !event.repeat) {
+        event.preventDefault();
+        handleToggleMute();
       }
     };
 
@@ -275,7 +295,8 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, handleSlideAnimationToggle, videoVolume, isDucking]);
+  }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
+      handleSlideTransitionsToggle, videoVolume, isDucking, handlePipToggle, handleToggleMute]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -301,7 +322,7 @@ const App: React.FC = () => {
 
   // Reset animation when loading new GIF
   useEffect(() => {
-    setIsSlideAnimationEnabled(false);
+    setIsSlideTransitionsEnabled(false);
     setCurrentFrameIndex(0);
     framesRef.current = [];
     if (slideAnimationTimerRef.current) {
@@ -312,7 +333,7 @@ const App: React.FC = () => {
 
   // Handle slide animation
   useEffect(() => {
-    if (isSlideAnimationEnabled && framesRef.current.length > 0) {
+    if (isSlideTransitionsEnabled && framesRef.current.length > 0) {
       slideAnimationTimerRef.current = setInterval(() => {
         setCurrentFrameIndex(prevIndex => {
           const nextIndex = (prevIndex + 1) % framesRef.current.length;
@@ -328,7 +349,7 @@ const App: React.FC = () => {
         slideAnimationTimerRef.current = null;
       }
     };
-  }, [isSlideAnimationEnabled]);
+  }, [isSlideTransitionsEnabled]);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
@@ -354,8 +375,8 @@ const App: React.FC = () => {
             onStateChange={handleStateChange}
             isPlaying={isPlaying}
             isFullscreen={isFullscreen}
-            isUnderlayMode={isUnderlayMode}
-            isSlideAnimationEnabled={isSlideAnimationEnabled}
+            isPipMode={isPipMode}
+            isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             volume={videoVolume}
           />
         </div>
@@ -379,18 +400,20 @@ const App: React.FC = () => {
           }}>
             <VideoControls 
               onPlayPause={handlePlayPause}
-              onFastForward={handleFastForward}
-              onRewind={handleRewind}
+              onSkipForward={handleSkipForward}
+              onSkipBack={handleSkipBack}
               onFullscreen={handleFullscreen}
-              onSlideAnimationToggle={handleSlideAnimationToggle}
-              onUnderlayToggle={handleUnderlayToggle}
+              onSlideTransitionsToggle={handleSlideTransitionsToggle}
+              onPipToggle={handlePipToggle}
               onRestart={handleRestart}
               onVolumeChange={setVideoVolume}
               onDuckingToggle={handleDuckingToggle}
+              onToggleMute={handleToggleMute}
               isPlaying={isPlaying}
-              isSlideAnimationEnabled={isSlideAnimationEnabled}
-              isUnderlayMode={isUnderlayMode}
+              isSlideTransitionsEnabled={isSlideTransitionsEnabled}
+              isPipMode={isPipMode}
               isDucking={isDucking}
+              isMuted={isMuted}
               volume={videoVolume}
             />
           </div>
@@ -420,7 +443,7 @@ const App: React.FC = () => {
           onFrameSelect={handleFrameSelect} 
           onFramesUpdate={handleFramesUpdate}
           currentFrameIndex={currentFrameIndex}
-          isAnimationEnabled={isSlideAnimationEnabled}
+          isAnimationEnabled={isSlideTransitionsEnabled}
           setGifPath={setGifPath}
         />
       );
