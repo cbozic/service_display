@@ -2,5 +2,6 @@
 A frontend to facilitate displaying streamed service videos to groups of remote viewers
 
 TODO:
-* make the controls more "responsive" by stacking in groups
+* Popout fullscreen behavior is still buggy
+* Possible server component to allow centralized configuration
 * Audio nudge
