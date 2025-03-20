@@ -7,7 +7,7 @@ import VideoControls from './components/VideoControls';
 import PianoControls from './components/PianoControls';
 import GifFrameDisplay from './components/GifFrameDisplay';
 import ChromaticTuner from './components/ChromaticTuner';
-import VideoCue from './components/VideoCue';
+import VideoMonitor from './components/VideoMonitor';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
@@ -28,7 +28,7 @@ const flexlayout_json: IJsonModel = {
         children: [
           {
             type: "tabset",
-            weight: 70,
+            weight: 65,
             enableClose: false,
             children: [
               {
@@ -53,19 +53,19 @@ const flexlayout_json: IJsonModel = {
           },
           {
             type: "tabset",
-            weight: 30,
+            weight: 35,
             enableClose: false,
             children: [
               {
                 type: "tab",
-                name: "Keys",
-                component: "piano",
+                name: "Tuner",
+                component: "tuner",
                 enableClose: false,
               },
               {
                 type: "tab",
-                name: "Tuner",
-                component: "tuner",
+                name: "Keys",
+                component: "piano",
                 enableClose: false,
               }
             ]
@@ -90,8 +90,8 @@ const flexlayout_json: IJsonModel = {
               },
               {
                 type: "tab",
-                name: "Video Cue",
-                component: "videoCue",
+                name: "Monitor",
+                component: "videoMonitor",
                 enableClose: false,
               }
             ]
@@ -134,7 +134,7 @@ const App: React.FC = () => {
   const framesRef = useRef<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
   const [tabValue, setTabValue] = useState<number>(0);
-  const [videoCuePlayer, setVideoCuePlayer] = useState<any>(null);
+  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<any>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
@@ -156,22 +156,22 @@ const App: React.FC = () => {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime + 15, true);
       
-      if (videoCuePlayer) {
-        videoCuePlayer.seekTo(currentTime + 15, true);
+      if (videoMonitorPlayer) {
+        videoMonitorPlayer.seekTo(currentTime + 15, true);
       }
     }
-  }, [player, isPlayerReady, videoCuePlayer]);
+  }, [player, isPlayerReady, videoMonitorPlayer]);
 
   const handleSkipBack = useCallback(() => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime - 5, true);
       
-      if (videoCuePlayer) {
-        videoCuePlayer.seekTo(currentTime - 5, true);
+      if (videoMonitorPlayer) {
+        videoMonitorPlayer.seekTo(currentTime - 5, true);
       }
     }
-  }, [player, isPlayerReady, videoCuePlayer]);
+  }, [player, isPlayerReady, videoMonitorPlayer]);
 
   const handleFullscreen = useCallback(() => {
     setIsFullscreen(prev => !prev);
@@ -230,17 +230,17 @@ const App: React.FC = () => {
         setIsPlaying(true);
       }
       
-      if (videoCuePlayer) {
-        videoCuePlayer.seekTo(0, true);
+      if (videoMonitorPlayer) {
+        videoMonitorPlayer.seekTo(0, true);
         if (!isPlaying) {
-          videoCuePlayer.playVideo();
+          videoMonitorPlayer.playVideo();
         }
       }
     }
-  }, [player, isPlayerReady, isPlaying, videoCuePlayer]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer]);
 
-  const handleCuePlayerReady = useCallback((playerInstance: any) => {
-    setVideoCuePlayer(playerInstance);
+  const handleMonitorPlayerReady = useCallback((playerInstance: any) => {
+    setVideoMonitorPlayer(playerInstance);
   }, []);
 
   const handleDuckingToggle = useCallback(() => {
@@ -460,9 +460,9 @@ const App: React.FC = () => {
           setGifPath={setGifPath}
         />
       );
-    } else if (component === "videoCue") {
+    } else if (component === "videoMonitor") {
       return (
-        <VideoCue 
+        <VideoMonitor 
           mainPlayer={player}
           videoId={video}
         />
