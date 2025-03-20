@@ -220,6 +220,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     border: isDucking 
       ? '2px solid #FFA726'  // Back to orange border
       : '2px solid transparent',
+    '&.Mui-disabled': {
+      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+      color: 'rgba(255, 255, 255, 0.3)',
+    }
   };
 
   return (
@@ -263,9 +267,15 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           sx={sliderStyle}
         />
         <Tooltip title={isDucking ? "Disable Volume Ducking (D)" : "Enable Volume Ducking (D)"}>
-          <IconButton onClick={onDuckingToggle} sx={duckingButtonStyle}>
-            <VolumeDownIcon />
-          </IconButton>
+          <span>
+            <IconButton 
+              onClick={onDuckingToggle} 
+              sx={duckingButtonStyle}
+              disabled={isMuted}
+            >
+              <VolumeDownIcon />
+            </IconButton>
+          </span>
         </Tooltip>
       </Box>
 
