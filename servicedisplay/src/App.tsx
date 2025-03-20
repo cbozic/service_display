@@ -28,7 +28,7 @@ const flexlayout_json: IJsonModel = {
         children: [
           {
             type: "tabset",
-            weight: 75,
+            weight: 65,
             enableClose: false,
             children: [
               {
@@ -53,7 +53,7 @@ const flexlayout_json: IJsonModel = {
           },
           {
             type: "tabset",
-            weight: 25,
+            weight: 35,
             enableClose: false,
             children: [
               {
