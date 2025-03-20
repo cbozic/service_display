@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 // Updated TypeScript declarations with correct types
 declare global {
@@ -36,12 +36,12 @@ declare global {
   }
 }
 
-interface VideoCueProps {
+interface VideoMonitorProps {
   mainPlayer: any; // The main YouTube player instance
   videoId: string;
 }
 
-const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
+const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerIdRef = useRef<string>(`yt-cue-${Math.random().toString(36).substr(2, 9)}`);
   const playerRef = useRef<any>(null);
@@ -172,36 +172,36 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
     syncIntervalRef.current = window.setInterval(syncWithMainPlayer, 500);
   };
   
-  // Function to sync the cue player with the main player
+  // Function to sync the monitor player with the main player
   const syncWithMainPlayer = () => {
     if (!mainPlayer || !playerRef.current) return;
     
     try {
       // Get main player state
       const mainState = mainPlayer.getPlayerState();
-      const cueState = playerRef.current.getPlayerState();
+      const monitorState = playerRef.current.getPlayerState();
       
       // Only sync if we have valid states
-      if (typeof mainState === 'undefined' || typeof cueState === 'undefined') {
+      if (typeof mainState === 'undefined' || typeof monitorState === 'undefined') {
         return;
       }
       
       // Sync time if difference is greater than 0.5 seconds
       const mainTime = mainPlayer.getCurrentTime();
-      const cueTime = playerRef.current.getCurrentTime();
+      const monitorTime = playerRef.current.getCurrentTime();
       
-      if (!isNaN(mainTime) && !isNaN(cueTime) && Math.abs(mainTime - cueTime) > 0.5) {
+      if (!isNaN(mainTime) && !isNaN(monitorTime) && Math.abs(mainTime - monitorTime) > 0.5) {
         playerRef.current.seekTo(mainTime, true);
       }
       
       // Sync play/pause state
-      if (mainState === 1 && cueState !== 1) { // 1 = playing
+      if (mainState === 1 && monitorState !== 1) { // 1 = playing
         playerRef.current.playVideo();
-      } else if (mainState === 2 && cueState !== 2) { // 2 = paused
+      } else if (mainState === 2 && monitorState !== 2) { // 2 = paused
         playerRef.current.pauseVideo();
       }
     } catch (error) {
-      console.error('Error syncing video cue:', error);
+      console.error('Error syncing video monitor:', error);
     }
   };
   
@@ -211,6 +211,7 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
         width: '100%',
         height: '100%',
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'var(--dark-surface)',
@@ -218,13 +219,31 @@ const VideoCue: React.FC<VideoCueProps> = ({ mainPlayer, videoId }) => {
         overflow: 'hidden',
         position: 'relative',
         '& iframe': {
-          pointerEvents: 'none !important' // Add CSS rule to target iframe
+          pointerEvents: 'none !important'
         }
       }}
-      ref={containerRef}
-      onClick={(e) => e.preventDefault()} // Catch any clicks at the container level
-    />
+    >
+      <Typography
+        variant="subtitle1"
+        sx={{
+          color: '#fff',
+          padding: '8px',
+          width: '100%',
+          textAlign: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          fontWeight: 500,
+          letterSpacing: '0.5px'
+        }}
+      >
+        Video Monitor (Experimental)
+      </Typography>
+      <Box
+        ref={containerRef}
+        onClick={(e) => e.preventDefault()}
+        sx={{ flex: 1, width: '100%' }}
+      />
+    </Box>
   );
 };
 
-export default VideoCue; 
+export default VideoMonitor; 
