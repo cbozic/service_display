@@ -35,14 +35,14 @@ const flexlayout_json: IJsonModel = {
             children: [
               {
                 type: "tab",
-                name: "Slides",
-                component: "slides",
+                name: "Videos",
+                component: "videoList",
                 enableClose: false,
               },
               {
                 type: "tab",
-                name: "Videos",
-                component: "videoList",
+                name: "Slides",
+                component: "slides",
                 enableClose: false,
               },
               {
