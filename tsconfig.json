@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "types": ["react", "react-dom"],
+    "moduleResolution": "node"
+  }
+} 
