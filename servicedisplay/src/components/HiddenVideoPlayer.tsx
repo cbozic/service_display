@@ -89,6 +89,8 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     player.mute();
     player.pauseVideo();
     player.setVolume(volume);
+    // Set lower quality for hidden player
+    player.setPlaybackQuality('small');
     setCurrentVolume(volume);
     setPlayer(player);
     setIsPlayerReady(true);

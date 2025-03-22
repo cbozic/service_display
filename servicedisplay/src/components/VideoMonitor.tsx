@@ -57,6 +57,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
                 if (iframe) {
                   iframe.style.pointerEvents = 'none';
                 }
+
+                // Set lower quality for monitor
+                event.target.setPlaybackQuality('small');
               }
               
               // Start sync process if main player exists

@@ -129,6 +129,8 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     playerInstance.mute();
     playerInstance.setVolume(0);
     playerInstance.pauseVideo();
+    // Set lower quality for background player
+    playerInstance.setPlaybackQuality('small');
     setPlayer(playerInstance);
     setIsPlayerReady(true);
   }, []);
