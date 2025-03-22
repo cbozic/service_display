@@ -13,66 +13,92 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
   const playerIdRef = useRef<string>(`monitor-${Math.random().toString(36).substr(2, 9)}`);
   const initializedRef = useRef<boolean>(false);
   const syncIntervalRef = useRef<number | null>(null);
+  const initAttemptsRef = useRef<number>(0);
 
-  useEffect(() => {
-    // Only proceed if we have a container and videoId
+  const initPlayer = () => {
     if (!containerRef.current || !videoId) return;
 
-    // Create a div for the player
-    const playerDiv = document.createElement('div');
-    playerDiv.id = playerIdRef.current;
-    containerRef.current.appendChild(playerDiv);
+    if (window.YT && window.YT.Player) {
+      try {
+        // Clear existing player if it exists
+        if (playerRef.current) {
+          playerRef.current.destroy();
+        }
 
-    // Wait for YT API and create player
-    const initPlayer = () => {
-      if (window.YT && window.YT.Player) {
-        try {
-          playerRef.current = new window.YT.Player(playerIdRef.current, {
-            videoId: videoId,
-            width: '100%',
-            height: '100%',
-            playerVars: {
-              controls: 0,
-              modestbranding: 1,
-              rel: 0,
-              showinfo: 0,
-              autoplay: 0,
-              mute: 1,
-              enablejsapi: 1
-            },
-            events: {
-              onReady: (event) => {
-                // Only apply styles once
-                if (!initializedRef.current && containerRef.current) {
-                  initializedRef.current = true;
-                  
-                  // Find the iframe
-                  const iframe = containerRef.current.querySelector('iframe');
-                  if (iframe) {
-                    // Apply pointer-events style directly to iframe
-                    iframe.style.pointerEvents = 'none';
-                  }
-                }
+        // Create new player div
+        const playerDiv = document.createElement('div');
+        playerDiv.id = playerIdRef.current;
+        containerRef.current.innerHTML = ''; // Clear container
+        containerRef.current.appendChild(playerDiv);
+
+        playerRef.current = new window.YT.Player(playerIdRef.current, {
+          videoId: videoId,
+          width: '100%',
+          height: '100%',
+          playerVars: {
+            controls: 0,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            autoplay: 0,
+            mute: 1,
+            enablejsapi: 1
+          },
+          events: {
+            onReady: (event) => {
+              // Only apply styles once
+              if (!initializedRef.current && containerRef.current) {
+                initializedRef.current = true;
                 
-                // Player is ready, start sync process if main player exists
-                if (mainPlayer) {
-                  startSyncWithMainPlayer();
+                // Find the iframe
+                const iframe = containerRef.current.querySelector('iframe');
+                if (iframe) {
+                  iframe.style.pointerEvents = 'none';
                 }
               }
+              
+              // Start sync process if main player exists
+              if (mainPlayer) {
+                startSyncWithMainPlayer();
+              }
+            },
+            onError: (error) => {
+              console.error('Monitor player error:', error);
+              // Retry initialization if we haven't tried too many times
+              if (initAttemptsRef.current < 3) {
+                initAttemptsRef.current++;
+                setTimeout(initPlayer, 1000);
+              }
             }
-          });
-        } catch (error) {
-          console.error('Error initializing YouTube player:', error);
+          }
+        });
+      } catch (error) {
+        console.error('Error initializing YouTube player:', error);
+        // Retry initialization if we haven't tried too many times
+        if (initAttemptsRef.current < 3) {
+          initAttemptsRef.current++;
+          setTimeout(initPlayer, 1000);
         }
-      } else {
-        // Try again in 100ms
-        setTimeout(initPlayer, 100);
       }
-    };
+    } else {
+      // Try again in 100ms if YT API isn't ready
+      setTimeout(initPlayer, 100);
+    }
+  };
 
-    // Load YouTube API and initialize player
-    loadYouTubeAPI().then(initPlayer);
+  useEffect(() => {
+    initAttemptsRef.current = 0; // Reset attempts counter
     
+    // Load API and initialize player
+    loadYouTubeAPI()
+      .then(() => {
+        // Small delay to ensure API is fully ready
+        setTimeout(initPlayer, 100);
+      })
+      .catch(error => {
+        console.error('Error loading YouTube API:', error);
+      });
+
     return () => {
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         playerRef.current.destroy();
@@ -84,41 +110,60 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
     };
   }, [videoId]);
 
+  // Add new effect to handle mainPlayer changes
+  useEffect(() => {
+    if (mainPlayer && playerRef.current) {
+      startSyncWithMainPlayer();
+    }
+  }, [mainPlayer]);
+
   const startSyncWithMainPlayer = () => {
     // Clear any existing sync interval
     if (syncIntervalRef.current) {
       window.clearInterval(syncIntervalRef.current);
     }
 
-    // Set up new sync interval
+    // Initial sync
+    if (mainPlayer && playerRef.current) {
+      try {
+        const mainTime = mainPlayer.getCurrentTime();
+        playerRef.current.seekTo(mainTime, true);
+        
+        if (mainPlayer.getPlayerState() === 1) {
+          playerRef.current.playVideo();
+        } else {
+          playerRef.current.pauseVideo();
+        }
+      } catch (error) {
+        console.error('Error during initial sync:', error);
+      }
+    }
+
+    // Set up sync interval
     syncIntervalRef.current = window.setInterval(() => {
       if (mainPlayer && playerRef.current) {
         try {
+          // Get main player state and time
+          const mainPlayerState = mainPlayer.getPlayerState();
           const mainTime = mainPlayer.getCurrentTime();
           const monitorTime = playerRef.current.getCurrentTime();
-          const timeDiff = Math.abs(mainTime - monitorTime);
-
-          // If time difference is more than 0.5 seconds, sync
-          if (timeDiff > 0.5) {
-            playerRef.current.seekTo(mainTime);
+          
+          // If time difference is more than 0.3 seconds, sync
+          if (Math.abs(mainTime - monitorTime) > 0.3) {
+            playerRef.current.seekTo(mainTime, true);
           }
 
-          // Match play state
-          const mainState = mainPlayer.getPlayerState();
-          const monitorState = playerRef.current.getPlayerState();
-
-          if (mainState !== monitorState) {
-            if (mainState === 1) { // Playing
-              playerRef.current.playVideo();
-            } else if (mainState === 2) { // Paused
-              playerRef.current.pauseVideo();
-            }
+          // Match play/pause state
+          if (mainPlayerState === 1 && playerRef.current.getPlayerState() !== 1) {
+            playerRef.current.playVideo();
+          } else if (mainPlayerState === 2 && playerRef.current.getPlayerState() !== 2) {
+            playerRef.current.pauseVideo();
           }
         } catch (error) {
-          console.error('Error syncing video:', error);
+          console.error('Error during video sync:', error);
         }
       }
-    }, 1000); // Check every second
+    }, 500); // Check more frequently (every 500ms)
   };
 
   return (

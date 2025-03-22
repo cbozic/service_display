@@ -36,9 +36,17 @@ declare global {
   }
 }
 
+let apiLoadPromise: Promise<void> | null = null;
+
 export const loadYouTubeAPI = (): Promise<void> => {
-  return new Promise((resolve) => {
-    if ((window as any).YT && (window as any).YT.Player) {
+  // Return existing promise if we're already loading
+  if (apiLoadPromise) {
+    return apiLoadPromise;
+  }
+
+  apiLoadPromise = new Promise((resolve) => {
+    // If API is already loaded, resolve immediately
+    if (window.YT && window.YT.Player) {
       resolve();
       return;
     }
@@ -46,11 +54,23 @@ export const loadYouTubeAPI = (): Promise<void> => {
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
 
+    // Store the original onYouTubeIframeAPIReady if it exists
+    const originalCallback = window.onYouTubeIframeAPIReady;
+
     window.onYouTubeIframeAPIReady = () => {
-      resolve();
+      // Call original callback if it existed
+      if (originalCallback) {
+        originalCallback();
+      }
+      // Wait a short moment to ensure API is fully initialized
+      setTimeout(() => {
+        resolve();
+      }, 100);
     };
 
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
   });
+
+  return apiLoadPromise;
 }; 
