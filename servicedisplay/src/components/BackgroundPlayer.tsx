@@ -21,6 +21,8 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [volume, setVolume] = useState(initialVolume);
   const { mainPlayersReady, isPlayEnabled } = useYouTube();
   const [isRandomMode, setIsRandomMode] = useState(false);
+  const fadeTimeoutRef = useRef<number | null>(null);
+  const previousVolumeRef = useRef<number>(initialVolume);
 
   // Initialize YouTube API
   useEffect(() => {
@@ -135,24 +137,92 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     setIsPlayerReady(true);
   }, []);
 
-  // Handle play state changes - reversed behavior
+  // Add fade function
+  const fadeVolume = useCallback((startVolume: number, targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+    }
+
+    if (!player || !isPlayerReady) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const steps = 25;
+    const stepDuration = (durationInSeconds * 1000) / steps;
+    const volumeDifference = targetVolume - startVolume;
+    let currentStep = 0;
+
+    const fadeStep = () => {
+      if (!player || !isPlayerReady) {
+        if (onComplete) onComplete();
+        return;
+      }
+
+      if (currentStep < steps) {
+        const newVolume = startVolume + (volumeDifference * (currentStep / steps));
+        try {
+          if (newVolume === 0) {
+            player.mute();
+          } else {
+            player.unMute();
+            player.setVolume(newVolume);
+          }
+          currentStep++;
+          fadeTimeoutRef.current = window.setTimeout(fadeStep, stepDuration);
+        } catch (e) {
+          console.log('Error in fade step:', e);
+          if (onComplete) onComplete();
+        }
+      } else {
+        try {
+          if (targetVolume === 0) {
+            player.mute();
+          } else {
+            player.unMute();
+            player.setVolume(targetVolume);
+          }
+        } catch (e) {
+          console.log('Error setting final volume:', e);
+        }
+        fadeTimeoutRef.current = null;
+        if (onComplete) onComplete();
+      }
+    };
+
+    fadeStep();
+  }, [player, isPlayerReady]);
+
+  // Update the play state effect
   useEffect(() => {
     if (!isPlayerReady || !player || !mainPlayersReady) return;
 
     try {
-      if (!isPlayEnabled) {  // Reversed condition
-        if (!isMuted) {  // Only play and set volume if not muted
+      if (!isPlayEnabled) {  // When main player is paused, we play background
+        if (!isMuted) {
           player.unMute();
           player.playVideo();
-          player.setVolume(volume);
+          fadeVolume(0, volume, 1); // Fade in over 1 second
+          previousVolumeRef.current = volume;
         }
       } else {
-        player.pauseVideo();
+        // Fade out over 3 seconds, then pause
+        fadeVolume(previousVolumeRef.current, 0, 3, () => {
+          player.pauseVideo();
+        });
       }
     } catch (error) {
       console.error('Error controlling background player:', error);
     }
-  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, volume, isMuted]);
+
+    // Cleanup
+    return () => {
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = null;
+      }
+    };
+  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, volume, isMuted, fadeVolume]);
 
   // Effect to trigger skip ONLY when random mode is first enabled
   useEffect(() => {
