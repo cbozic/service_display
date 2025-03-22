@@ -20,6 +20,8 @@ interface VideoFadeFrameProps {
   isPipMode?: boolean;
   isSlideTransitionsEnabled?: boolean;
   volume?: number;
+  playlistUrl?: string;
+  usePlaylistMode?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -36,7 +38,9 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   isFullscreen = false,
   isPipMode = false,
   isSlideTransitionsEnabled = false,
-  volume = 100
+  volume = 100,
+  playlistUrl,
+  usePlaylistMode = false
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -308,6 +312,12 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }
   }, [isFullscreen, fullscreen, openFullscreen]);
 
+  const getPlaylistId = useCallback((url: string) => {
+    const regex = /[&?]list=([^&]+)/;
+    const match = url?.match(regex);
+    return match ? match[1] : '';
+  }, []);
+
   const opts: YouTubeProps['opts'] = {
     width: '100%',
     height: '100%',
@@ -319,6 +329,10 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       iv_load_policy: 3,
       fs: 0,
       modestbranding: 1,
+      ...(usePlaylistMode && playlistUrl && {
+        listType: 'playlist',
+        list: getPlaylistId(playlistUrl)
+      })
     },
   };
 

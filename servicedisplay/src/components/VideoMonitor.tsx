@@ -1,13 +1,51 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Box, Typography } from '@mui/material';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
+
+interface YouTubeEvent {
+  target: any;
+}
+
+interface YouTubeErrorEvent {
+  data: number;
+}
+
+interface YouTubePlayerConfig {
+  videoId?: string;
+  width: string | number;
+  height: string | number;
+  playerVars?: {
+    controls?: number;
+    modestbranding?: number;
+    rel?: number;
+    showinfo?: number;
+    autoplay?: number;
+    mute?: number;
+    enablejsapi?: number;
+    playsinline?: number;
+    vq?: string;
+    listType?: string;
+    list?: string;
+  };
+  events?: {
+    onReady?: (event: YouTubeEvent) => void;
+    onError?: (event: YouTubeErrorEvent) => void;
+  };
+}
 
 interface VideoMonitorProps {
   mainPlayer: any; // The main YouTube player instance
   videoId: string;
+  usePlaylistMode?: boolean;  // Add this prop
+  playlistUrl?: string;      // Add this prop
 }
 
-const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
+const VideoMonitor: React.FC<VideoMonitorProps> = ({ 
+  mainPlayer, 
+  videoId, 
+  usePlaylistMode = false,
+  playlistUrl
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const playerIdRef = useRef<string>(`monitor-${Math.random().toString(36).substr(2, 9)}`);
@@ -15,8 +53,14 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
   const syncIntervalRef = useRef<number | null>(null);
   const initAttemptsRef = useRef<number>(0);
 
+  const getPlaylistId = useCallback((url: string) => {
+    const regex = /[&?]list=([^&]+)/;
+    const match = url?.match(regex);
+    return match ? match[1] : '';
+  }, []);
+
   const initPlayer = () => {
-    if (!containerRef.current || !videoId) return;
+    if (!containerRef.current || (!videoId && !usePlaylistMode)) return;
 
     if (window.YT && window.YT.Player) {
       try {
@@ -31,8 +75,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
         containerRef.current.innerHTML = ''; // Clear container
         containerRef.current.appendChild(playerDiv);
 
-        playerRef.current = new window.YT.Player(playerIdRef.current, {
-          videoId: videoId,
+        const playerConfig: YouTubePlayerConfig = {
           width: '100%',
           height: '100%',
           playerVars: {
@@ -44,10 +87,14 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
             mute: 1,
             enablejsapi: 1,
             playsinline: 1,
-            vq: 'small'
+            vq: 'small',
+            ...(usePlaylistMode && playlistUrl && {
+              listType: 'playlist',
+              list: getPlaylistId(playlistUrl)
+            })
           },
           events: {
-            onReady: (event) => {
+            onReady: (event: YouTubeEvent) => {
               // Only apply styles once
               if (!initializedRef.current && containerRef.current) {
                 initializedRef.current = true;
@@ -67,26 +114,30 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
                 startSyncWithMainPlayer();
               }
             },
-            onError: (error) => {
-              console.error('Monitor player error:', error);
-              // Retry initialization if we haven't tried too many times
+            onError: (event: YouTubeErrorEvent) => {
+              console.error('Monitor player error:', event);
               if (initAttemptsRef.current < 3) {
                 initAttemptsRef.current++;
                 setTimeout(initPlayer, 1000);
               }
             }
           }
-        });
+        };
+
+        // Add videoId only when not in playlist mode
+        if (!usePlaylistMode) {
+          playerConfig.videoId = videoId;
+        }
+
+        playerRef.current = new window.YT.Player(playerIdRef.current, playerConfig);
       } catch (error) {
         console.error('Error initializing YouTube player:', error);
-        // Retry initialization if we haven't tried too many times
         if (initAttemptsRef.current < 3) {
           initAttemptsRef.current++;
           setTimeout(initPlayer, 1000);
         }
       }
     } else {
-      // Try again in 100ms if YT API isn't ready
       setTimeout(initPlayer, 100);
     }
   };

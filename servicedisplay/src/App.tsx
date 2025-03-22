@@ -150,6 +150,7 @@ const AppContent: React.FC = () => {
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
   const { setIsPlayEnabled } = useYouTube();
+  const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -278,6 +279,10 @@ const AppContent: React.FC = () => {
     }
   }, [isMuted, videoVolume]);
 
+  const handleVideoListError = useCallback((hasError: boolean) => {
+    setUsePlaylistMode(hasError);
+  }, []);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -405,6 +410,8 @@ const AppContent: React.FC = () => {
             isPipMode={isPipMode}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             volume={videoVolume}
+            playlistUrl={playlistUrl}
+            usePlaylistMode={usePlaylistMode}
           />
         </div>
       );
@@ -416,7 +423,14 @@ const AppContent: React.FC = () => {
         />
       );
     } else if (component === "videoList") {
-      return <VideoList setVideo={setVideo} playlistUrl={playlistUrl} currentVideo={video} />;
+      return (
+        <VideoList 
+          setVideo={setVideo} 
+          playlistUrl={playlistUrl} 
+          currentVideo={video}
+          onError={handleVideoListError}
+        />
+      );
     } else if (component === "controls") {
       return (
         <div style={{ 
@@ -486,6 +500,8 @@ const AppContent: React.FC = () => {
         <VideoMonitor 
           mainPlayer={player}
           videoId={video}
+          usePlaylistMode={usePlaylistMode}
+          playlistUrl={playlistUrl}
         />
       );
     }

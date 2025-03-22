@@ -6,6 +6,7 @@ interface VideoListProps {
   setVideo: (videoId: string) => void;
   playlistUrl: string;
   currentVideo: string;
+  onError?: (hasError: boolean) => void;
 }
 
 interface VideoData {
@@ -14,7 +15,7 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo }) => {
+const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo, onError }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -26,6 +27,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
       try {
         if (!playlistUrl) {
           setError(true);
+          onError?.(true);
           return;
         }
 
@@ -39,6 +41,7 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
         
         if (!videoIds.length || !titles.length) {
           setError(true);
+          onError?.(true);
           return;
         }
 
@@ -60,25 +63,22 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
         
         setVideos(videoData);
         
-        // Mark that we've loaded video data
         setInitialized(true);
+        onError?.(false);
       } catch (error) {
         console.error('Error fetching videos:', error);
         setError(true);
+        onError?.(true);
       }
     };
 
     fetchVideos();
-  }, [playlistUrl]);
+  }, [playlistUrl, onError]);
 
-  // This useEffect runs only once after videos are loaded successfully
   useEffect(() => {
-    // Only run if we have videos and we're now initialized
     if (videos.length > 0 && initialized) {
-      // Force select the first video regardless of currentVideo state
       setVideo(videos[0].videoId);
       
-      // We've run this effect, no need to run it again
       setInitialized(false);
     }
   }, [videos, initialized, setVideo]);
@@ -150,7 +150,6 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
     }
   };
 
-  // Add styles for the dialog components
   const dialogStyle = {
     '& .MuiPaper-root': {
       backgroundColor: 'var(--dark-surface)',
