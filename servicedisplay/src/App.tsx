@@ -11,7 +11,7 @@ import VideoMonitor from './components/VideoMonitor';
 import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
-import { YouTubeProvider } from './contexts/YouTubeContext';
+import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
 
 const flexlayout_json: IJsonModel = {
@@ -125,7 +125,7 @@ const flexlayout_json: IJsonModel = {
 
 const model = Model.fromJson(flexlayout_json);
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [video, setVideo] = useState<string>('oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
   const [overlaySlide, setOverlaySlide] = useState<string>();
@@ -149,6 +149,7 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
+  const { setIsPlayEnabled } = useYouTube();
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -156,9 +157,11 @@ const App: React.FC = () => {
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
-      setIsPlaying(prev => !prev);
+      const newPlayState = !isPlaying;
+      setIsPlaying(newPlayState);
+      setIsPlayEnabled(newPlayState);
     }
-  }, [isPlayerReady]);
+  }, [isPlayerReady, isPlaying]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -490,21 +493,27 @@ const App: React.FC = () => {
 
   return (
     <Box sx={{ height: '100vh' }}>
-      <YouTubeProvider>
-        <Layout 
-          model={model} 
-          factory={factory}
-          onModelChange={(model: Model) => {
-            if (window.opener && document.fullscreenElement) {
-              document.exitFullscreen().catch((e: Error) => {
-                console.log('Error exiting fullscreen:', e);
-              });
-            }
-          }}
-        />
-      </YouTubeProvider>
+      <Layout 
+        model={model} 
+        factory={factory}
+        onModelChange={(model: Model) => {
+          if (window.opener && document.fullscreenElement) {
+            document.exitFullscreen().catch((e: Error) => {
+              console.log('Error exiting fullscreen:', e);
+            });
+          }
+        }}
+      />
     </Box>
   );
 }
+
+const App: React.FC = () => {
+  return (
+    <YouTubeProvider>
+      <AppContent />
+    </YouTubeProvider>
+  );
+};
 
 export default App;

@@ -5,6 +5,8 @@ interface YouTubeContextType {
   setMainPlayersReady: (ready: boolean) => void;
   isMainPlayerPlaying: boolean;
   setIsMainPlayerPlaying: (playing: boolean) => void;
+  isPlayEnabled: boolean;
+  setIsPlayEnabled: (enabled: boolean) => void;
 }
 
 const YouTubeContext = createContext<YouTubeContextType>({
@@ -12,18 +14,23 @@ const YouTubeContext = createContext<YouTubeContextType>({
   setMainPlayersReady: () => {},
   isMainPlayerPlaying: false,
   setIsMainPlayerPlaying: () => {},
+  isPlayEnabled: false,
+  setIsPlayEnabled: () => {},
 });
 
 export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mainPlayersReady, setMainPlayersReady] = useState(false);
   const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState(false);
+  const [isPlayEnabled, setIsPlayEnabled] = useState(false);
 
   return (
     <YouTubeContext.Provider value={{ 
       mainPlayersReady, 
       setMainPlayersReady,
       isMainPlayerPlaying,
-      setIsMainPlayerPlaying
+      setIsMainPlayerPlaying,
+      isPlayEnabled,
+      setIsPlayEnabled
     }}>
       {children}
     </YouTubeContext.Provider>
