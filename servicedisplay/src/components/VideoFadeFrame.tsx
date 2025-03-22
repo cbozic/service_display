@@ -44,7 +44,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { setMainPlayersReady } = useYouTube();
+  const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
 
   const handleClick = () => {
     //do something here if you want
@@ -108,10 +108,12 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       setShowOverlay(true);
       player.seekTo(startSeconds);
       onStateChange?.(0);
+      setIsMainPlayerPlaying(false);
     } else {
       onStateChange?.(event.data);
+      setIsMainPlayerPlaying(event.data === 1);
     }
-  }, [player, startSeconds, onStateChange, isPlayerReady]);
+  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying]);
 
   const fadeToVolume = useCallback((targetVolume: number, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
     if (!player || !isPlayerReady) {

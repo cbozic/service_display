@@ -8,6 +8,8 @@ interface VideoConfigurationFormProps {
   setStartTimeInSeconds: (value: string) => void;
   playlistUrl: string;
   setPlaylistUrl: (value: string) => void;
+  backgroundPlaylistUrl: string;
+  setBackgroundPlaylistUrl: (value: string) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -16,7 +18,9 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   startTimeInSeconds,
   setStartTimeInSeconds,
   playlistUrl,
-  setPlaylistUrl
+  setPlaylistUrl,
+  backgroundPlaylistUrl,
+  setBackgroundPlaylistUrl
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -120,12 +124,39 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
 
             <Box>
               <Typography sx={{ color: 'white', mb: 1 }}>
-                YouTube Playlist URL
+                Main Display Playlist URL
               </Typography>
               <TextField
                 fullWidth
                 value={playlistUrl}
                 onChange={(e) => setPlaylistUrl(e.target.value)}
+                sx={{
+                  backgroundColor: '#282c34',
+                  input: { color: 'white' },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: '#404040',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#4a4a4a',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#4a90e2',
+                    },
+                  },
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography sx={{ color: 'white', mb: 1 }}>
+                Background Music Playlist URL
+              </Typography>
+              <TextField
+                fullWidth
+                value={backgroundPlaylistUrl}
+                onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
+                placeholder="Enter YouTube playlist URL for background music"
                 sx={{
                   backgroundColor: '#282c34',
                   input: { color: 'white' },

@@ -1,40 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-
-// Updated TypeScript declarations with correct types
-declare global {
-  interface Window {
-    YT: {
-      Player: new (
-        elementIdOrElement: string | HTMLElement,
-        config: {
-          videoId: string;
-          width?: string | number;
-          height?: string | number;
-          playerVars?: {
-            controls?: number;
-            modestbranding?: number;
-            rel?: number;
-            showinfo?: number;
-            autoplay?: number;
-            mute?: number;
-            start?: number;
-            enablejsapi?: number;
-            // Add origin to known properties
-            origin?: string;
-          };
-          events?: {
-            onReady?: (event: { target: any }) => void;
-            onStateChange?: (event: { data: number }) => void;
-            onError?: (event: { data: number }) => void;
-          };
-        }
-      ) => any;
-    };
-    // Fix the type declaration - no optional modifier
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
+import { loadYouTubeAPI } from '../utils/youtubeAPI';
 
 interface VideoMonitorProps {
   mainPlayer: any; // The main YouTube player instance
@@ -43,47 +9,20 @@ interface VideoMonitorProps {
 
 const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerIdRef = useRef<string>(`yt-cue-${Math.random().toString(36).substr(2, 9)}`);
   const playerRef = useRef<any>(null);
+  const playerIdRef = useRef<string>(`monitor-${Math.random().toString(36).substr(2, 9)}`);
+  const initializedRef = useRef<boolean>(false);
   const syncIntervalRef = useRef<number | null>(null);
-  const initializedRef = useRef<boolean>(false); // Track if we've initialized
-  
-  // Initialize the YouTube API once
-  useEffect(() => {
-    if (window.YT && window.YT.Player) return;
-    
-    // Add the API script
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    tag.async = true;
-    document.head.appendChild(tag);
-  }, []);
-  
-  // Initialize the player when videoId changes
+
   useEffect(() => {
     // Only proceed if we have a container and videoId
     if (!containerRef.current || !videoId) return;
-    
-    // Reset initialization flag when video ID changes
-    initializedRef.current = false;
-    
-    // Clear any previous player
-    if (playerRef.current && typeof playerRef.current.destroy === 'function') {
-      playerRef.current.destroy();
-      playerRef.current = null;
-    }
-    
-    if (syncIntervalRef.current) {
-      window.clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = null;
-    }
-    
-    // Prepare the container
-    containerRef.current.innerHTML = '';
-    const playerContainer = document.createElement('div');
-    playerContainer.id = playerIdRef.current;
-    containerRef.current.appendChild(playerContainer);
-    
+
+    // Create a div for the player
+    const playerDiv = document.createElement('div');
+    playerDiv.id = playerIdRef.current;
+    containerRef.current.appendChild(playerDiv);
+
     // Wait for YT API and create player
     const initPlayer = () => {
       if (window.YT && window.YT.Player) {
@@ -130,8 +69,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
         setTimeout(initPlayer, 100);
       }
     };
-    
-    initPlayer();
+
+    // Load YouTube API and initialize player
+    loadYouTubeAPI().then(initPlayer);
     
     return () => {
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
@@ -143,68 +83,44 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
       }
     };
   }, [videoId]);
-  
-  // Handle main player changes
-  useEffect(() => {
-    if (mainPlayer && playerRef.current && initializedRef.current) {
-      startSyncWithMainPlayer();
-    }
-    
-    return () => {
-      if (syncIntervalRef.current) {
-        window.clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-    };
-  }, [mainPlayer]);
-  
-  // Function to start synchronizing with the main player
+
   const startSyncWithMainPlayer = () => {
-    // Don't setup multiple intervals
+    // Clear any existing sync interval
     if (syncIntervalRef.current) {
       window.clearInterval(syncIntervalRef.current);
     }
-    
-    // Initial sync
-    syncWithMainPlayer();
-    
-    // Setup regular sync
-    syncIntervalRef.current = window.setInterval(syncWithMainPlayer, 500);
+
+    // Set up new sync interval
+    syncIntervalRef.current = window.setInterval(() => {
+      if (mainPlayer && playerRef.current) {
+        try {
+          const mainTime = mainPlayer.getCurrentTime();
+          const monitorTime = playerRef.current.getCurrentTime();
+          const timeDiff = Math.abs(mainTime - monitorTime);
+
+          // If time difference is more than 0.5 seconds, sync
+          if (timeDiff > 0.5) {
+            playerRef.current.seekTo(mainTime);
+          }
+
+          // Match play state
+          const mainState = mainPlayer.getPlayerState();
+          const monitorState = playerRef.current.getPlayerState();
+
+          if (mainState !== monitorState) {
+            if (mainState === 1) { // Playing
+              playerRef.current.playVideo();
+            } else if (mainState === 2) { // Paused
+              playerRef.current.pauseVideo();
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing video:', error);
+        }
+      }
+    }, 1000); // Check every second
   };
-  
-  // Function to sync the monitor player with the main player
-  const syncWithMainPlayer = () => {
-    if (!mainPlayer || !playerRef.current) return;
-    
-    try {
-      // Get main player state
-      const mainState = mainPlayer.getPlayerState();
-      const monitorState = playerRef.current.getPlayerState();
-      
-      // Only sync if we have valid states
-      if (typeof mainState === 'undefined' || typeof monitorState === 'undefined') {
-        return;
-      }
-      
-      // Sync time if difference is greater than 0.5 seconds
-      const mainTime = mainPlayer.getCurrentTime();
-      const monitorTime = playerRef.current.getCurrentTime();
-      
-      if (!isNaN(mainTime) && !isNaN(monitorTime) && Math.abs(mainTime - monitorTime) > 0.5) {
-        playerRef.current.seekTo(mainTime, true);
-      }
-      
-      // Sync play/pause state
-      if (mainState === 1 && monitorState !== 1) { // 1 = playing
-        playerRef.current.playVideo();
-      } else if (mainState === 2 && monitorState !== 2) { // 2 = paused
-        playerRef.current.pauseVideo();
-      }
-    } catch (error) {
-      console.error('Error syncing video monitor:', error);
-    }
-  };
-  
+
   return (
     <Box
       sx={{

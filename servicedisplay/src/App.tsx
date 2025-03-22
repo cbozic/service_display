@@ -12,6 +12,7 @@ import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
 import { YouTubeProvider } from './contexts/YouTubeContext';
+import BackgroundPlayer from './components/BackgroundPlayer';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -57,6 +58,12 @@ const flexlayout_json: IJsonModel = {
             weight: 35,
             enableClose: false,
             children: [
+              {
+                type: "tab",
+                name: "Music",
+                component: "background",
+                enableClose: false,
+              },
               {
                 type: "tab",
                 name: "Keys",
@@ -141,6 +148,7 @@ const App: React.FC = () => {
   const preDuckVolume = useRef<number>(100);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
+  const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -376,6 +384,8 @@ const App: React.FC = () => {
           setStartTimeInSeconds={setStartTimeInSeconds}
           playlistUrl={playlistUrl}
           setPlaylistUrl={setPlaylistUrl}
+          backgroundPlaylistUrl={backgroundPlaylistUrl}
+          setBackgroundPlaylistUrl={setBackgroundPlaylistUrl}
         />
       );
     } else if (component === "video") {
@@ -394,6 +404,13 @@ const App: React.FC = () => {
             volume={videoVolume}
           />
         </div>
+      );
+    } else if (component === "background") {
+      return (
+        <BackgroundPlayer
+          playlistUrl={backgroundPlaylistUrl}
+          volume={15}
+        />
       );
     } else if (component === "videoList") {
       return <VideoList setVideo={setVideo} playlistUrl={playlistUrl} currentVideo={video} />;

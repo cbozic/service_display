@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
+import { loadYouTubeAPI } from '../utils/youtubeAPI';
 
 declare global {
   interface Window {
@@ -13,25 +14,6 @@ interface HiddenVideoPlayerProps {
   onVideoEnd?: () => void;
   volume?: number;
 }
-
-const loadYouTubeAPI = (): Promise<void> => {
-  return new Promise((resolve) => {
-    if ((window as any).YT && (window as any).YT.Player) {
-      resolve();
-      return;
-    }
-
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-
-    window.onYouTubeIframeAPIReady = () => {
-      resolve();
-    };
-
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-  });
-};
 
 const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   videoId,
