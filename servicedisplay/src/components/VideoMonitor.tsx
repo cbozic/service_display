@@ -42,7 +42,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({ mainPlayer, videoId }) => {
             showinfo: 0,
             autoplay: 0,
             mute: 1,
-            enablejsapi: 1
+            enablejsapi: 1,
+            playsinline: 1,
+            vq: 'small'
           },
           events: {
             onReady: (event) => {

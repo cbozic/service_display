@@ -23,6 +23,7 @@ declare global {
             playsinline?: number;
             disablekb?: number;
             fs?: number;
+            vq?: string;
           };
           events?: {
             onReady?: (event: { target: any }) => void;

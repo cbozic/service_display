@@ -184,6 +184,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       origin: window.location.origin,
       enablejsapi: 1,
       mute: 1,
+      vq: 'small'
     },
   };
 
