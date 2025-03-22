@@ -150,12 +150,13 @@ const ChromaticTuner: React.FC = () => {
 
   return (
     <Box sx={{ 
-      width: '100%', 
-      height: '100%', 
-      display: 'flex', 
-      alignItems: 'center', 
+      height: '100%',
+      backgroundColor: '#282c34',  // Match BackgroundPlayer color
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#1e1e1e'
+      padding: 2
     }}>
       <Box sx={tunerStyle}>
         <Box sx={{ 

@@ -152,53 +152,65 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   return (
     <Box sx={{ 
       height: '100%', 
-      display: 'flex', 
+      display: 'flex',
       flexDirection: 'column',
-      backgroundColor: '#282c34'
+      backgroundColor: '#282c34',
+      justifyContent: 'center',  // Center vertically
+      alignItems: 'center'       // Center horizontally
     }}>
       <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: 2, 
-        p: 1,
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        width: '80%',           // Limit width to look better centered
+        maxWidth: '600px',      // Maximum width
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        alignItems: 'center'    // Center controls horizontally
       }}>
-        <Tooltip title={isMuted ? "Unmute" : "Mute"}>
-          <IconButton onClick={handleMuteToggle} size="small">
-            {isMuted || volume === 0 ? <VolumeOff /> : <VolumeUp />}
-          </IconButton>
-        </Tooltip>
-        <Slider
-          value={isMuted ? 0 : volume}
-          onChange={handleVolumeChange}
-          min={0}
-          max={100}
-          aria-label="Volume"
-          sx={{ width: 100 }}
-        />
-        <Tooltip title="Skip to Next">
-          <IconButton onClick={handleSkipNext} size="small">
-            <SkipNext />
-          </IconButton>
-        </Tooltip>
-      </Box>
-      <Box sx={{ 
-        position: 'relative', 
-        flexGrow: 1,
-        pointerEvents: 'none',
-        '& iframe': {
-          pointerEvents: 'none'
-        }
-      }}>
-        <YouTube
-          opts={opts}
-          onReady={onPlayerReady}
-          onStateChange={(event: YouTubeEvent) => {
-            if (event.data === 0 && player) { // Video ended
-              player.playVideoAt(0); // Restart playlist
-            }
-          }}
-        />
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2, 
+          p: 1,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <Tooltip title={isMuted ? "Unmute" : "Mute"}>
+            <IconButton onClick={handleMuteToggle} size="small">
+              {isMuted || volume === 0 ? <VolumeOff /> : <VolumeUp />}
+            </IconButton>
+          </Tooltip>
+          <Slider
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            min={0}
+            max={100}
+            aria-label="Volume"
+            sx={{ width: 100 }}
+          />
+          <Tooltip title="Skip to Next">
+            <IconButton onClick={handleSkipNext} size="small">
+              <SkipNext />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <Box sx={{ 
+          position: 'relative',
+          width: '100%',        // Take full width of parent
+          aspectRatio: '16/9',  // Maintain video aspect ratio
+          pointerEvents: 'none',
+          '& iframe': {
+            pointerEvents: 'none'
+          }
+        }}>
+          <YouTube
+            opts={opts}
+            onReady={onPlayerReady}
+            onStateChange={(event: YouTubeEvent) => {
+              if (event.data === 0 && player) { // Video ended
+                player.playVideoAt(0); // Restart playlist
+              }
+            }}
+          />
+        </Box>
       </Box>
     </Box>
   );

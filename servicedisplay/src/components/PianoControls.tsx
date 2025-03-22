@@ -94,7 +94,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   }, [mainPlayersReady]);
 
   const containerStyle = {
-    backgroundColor: 'var(--dark-surface)', // Match video controls background
+    backgroundColor: '#282c34',
     borderRadius: '8px',
     padding: '16px',
     display: 'flex',
