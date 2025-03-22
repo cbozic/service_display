@@ -46,25 +46,32 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const handleVolumeChange = useCallback((_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
     setVolume(volumeValue);
+    previousVolumeRef.current = volumeValue; // Update the previous volume ref
+    
     if (player) {
-      // If we're adjusting volume from 0, unmute and play if main player is paused
-      if (isMuted && volumeValue > 0) {
-        setIsMuted(false);
-        if (!isPlayEnabled) {  // Reversed condition
+      try {
+        // If we're adjusting volume from 0, unmute and play if main player is paused
+        if (isMuted && volumeValue > 0) {
+          setIsMuted(false);
+          if (!isPlayEnabled) {
+            player.unMute();
+            player.setVolume(volumeValue);
+            player.playVideo();
+          }
+        } 
+        // If we're setting volume to 0, mute and pause
+        else if (volumeValue === 0) {
+          setIsMuted(true);
+          player.mute();
+          player.pauseVideo();
+        }
+        // Normal volume adjustment - directly set volume without fading
+        else if (!isMuted && !isPlayEnabled) {
           player.unMute();
           player.setVolume(volumeValue);
-          player.playVideo();
         }
-      } 
-      // If we're setting volume to 0, mute and pause
-      else if (volumeValue === 0) {
-        setIsMuted(true);
-        player.mute();
-        player.pauseVideo();
-      }
-      // Normal volume adjustment
-      else if (!isMuted && !isPlayEnabled) {  // Reversed condition
-        player.setVolume(volumeValue);
+      } catch (error) {
+        console.error('Error adjusting volume:', error);
       }
     }
   }, [player, isMuted, isPlayEnabled]);
@@ -202,14 +209,21 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         if (!isMuted) {
           player.unMute();
           player.playVideo();
-          fadeVolume(0, volume, 1); // Fade in over 1 second
+          // Only fade if we're transitioning from main player being enabled
+          if (player.getVolume() === 0) {
+            fadeVolume(0, volume, 1); // Fade in over 1 second
+          }
           previousVolumeRef.current = volume;
         }
       } else {
-        // Fade out over 3 seconds, then pause
-        fadeVolume(previousVolumeRef.current, 0, 3, () => {
+        // Only fade out if we were actually playing
+        if (!isMuted && player.getVolume() > 0) {
+          fadeVolume(previousVolumeRef.current, 0, 3, () => {
+            player.pauseVideo();
+          });
+        } else {
           player.pauseVideo();
-        });
+        }
       }
     } catch (error) {
       console.error('Error controlling background player:', error);
@@ -222,7 +236,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         fadeTimeoutRef.current = null;
       }
     };
-  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, volume, isMuted, fadeVolume]);
+  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, isMuted, fadeVolume]); // Remove volume from dependencies
 
   // Effect to trigger skip ONLY when random mode is first enabled
   useEffect(() => {
