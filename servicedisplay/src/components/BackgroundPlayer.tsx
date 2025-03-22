@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
-import { VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
+import { VolumeUp, VolumeOff, SkipNext, Shuffle } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 
@@ -20,6 +20,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(initialVolume);
   const { mainPlayersReady, isPlayEnabled } = useYouTube();
+  const [isRandomMode, setIsRandomMode] = useState(false);
 
   // Initialize YouTube API
   useEffect(() => {
@@ -85,12 +86,43 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const handleSkipNext = useCallback(() => {
     if (player && isPlayerReady) {
       try {
-        player.nextVideo();
+        if (isRandomMode) {
+          // Get total number of videos in playlist
+          const playlistLength = player.getPlaylist()?.length;
+          if (playlistLength) {
+            // Generate random index excluding current video
+            const currentIndex = player.getPlaylistIndex();
+            let randomIndex;
+            do {
+              randomIndex = Math.floor(Math.random() * playlistLength);
+            } while (randomIndex === currentIndex && playlistLength > 1);
+            
+            player.playVideoAt(randomIndex);
+            // If muted, pause the video after skipping
+            if (isMuted) {
+              // Small delay to ensure the video loads before pausing
+              setTimeout(() => {
+                player.pauseVideo();
+              }, 100);
+            }
+          } else {
+            player.nextVideo();
+          }
+        } else {
+          player.nextVideo();
+          // If muted, pause the video after skipping
+          if (isMuted) {
+            // Small delay to ensure the video loads before pausing
+            setTimeout(() => {
+              player.pauseVideo();
+            }, 100);
+          }
+        }
       } catch (error) {
         console.error('Error skipping to next video:', error);
       }
     }
-  }, [player, isPlayerReady]);
+  }, [player, isPlayerReady, isRandomMode, isMuted]);
 
   const onPlayerReady = useCallback((event: YouTubeEvent) => {
     const playerInstance = event.target;
@@ -119,6 +151,16 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       console.error('Error controlling background player:', error);
     }
   }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, volume, isMuted]);
+
+  // Effect to trigger skip ONLY when random mode is first enabled
+  useEffect(() => {
+    if (isRandomMode && player && isPlayerReady) {
+      const wasJustEnabled = true; // Only skip when random mode is first enabled
+      if (wasJustEnabled) {
+        handleSkipNext();
+      }
+    }
+  }, [isRandomMode]); // Only depend on isRandomMode changing
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
@@ -186,9 +228,35 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
             aria-label="Volume"
             sx={{ width: 100 }}
           />
-          <Tooltip title="Skip to Next">
-            <IconButton onClick={handleSkipNext} size="small">
+          <Tooltip title={isRandomMode ? "Skip to Random" : "Skip to Next"}>
+            <IconButton 
+              onClick={handleSkipNext} 
+              size="small"
+              sx={{
+                backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.08)' : 'transparent',
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+                }
+              }}
+            >
               <SkipNext />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={isRandomMode ? "Disable Random" : "Enable Random"}>
+            <IconButton 
+              onClick={() => setIsRandomMode(prev => !prev)} 
+              size="small"
+              sx={{
+                backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.08)' : 'transparent',
+                borderRadius: 1, // Makes it square like other buttons
+                color: isRandomMode ? 'chartreuse' : 'inherit',
+                '&:hover': {
+                  backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+                }
+              }}
+            >
+              <Shuffle />
             </IconButton>
           </Tooltip>
         </Box>
