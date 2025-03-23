@@ -19,30 +19,65 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isApiReady, setIsApiReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(initialVolume);
-  const { mainPlayersReady, isPlayEnabled } = useYouTube();
+  const { mainPlayersReady, isPlayEnabled, backgroundPlayerRef } = useYouTube();
   const [skipToRandomEnabled, setSkipToRandomEnabled] = useState(false);
   const fadeTimeoutRef = useRef<number | null>(null);
   const previousVolumeRef = useRef<number>(initialVolume);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [currentState, setCurrentState] = useState<number | null>(null);
 
   // Initialize YouTube API
   useEffect(() => {
+    console.log('[BackgroundPlayer] Checking YouTube API readiness');
+    console.log('[BackgroundPlayer] Current window.YT state:', {
+      hasYT: !!window.YT,
+      hasPlayer: !!(window.YT && window.YT.Player),
+      YTType: typeof window.YT
+    });
+
     // Don't initialize if already ready
     if (window.YT && window.YT.Player) {
+      console.log('[BackgroundPlayer] YouTube API already ready');
       setIsApiReady(true);
       return;
     }
 
-    const checkYouTubeAPI = () => {
-      if (window.YT && window.YT.Player) {
+    // Load the YouTube API
+    console.log('[BackgroundPlayer] Loading YouTube API...');
+    loadYouTubeAPI()
+      .then(() => {
+        console.log('[BackgroundPlayer] YouTube API loaded successfully');
         setIsApiReady(true);
-      } else {
-        setTimeout(checkYouTubeAPI, 100);
-      }
-    };
-
-    checkYouTubeAPI();
+      })
+      .catch(error => {
+        console.error('[BackgroundPlayer] Error loading YouTube API:', error);
+      });
   }, []);
+
+  // Log when player state changes
+  useEffect(() => {
+    console.log('[BackgroundPlayer] Player state updated:', {
+      hasPlayer: !!player,
+      isPlayerReady,
+      isApiReady,
+      isMuted,
+      volume,
+      isPlayEnabled,
+      mainPlayersReady,
+      playerState: player?.getPlayerState?.()
+    });
+  }, [player, isPlayerReady, isApiReady, isMuted, volume, isPlayEnabled, mainPlayersReady]);
+
+  // Add effect to handle mainPlayersReady changes
+  useEffect(() => {
+    console.log('[BackgroundPlayer] Main players ready state changed:', mainPlayersReady);
+    if (mainPlayersReady && player && isPlayerReady) {
+      console.log('[BackgroundPlayer] All players ready, starting playback');
+      if (isPlayEnabled) {
+        player.playVideo();
+      }
+    }
+  }, [mainPlayersReady, player, isPlayerReady, isPlayEnabled]);
 
   const handleVolumeChange = useCallback((_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
@@ -155,53 +190,64 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
 
   const onPlayerReady = useCallback((event: YouTubeEvent) => {
     try {
+      console.log('[BackgroundPlayer] Player ready event triggered');
       const playerInstance = event.target;
-      console.log('Player ready event triggered');
       
       // Basic player setup
+      console.log('[BackgroundPlayer] Setting up player instance');
       playerInstance.unMute();
       playerInstance.setVolume(initialVolume);
       playerInstance.setPlaybackQuality('small');
       setPlayer(playerInstance);
       setIsPlayerReady(true);
       
+      // Store player reference in context
+      if (backgroundPlayerRef) {
+        console.log('[BackgroundPlayer] Storing player reference in context');
+        backgroundPlayerRef.current = playerInstance;
+      }
+      
       // Initial playback
       const startPlayback = () => {
         try {
-          if (!playerInstance) return;
+          if (!playerInstance) {
+            console.log('[BackgroundPlayer] No player instance available');
+            return;
+          }
           
-          console.log('Starting initial playback');
-          playerInstance.playVideo();
+          console.log('[BackgroundPlayer] Starting initial playback');
           
           // Check if playlist is loaded
           const checkPlaylist = () => {
             try {
               const playlist = playerInstance.getPlaylist();
-              console.log('Checking playlist:', playlist);
+              console.log('[BackgroundPlayer] Checking playlist:', playlist);
               
               if (playlist && playlist.length > 0) {
-                console.log('Playlist loaded, length:', playlist.length);
+                console.log('[BackgroundPlayer] Playlist loaded, length:', playlist.length);
                 if (!hasInitialized) {
                   setHasInitialized(true);
                   // Wait a bit before attempting random skip
                   setTimeout(() => {
                     try {
-                      console.log('Attempting random skip');
+                      console.log('[BackgroundPlayer] Attempting random skip');
                       playerInstance.unMute();
                       playerInstance.setVolume(initialVolume);
                       handleSkipToRandom();
+                      // Always play initially since main video is unstarted
+                      console.log('[BackgroundPlayer] Main video is unstarted, playing after skip');
                       playerInstance.playVideo();
                     } catch (e) {
-                      console.error('Error during delayed skip:', e);
+                      console.error('[BackgroundPlayer] Error during delayed skip:', e);
                     }
                   }, 2000);
                 }
               } else {
-                console.log('Playlist not ready, retrying...');
+                console.log('[BackgroundPlayer] Playlist not ready, retrying...');
                 setTimeout(checkPlaylist, 1000);
               }
             } catch (e) {
-              console.error('Error in checkPlaylist:', e);
+              console.error('[BackgroundPlayer] Error in checkPlaylist:', e);
               setTimeout(checkPlaylist, 1000);
             }
           };
@@ -209,16 +255,16 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           // Start checking for playlist
           checkPlaylist();
         } catch (e) {
-          console.error('Error in startPlayback:', e);
+          console.error('[BackgroundPlayer] Error in startPlayback:', e);
         }
       };
 
       // Start the playback process
       startPlayback();
     } catch (error) {
-      console.error('Error in onPlayerReady:', error);
+      console.error('[BackgroundPlayer] Error in onPlayerReady:', error);
     }
-  }, [initialVolume, hasInitialized, handleSkipToRandom]);
+  }, [initialVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef]);
 
   const onStateChange = useCallback((event: YouTubeEvent) => {
     try {
@@ -230,6 +276,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         console.log('Video ended, restarting playlist');
         player.playVideoAt(0);
       }
+      setCurrentState(state);
     } catch (error) {
       console.error('Error in onStateChange:', error);
     }
@@ -299,60 +346,39 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     fadeStep();
   }, [player, isPlayerReady]);
 
-  // Then declare the play state effect that uses fadeVolume
+  // Effect to handle play state changes
   useEffect(() => {
-    if (!isPlayerReady || !player || !mainPlayersReady) return;
+    if (!player || !isPlayerReady) return;
 
-    const timer = setTimeout(() => {
-      try {
-        if (!player || typeof player.getPlayerState !== 'function') {
-          console.log('Player not fully initialized yet');
-          return;
-        }
+    console.log('[BackgroundPlayer] Play state effect triggered:', {
+      isPlayEnabled,
+      isMuted,
+      currentState,
+      volume,
+      previousVolume: previousVolumeRef.current
+    });
 
-        if (!isPlayEnabled) {
-          if (!isMuted) {
-            const currentState = player.getPlayerState();
-            console.log('Current player state:', currentState);
-
-            if (currentState !== 1) {
-              player.unMute();
-              player.playVideo();
-            }
-
-            const currentVolume = player.getVolume();
-            if (currentVolume === 0) {
-              fadeVolume(0, volume, 1);
-            }
-            previousVolumeRef.current = volume;
-          }
+    try {
+      // If play is enabled and we're not muted, start playing
+      if (isPlayEnabled && !isMuted) {
+        console.log('[BackgroundPlayer] Starting playback - play enabled and not muted');
+        if (player && typeof player.playVideo === 'function') {
+          player.playVideo();
         } else {
-          const currentVolume = player.getVolume();
-          if (!isMuted && currentVolume > 0) {
-            fadeVolume(previousVolumeRef.current, 0, 3, () => {
-              if (player && typeof player.pauseVideo === 'function') {
-                player.pauseVideo();
-              }
-            });
-          } else {
-            if (typeof player.pauseVideo === 'function') {
-              player.pauseVideo();
-            }
-          }
+          console.log('[BackgroundPlayer] Player or playVideo method not available');
         }
-      } catch (error) {
-        console.error('Error controlling background player:', error);
+      } else {
+        console.log('[BackgroundPlayer] Pausing - play disabled or muted');
+        if (player && typeof player.pauseVideo === 'function') {
+          player.pauseVideo();
+        } else {
+          console.log('[BackgroundPlayer] Player or pauseVideo method not available');
+        }
       }
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer);
-      if (fadeTimeoutRef.current) {
-        clearTimeout(fadeTimeoutRef.current);
-        fadeTimeoutRef.current = null;
-      }
-    };
-  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, isMuted, fadeVolume, volume]);
+    } catch (error) {
+      console.error('[BackgroundPlayer] Error controlling player:', error);
+    }
+  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, volume, previousVolumeRef]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;

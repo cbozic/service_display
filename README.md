@@ -15,9 +15,8 @@ TODO:
 Plan for Easy Mode
 * Default to fullscreen
 * Default to start at the beginning of the stream
-* Default state of video is
+* Default state of video is paused
 * load default slides on start
 * transition slides by default
-* main video paused by default
 * PiP auto start and end (set with configurable but default values)
 * 

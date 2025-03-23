@@ -50,7 +50,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
+  const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
 
   const handleClick = () => {
     //do something here if you want
@@ -117,11 +117,14 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       player.seekTo(startSeconds);
       onStateChange?.(0);
       setIsMainPlayerPlaying(false);
+      setIsPlayEnabled(true); // Main video ended, background should play
     } else {
       onStateChange?.(event.data);
-      setIsMainPlayerPlaying(event.data === 1);
+      const isPlaying = event.data === 1;
+      setIsMainPlayerPlaying(isPlaying);
+      setIsPlayEnabled(!isPlaying); // Background should play when main video is paused
     }
-  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying]);
+  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, setIsPlayEnabled]);
 
   const fadeToVolume = useCallback((targetVolume: number, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
     if (!player || !isPlayerReady) {

@@ -83,7 +83,7 @@ const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, i
       }
 
       // Set up new interval to check every 100ms
-      intervalRef.current = window.setInterval(checkEvents, 100);
+      intervalRef.current = window.setInterval(checkEvents, 500);
     } else {
       console.log('[VideoTimeEvents] Stopping event checking interval');
     }

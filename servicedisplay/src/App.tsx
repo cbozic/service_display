@@ -15,6 +15,7 @@ import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
 import ReactDOM from 'react-dom';
+import ServiceStartOverlay from './components/ServiceStartOverlay';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -151,11 +152,13 @@ const AppContent: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
-  const { setIsPlayEnabled } = useYouTube();
+  const { setIsPlayEnabled, isPlayEnabled } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
   const slidesInitializedRef = useRef<boolean>(false);
+  const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
+  const { backgroundPlayerRef } = useYouTube();
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -165,7 +168,7 @@ const AppContent: React.FC = () => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
       setIsPlaying(newPlayState);
-      setIsPlayEnabled(newPlayState);
+      setIsPlayEnabled(!newPlayState);
     }
   }, [isPlayerReady, isPlaying]);
 
@@ -217,6 +220,7 @@ const AppContent: React.FC = () => {
     const shouldBePlaying = state === 1;
     if (shouldBePlaying !== isPlaying) {
       setIsPlaying(shouldBePlaying);
+      setIsPlayEnabled(!shouldBePlaying);
     }
   }, [isPlaying, isPlayerReady]);
 
@@ -530,6 +534,15 @@ const AppContent: React.FC = () => {
     }
   }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
 
+  const handleStartService = () => {
+    setShowStartOverlay(false);
+    // Set isPlayEnabled to true so the background player will play
+    setIsPlayEnabled(true);
+    if (player) {
+      player.seekTo(0);
+    }
+  };
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -563,6 +576,7 @@ const AppContent: React.FC = () => {
             volume={videoVolume}
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
+            isPlayEnabled={isPlayEnabled}
           />
           <VideoTimeEvents
             ref={timeEventsRef}
@@ -667,19 +681,22 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh' }}>
-      <Layout 
-        model={model} 
-        factory={factory}
-        onModelChange={(model: Model) => {
-          if (window.opener && document.fullscreenElement) {
-            document.exitFullscreen().catch((e: Error) => {
-              console.log('Error exiting fullscreen:', e);
-            });
-          }
-        }}
-      />
-    </Box>
+    <YouTubeProvider>
+      <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+        {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
+        <Layout 
+          model={model} 
+          factory={factory}
+          onModelChange={(model: Model) => {
+            if (window.opener && document.fullscreenElement) {
+              document.exitFullscreen().catch((e: Error) => {
+                console.log('Error exiting fullscreen:', e);
+              });
+            }
+          }}
+        />
+      </Box>
+    </YouTubeProvider>
   );
 }
 
