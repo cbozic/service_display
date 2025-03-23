@@ -14,6 +14,7 @@ import { Box, Tabs, Tab } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
+import ReactDOM from 'react-dom';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -136,7 +137,7 @@ const AppContent: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [gifPath, setGifPath] = useState<string>('');
+  const [gifPath, setGifPath] = useState<string>('/default_content/ONLslideloop2025.gif');
   const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
@@ -154,6 +155,7 @@ const AppContent: React.FC = () => {
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
+  const slidesInitializedRef = useRef<boolean>(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -232,6 +234,8 @@ const AppContent: React.FC = () => {
     if (frames.length > 0) {
       setOverlaySlide(frames[0]);
       setCurrentFrameIndex(0);
+      // Enable slide transitions when frames are first loaded
+      setIsSlideTransitionsEnabled(true);
     }
   }, []);
 
@@ -504,6 +508,28 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
+  // Initialize slides when app loads
+  useEffect(() => {
+    if (!slidesInitializedRef.current) {
+      console.log('[App] Initializing slides');
+      const slidesComponent = document.createElement('div');
+      const slidesInstance = (
+        <GifFrameDisplay 
+          gifPath={gifPath} 
+          onFrameSelect={handleFrameSelect} 
+          onFramesUpdate={handleFramesUpdate}
+          currentFrameIndex={currentFrameIndex}
+          isAnimationEnabled={isSlideTransitionsEnabled}
+          setGifPath={setGifPath}
+          onAnimationToggle={setIsSlideTransitionsEnabled}
+        />
+      );
+      // @ts-ignore - ReactDOM is available in the browser
+      ReactDOM.render(slidesInstance, slidesComponent);
+      slidesInitializedRef.current = true;
+    }
+  }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -625,6 +651,7 @@ const AppContent: React.FC = () => {
           currentFrameIndex={currentFrameIndex}
           isAnimationEnabled={isSlideTransitionsEnabled}
           setGifPath={setGifPath}
+          onAnimationToggle={setIsSlideTransitionsEnabled}
         />
       );
     } else if (component === "videoMonitor") {

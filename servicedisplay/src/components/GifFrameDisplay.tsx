@@ -10,6 +10,7 @@ interface GifFrameDisplayProps {
   currentFrameIndex?: number;
   isAnimationEnabled?: boolean;
   setGifPath: (path: string) => void;
+  onAnimationToggle?: (enabled: boolean) => void;
 }
 
 const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ 
@@ -18,7 +19,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   onFramesUpdate,
   currentFrameIndex = -1,
   isAnimationEnabled = false,
-  setGifPath
+  setGifPath,
+  onAnimationToggle
 }) => {
   const [frames, setFrames] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -96,18 +98,22 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
     onFrameSelect?.(frameUrl, index);
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Create a blob URL for the file
-      const blobUrl = URL.createObjectURL(file);
-      setGifPath(blobUrl);
-
-      // Store the blob URL to revoke it later
-      if (gifPath && gifPath.startsWith('blob:')) {
-        URL.revokeObjectURL(gifPath);
-      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setGifPath(result);
+        // Disable transitions after loading new slides
+        onAnimationToggle?.(false);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleAnimationToggle = () => {
+    onAnimationToggle?.(!isAnimationEnabled);
   };
 
   // Clean up blob URLs when component unmounts
@@ -149,144 +155,176 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   }
 
   return (
-    <Box 
-      ref={containerRef}
-      sx={{ 
-        height: '100%',
-        backgroundColor: isAnimationEnabled ? '#1a332a' : '#282c34',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        padding: 2,
-        boxSizing: 'border-box',
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
+      transition: 'background-color 0.3s ease'
+    }}>
+      <div style={{ 
+        padding: '20px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '20px',
+        backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
         transition: 'background-color 0.3s ease'
-      }}
-    >
-      <Box sx={{ 
-        backgroundColor: isAnimationEnabled ? '#1a332a' : '#282c34',
-        pb: 2,
-        mb: 2
       }}>
-        <input
-          type="file"
-          accept=".gif"
-          style={{ display: 'none' }}
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-        />
-        <Button
-          variant="contained"
-          onClick={() => fileInputRef.current?.click()}
-          fullWidth
-          sx={{
-            backgroundColor: '#1e1e1e',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#2c2c2c'
-            }
-          }}
-        >
-          {gifPath ? 'Change GIF File' : 'Choose GIF File'}
-        </Button>
-      </Box>
-
-      {!gifPath ? (
-        <Box sx={{ 
-          height: 'calc(100% - 60px)',
-          display: 'flex',
+        <div style={{ 
+          display: 'flex', 
+          gap: '10px', 
           alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white'
+          backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
+          transition: 'background-color 0.3s ease'
         }}>
-          <Typography>Select a GIF file to view frames</Typography>
-        </Box>
-      ) : (
-        <List sx={{ 
-          width: '100%',
-          padding: 0,
-          '& > *:last-child': {
-            marginBottom: 0
-          }
-        }}>
-          {frames.map((frameUrl, index) => (
-            <ListItem 
-              key={index}
-              ref={currentFrameIndex === index ? selectedFrameRef : undefined}
-              sx={{ 
-                mb: 2,
-                p: 0,
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'stretch',
-                cursor: 'pointer'
+          <input
+            type="file"
+            accept="image/gif"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+            id="gif-upload"
+          />
+          <label htmlFor="gif-upload">
+            <Button
+              variant="contained"
+              component="span"
+              sx={{
+                backgroundColor: isAnimationEnabled ? '#4CAF50' : '#1976d2',
+                '&:hover': {
+                  backgroundColor: isAnimationEnabled ? '#45a049' : '#1565c0',
+                },
+                transition: 'background-color 0.3s ease'
               }}
-              onClick={() => handleFrameClick(index, frameUrl)}
             >
-              <Paper 
+              Load New Slides
+            </Button>
+          </label>
+          <Button
+            variant="contained"
+            onClick={handleAnimationToggle}
+            sx={{
+              backgroundColor: isAnimationEnabled ? '#4CAF50' : '#1976d2',
+              '&:hover': {
+                backgroundColor: isAnimationEnabled ? '#45a049' : '#1565c0',
+              },
+              transition: 'background-color 0.3s ease'
+            }}
+          >
+            {isAnimationEnabled ? 'Disable Transitions' : 'Enable Transitions'}
+          </Button>
+        </div>
+      </div>
+      <Box 
+        ref={containerRef}
+        sx={{ 
+          height: '100%',
+          backgroundColor: isAnimationEnabled ? '#1a332a' : '#282c34',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: 2,
+          boxSizing: 'border-box',
+          transition: 'background-color 0.3s ease'
+        }}
+      >
+        {!gifPath ? (
+          <Box sx={{ 
+            height: 'calc(100% - 60px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white'
+          }}>
+            <Typography>Select a GIF file to view frames</Typography>
+          </Box>
+        ) : (
+          <List sx={{ 
+            width: '100%',
+            padding: 0,
+            '& > *:last-child': {
+              marginBottom: 0
+            }
+          }}>
+            {frames.map((frameUrl, index) => (
+              <ListItem 
+                key={index}
+                ref={currentFrameIndex === index ? selectedFrameRef : undefined}
                 sx={{ 
+                  mb: 2,
+                  p: 0,
                   width: '100%',
-                  p: 2,
-                  backgroundColor: currentFrameIndex === index 
-                    ? (isAnimationEnabled ? '#264d3d' : '#2c2c2c')
-                    : '#1e1e1e',
-                  color: 'white',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 2,
-                  border: currentFrameIndex === index ? '2px solid #4a90e2' : 'none',
-                  transition: 'all 0.2s ease',
-                  boxSizing: 'border-box',
-                  '&:hover': {
-                    backgroundColor: isAnimationEnabled ? '#264d3d' : '#2c2c2c',
-                    transform: 'scale(1.01)'
-                  }
+                  alignItems: 'stretch',
+                  cursor: 'pointer'
                 }}
+                onClick={() => handleFrameClick(index, frameUrl)}
               >
-                <Typography variant="body2" sx={{ 
-                  color: 'white',
-                  width: '100%',
-                  textAlign: 'center',
-                  wordBreak: 'break-word',
-                  fontSize: '0.8rem',
-                  opacity: 0.8
-                }}>
-                  Slide {index + 1} {currentFrameIndex === index ? '(Selected)' : ''}
-                </Typography>
-                <Box 
+                <Paper 
                   sx={{ 
                     width: '100%',
+                    p: 2,
+                    backgroundColor: currentFrameIndex === index 
+                      ? (isAnimationEnabled ? '#264d3d' : '#2c2c2c')
+                      : '#1e1e1e',
+                    color: 'white',
                     display: 'flex',
-                    justifyContent: 'center',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    backgroundColor: '#000000',
-                    position: 'relative'
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2,
+                    border: currentFrameIndex === index ? '2px solid #4a90e2' : 'none',
+                    transition: 'all 0.2s ease',
+                    boxSizing: 'border-box',
+                    '&:hover': {
+                      backgroundColor: isAnimationEnabled ? '#264d3d' : '#2c2c2c',
+                      transform: 'scale(1.01)'
+                    }
                   }}
                 >
-                  <img 
-                    src={frameUrl} 
-                    alt={`Frame ${index + 1}`}
-                    style={{
+                  <Typography variant="body2" sx={{ 
+                    color: 'white',
+                    width: '100%',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    fontSize: '0.8rem',
+                    opacity: 0.8
+                  }}>
+                    Slide {index + 1} {currentFrameIndex === index ? '(Selected)' : ''}
+                  </Typography>
+                  <Box 
+                    sx={{ 
                       width: '100%',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      maxHeight: '50vh'
+                      display: 'flex',
+                      justifyContent: 'center',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      backgroundColor: '#000000',
+                      position: 'relative'
                     }}
-                  />
-                  {currentFrameIndex === index && (
-                    <CountdownOverlay 
-                      isVisible={isAnimationEnabled}
-                      intervalDuration={15000}
+                  >
+                    <img 
+                      src={frameUrl} 
+                      alt={`Frame ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        objectFit: 'contain',
+                        maxHeight: '50vh'
+                      }}
                     />
-                  )}
-                </Box>
-              </Paper>
-            </ListItem>
-          ))}
-        </List>
-      )}
-    </Box>
+                    {currentFrameIndex === index && (
+                      <CountdownOverlay 
+                        isVisible={isAnimationEnabled}
+                        intervalDuration={15000}
+                      />
+                    )}
+                  </Box>
+                </Paper>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </Box>
+    </div>
   );
 };
 
