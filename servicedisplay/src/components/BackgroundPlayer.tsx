@@ -359,18 +359,25 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     });
 
     try {
-      // If play is enabled and we're not muted, start playing
+      // If play is enabled and we're not muted, start playing with fade in
       if (isPlayEnabled && !isMuted) {
-        console.log('[BackgroundPlayer] Starting playback - play enabled and not muted');
+        console.log('[BackgroundPlayer] Starting playback with fade in');
         if (player && typeof player.playVideo === 'function') {
           player.playVideo();
+          // Fade in over 1 second
+          fadeVolume(0, volume, 1);
         } else {
           console.log('[BackgroundPlayer] Player or playVideo method not available');
         }
       } else {
-        console.log('[BackgroundPlayer] Pausing - play disabled or muted');
+        console.log('[BackgroundPlayer] Pausing with fade out');
         if (player && typeof player.pauseVideo === 'function') {
-          player.pauseVideo();
+          // Fade out over 3 seconds before pausing
+          fadeVolume(volume, 0, 3, () => {
+            if (player && typeof player.pauseVideo === 'function') {
+              player.pauseVideo();
+            }
+          });
         } else {
           console.log('[BackgroundPlayer] Player or pauseVideo method not available');
         }
@@ -378,7 +385,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('[BackgroundPlayer] Error controlling player:', error);
     }
-  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, volume, previousVolumeRef]);
+  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, volume, previousVolumeRef, fadeVolume]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;

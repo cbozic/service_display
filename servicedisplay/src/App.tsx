@@ -169,8 +169,23 @@ const AppContent: React.FC = () => {
       const newPlayState = !isPlaying;
       setIsPlaying(newPlayState);
       setIsPlayEnabled(!newPlayState);
+      
+      // Directly control the background player if it exists
+      if (backgroundPlayerRef?.current) {
+        try {
+          if (newPlayState) {
+            // Main video is playing, pause background
+            backgroundPlayerRef.current.pauseVideo();
+          } else {
+            // Main video is paused, play background
+            backgroundPlayerRef.current.playVideo();
+          }
+        } catch (error) {
+          console.error('[App] Error controlling background player:', error);
+        }
+      }
     }
-  }, [isPlayerReady, isPlaying]);
+  }, [isPlayerReady, isPlaying, backgroundPlayerRef]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {

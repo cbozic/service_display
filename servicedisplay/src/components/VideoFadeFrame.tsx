@@ -247,6 +247,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       } else {
         // Show overlay immediately when pausing
         setShowOverlay(true);
+        // Trigger background player immediately when pausing
+        setIsPlayEnabled(true);
         fadeToVolume(0, fadeDurationInSeconds, () => {
           if (player && isPlayerReady) {
             try {
@@ -265,7 +267,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         fadeTimeoutRef.current = null;
       }
     };
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume, setIsPlayEnabled]);
 
   const openFullscreen = useCallback(() => {
     const element = videoContainerRef.current as HTMLElement & {
