@@ -22,6 +22,7 @@ interface VideoFadeFrameProps {
   volume?: number;
   playlistUrl?: string;
   usePlaylistMode?: boolean;
+  isPlayEnabled?: boolean;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -40,7 +41,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   isSlideTransitionsEnabled = false,
   volume = 100,
   playlistUrl,
-  usePlaylistMode = false
+  usePlaylistMode = false,
+  isPlayEnabled = true
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -92,7 +94,9 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       try {
         playerInstance.seekTo(startSeconds);
         playerInstance.mute();
-        playerInstance.pauseVideo();
+        if (isPlayEnabled) {
+          playerInstance.pauseVideo();
+        }
         setPlayer(playerInstance);
         setIsPlayerReady(true);
         onPlayerReady?.(playerInstance);
@@ -101,7 +105,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         console.log('Error initializing player:', e);
       }
     }, 100);
-  }, [startSeconds, onPlayerReady, setMainPlayersReady]);
+  }, [startSeconds, onPlayerReady, setMainPlayersReady, isPlayEnabled]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady) return;

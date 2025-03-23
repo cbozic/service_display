@@ -19,7 +19,7 @@ const YouTubeContext = createContext<YouTubeContextType>({
 });
 
 export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mainPlayersReady, setMainPlayersReady] = useState(false);
+  const [mainPlayersReady, setMainPlayersReady] = useState(true);
   const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState(false);
   const [isPlayEnabled, setIsPlayEnabled] = useState(false);
 

@@ -12,17 +12,18 @@ interface BackgroundPlayerProps {
 
 const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   playlistUrl = '',
-  volume: initialVolume = 15
+  volume: initialVolume = 2
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isApiReady, setIsApiReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(initialVolume);
   const { mainPlayersReady, isPlayEnabled } = useYouTube();
-  const [isRandomMode, setIsRandomMode] = useState(false);
+  const [skipToRandomEnabled, setSkipToRandomEnabled] = useState(false);
   const fadeTimeoutRef = useRef<number | null>(null);
   const previousVolumeRef = useRef<number>(initialVolume);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Initialize YouTube API
   useEffect(() => {
@@ -95,62 +96,152 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const handleSkipNext = useCallback(() => {
     if (player && isPlayerReady) {
       try {
-        if (isRandomMode) {
-          // Get total number of videos in playlist
-          const playlistLength = player.getPlaylist()?.length;
-          if (playlistLength) {
-            // Generate random index excluding current video
-            const currentIndex = player.getPlaylistIndex();
-            let randomIndex;
-            do {
-              randomIndex = Math.floor(Math.random() * playlistLength);
-            } while (randomIndex === currentIndex && playlistLength > 1);
-            
-            player.playVideoAt(randomIndex);
-            // If muted, pause the video after skipping
-            if (isMuted) {
-              // Small delay to ensure the video loads before pausing
-              setTimeout(() => {
-                player.pauseVideo();
-              }, 100);
-            }
-          } else {
-            player.nextVideo();
-          }
-        } else {
-          player.nextVideo();
-          // If muted, pause the video after skipping
-          if (isMuted) {
-            // Small delay to ensure the video loads before pausing
-            setTimeout(() => {
-              player.pauseVideo();
-            }, 100);
-          }
+        player.nextVideo();
+        // If muted, pause the video after skipping
+        if (isMuted) {
+          // Small delay to ensure the video loads before pausing
+          setTimeout(() => {
+            player.pauseVideo();
+          }, 100);
         }
       } catch (error) {
         console.error('Error skipping to next video:', error);
       }
     }
-  }, [player, isPlayerReady, isRandomMode, isMuted]);
+  }, [player, isPlayerReady, isMuted]);
+
+  const handleSkipToRandom = useCallback(() => {
+    if (!player || !isPlayerReady) {
+      console.log('Player not ready for random skip');
+      return;
+    }
+
+    try {
+      // Get total number of videos in playlist
+      const playlist = player.getPlaylist();
+      if (!playlist) {
+        console.log('Playlist not available yet');
+        return;
+      }
+
+      const playlistLength = playlist.length;
+      if (playlistLength <= 0) {
+        console.log('Playlist is empty');
+        return;
+      }
+
+      // Generate random index excluding current video
+      const currentIndex = player.getPlaylistIndex();
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * playlistLength);
+      } while (randomIndex === currentIndex && playlistLength > 1);
+      
+      console.log(`Skipping to random index ${randomIndex} out of ${playlistLength}`);
+      player.playVideoAt(randomIndex);
+      
+      // If muted, pause the video after skipping
+      if (isMuted) {
+        setTimeout(() => {
+          if (player) {
+            player.pauseVideo();
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error in handleSkipToRandom:', error);
+    }
+  }, [player, isPlayerReady, isMuted]);
 
   const onPlayerReady = useCallback((event: YouTubeEvent) => {
-    const playerInstance = event.target;
-    playerInstance.mute();
-    playerInstance.setVolume(0);
-    playerInstance.pauseVideo();
-    // Set lower quality for background player
-    playerInstance.setPlaybackQuality('small');
-    setPlayer(playerInstance);
-    setIsPlayerReady(true);
-  }, []);
+    try {
+      const playerInstance = event.target;
+      console.log('Player ready event triggered');
+      
+      // Basic player setup
+      playerInstance.unMute();
+      playerInstance.setVolume(initialVolume);
+      playerInstance.setPlaybackQuality('small');
+      setPlayer(playerInstance);
+      setIsPlayerReady(true);
+      
+      // Initial playback
+      const startPlayback = () => {
+        try {
+          if (!playerInstance) return;
+          
+          console.log('Starting initial playback');
+          playerInstance.playVideo();
+          
+          // Check if playlist is loaded
+          const checkPlaylist = () => {
+            try {
+              const playlist = playerInstance.getPlaylist();
+              console.log('Checking playlist:', playlist);
+              
+              if (playlist && playlist.length > 0) {
+                console.log('Playlist loaded, length:', playlist.length);
+                if (!hasInitialized) {
+                  setHasInitialized(true);
+                  // Wait a bit before attempting random skip
+                  setTimeout(() => {
+                    try {
+                      console.log('Attempting random skip');
+                      playerInstance.unMute();
+                      playerInstance.setVolume(initialVolume);
+                      handleSkipToRandom();
+                      playerInstance.playVideo();
+                    } catch (e) {
+                      console.error('Error during delayed skip:', e);
+                    }
+                  }, 2000);
+                }
+              } else {
+                console.log('Playlist not ready, retrying...');
+                setTimeout(checkPlaylist, 1000);
+              }
+            } catch (e) {
+              console.error('Error in checkPlaylist:', e);
+              setTimeout(checkPlaylist, 1000);
+            }
+          };
+          
+          // Start checking for playlist
+          checkPlaylist();
+        } catch (e) {
+          console.error('Error in startPlayback:', e);
+        }
+      };
 
-  // Add fade function
+      // Start the playback process
+      startPlayback();
+    } catch (error) {
+      console.error('Error in onPlayerReady:', error);
+    }
+  }, [initialVolume, hasInitialized, handleSkipToRandom]);
+
+  const onStateChange = useCallback((event: YouTubeEvent) => {
+    try {
+      const state = event.data;
+      console.log('Player state changed:', state);
+      
+      // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering, 5: video cued
+      if (state === 0 && player) { // Video ended
+        console.log('Video ended, restarting playlist');
+        player.playVideoAt(0);
+      }
+    } catch (error) {
+      console.error('Error in onStateChange:', error);
+    }
+  }, [player]);
+
+  // Move fadeVolume declaration before it's used
   const fadeVolume = useCallback((startVolume: number, targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
     if (fadeTimeoutRef.current) {
       clearTimeout(fadeTimeoutRef.current);
     }
 
-    if (!player || !isPlayerReady) {
+    if (!player || !isPlayerReady || typeof player.setVolume !== 'function') {
       if (onComplete) onComplete();
       return;
     }
@@ -161,7 +252,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     let currentStep = 0;
 
     const fadeStep = () => {
-      if (!player || !isPlayerReady) {
+      if (!player || !isPlayerReady || typeof player.setVolume !== 'function') {
         if (onComplete) onComplete();
         return;
       }
@@ -170,9 +261,13 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         const newVolume = startVolume + (volumeDifference * (currentStep / steps));
         try {
           if (newVolume === 0) {
-            player.mute();
+            if (typeof player.mute === 'function') {
+              player.mute();
+            }
           } else {
-            player.unMute();
+            if (typeof player.unMute === 'function') {
+              player.unMute();
+            }
             player.setVolume(newVolume);
           }
           currentStep++;
@@ -184,9 +279,13 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       } else {
         try {
           if (targetVolume === 0) {
-            player.mute();
+            if (typeof player.mute === 'function') {
+              player.mute();
+            }
           } else {
-            player.unMute();
+            if (typeof player.unMute === 'function') {
+              player.unMute();
+            }
             player.setVolume(targetVolume);
           }
         } catch (e) {
@@ -200,53 +299,60 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     fadeStep();
   }, [player, isPlayerReady]);
 
-  // Update the play state effect
+  // Then declare the play state effect that uses fadeVolume
   useEffect(() => {
     if (!isPlayerReady || !player || !mainPlayersReady) return;
 
-    try {
-      if (!isPlayEnabled) {  // When main player is paused, we play background
-        if (!isMuted) {
-          player.unMute();
-          player.playVideo();
-          // Only fade if we're transitioning from main player being enabled
-          if (player.getVolume() === 0) {
-            fadeVolume(0, volume, 1); // Fade in over 1 second
-          }
-          previousVolumeRef.current = volume;
+    const timer = setTimeout(() => {
+      try {
+        if (!player || typeof player.getPlayerState !== 'function') {
+          console.log('Player not fully initialized yet');
+          return;
         }
-      } else {
-        // Only fade out if we were actually playing
-        if (!isMuted && player.getVolume() > 0) {
-          fadeVolume(previousVolumeRef.current, 0, 3, () => {
-            player.pauseVideo();
-          });
-        } else {
-          player.pauseVideo();
-        }
-      }
-    } catch (error) {
-      console.error('Error controlling background player:', error);
-    }
 
-    // Cleanup
+        if (!isPlayEnabled) {
+          if (!isMuted) {
+            const currentState = player.getPlayerState();
+            console.log('Current player state:', currentState);
+
+            if (currentState !== 1) {
+              player.unMute();
+              player.playVideo();
+            }
+
+            const currentVolume = player.getVolume();
+            if (currentVolume === 0) {
+              fadeVolume(0, volume, 1);
+            }
+            previousVolumeRef.current = volume;
+          }
+        } else {
+          const currentVolume = player.getVolume();
+          if (!isMuted && currentVolume > 0) {
+            fadeVolume(previousVolumeRef.current, 0, 3, () => {
+              if (player && typeof player.pauseVideo === 'function') {
+                player.pauseVideo();
+              }
+            });
+          } else {
+            if (typeof player.pauseVideo === 'function') {
+              player.pauseVideo();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error controlling background player:', error);
+      }
+    }, 1000);
+
     return () => {
+      clearTimeout(timer);
       if (fadeTimeoutRef.current) {
         clearTimeout(fadeTimeoutRef.current);
         fadeTimeoutRef.current = null;
       }
     };
-  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, isMuted, fadeVolume]); // Remove volume from dependencies
-
-  // Effect to trigger skip ONLY when random mode is first enabled
-  useEffect(() => {
-    if (isRandomMode && player && isPlayerReady) {
-      const wasJustEnabled = true; // Only skip when random mode is first enabled
-      if (wasJustEnabled) {
-        handleSkipNext();
-      }
-    }
-  }, [isRandomMode]); // Only depend on isRandomMode changing
+  }, [isPlayEnabled, isPlayerReady, player, mainPlayersReady, isMuted, fadeVolume, volume]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
@@ -258,7 +364,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     height: '100%',
     width: '100%',
     playerVars: {
-      autoplay: 0,
+      autoplay: 1,
       controls: 0,
       disablekb: 1,
       fs: 0,
@@ -269,7 +375,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       playsinline: 1,
       origin: window.location.origin,
       enablejsapi: 1,
-      mute: 1,
+      mute: 0,
       vq: 'small'
     },
   };
@@ -303,7 +409,16 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <Tooltip title={isMuted ? "Unmute" : "Mute"}>
-            <IconButton onClick={handleMuteToggle} size="small">
+            <IconButton 
+              onClick={handleMuteToggle} 
+              size="small"
+              sx={{
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
               {isMuted || volume === 0 ? <VolumeOff /> : <VolumeUp />}
             </IconButton>
           </Tooltip>
@@ -315,31 +430,28 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
             aria-label="Volume"
             sx={{ width: 100 }}
           />
-          <Tooltip title={isRandomMode ? "Skip to Random" : "Skip to Next"}>
+          <Tooltip title="Skip to Next">
             <IconButton 
               onClick={handleSkipNext} 
               size="small"
               sx={{
-                backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.08)' : 'transparent',
                 borderRadius: 1,
                 '&:hover': {
-                  backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
                 }
               }}
             >
               <SkipNext />
             </IconButton>
           </Tooltip>
-          <Tooltip title={isRandomMode ? "Disable Random" : "Enable Random"}>
+          <Tooltip title="Skip to Random">
             <IconButton 
-              onClick={() => setIsRandomMode(prev => !prev)} 
+              onClick={handleSkipToRandom}
               size="small"
               sx={{
-                backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.08)' : 'transparent',
-                borderRadius: 1, // Makes it square like other buttons
-                color: isRandomMode ? 'chartreuse' : 'inherit',
+                borderRadius: 1,
                 '&:hover': {
-                  backgroundColor: isRandomMode ? 'rgba(127, 255, 0, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+                  backgroundColor: 'rgba(127, 255, 0, 0.12)'
                 }
               }}
             >
@@ -359,11 +471,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           <YouTube
             opts={opts}
             onReady={onPlayerReady}
-            onStateChange={(event: YouTubeEvent) => {
-              if (event.data === 0 && player) { // Video ended
-                player.playVideoAt(0); // Restart playlist
-              }
-            }}
+            onStateChange={onStateChange}
           />
         </Box>
       </Box>

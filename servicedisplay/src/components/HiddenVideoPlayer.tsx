@@ -30,12 +30,12 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
 
   // Add initialization delay
   useEffect(() => {
-    // Delay the API initialization by 2 seconds
+    // Delay the API initialization by 500ms (changed from 2000)
     const timer = setTimeout(() => {
       loadYouTubeAPI().then(() => {
         setIsApiReady(true);
       });
-    }, 2000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, []);

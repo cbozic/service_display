@@ -221,8 +221,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       ? '2px solid #FFA726'  // Back to orange border
       : '2px solid transparent',
     '&.Mui-disabled': {
-      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+      backgroundColor: 'transparent',  // Changed from rgba(255, 255, 255, 0.12)
       color: 'rgba(255, 255, 255, 0.3)',
+      border: '2px solid transparent'  // Added to ensure no border when disabled
     }
   };
 

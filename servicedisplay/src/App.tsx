@@ -258,12 +258,29 @@ const AppContent: React.FC = () => {
 
   const handleDuckingToggle = useCallback(() => {
     if (!isDucking) {
+      // Instant duck down to 66%
       preDuckVolume.current = videoVolume;
-      setVideoVolume(Math.round(videoVolume * 0.75));
+      setVideoVolume(Math.round(videoVolume * 0.66));
       setIsDucking(true);
     } else {
-      setVideoVolume(preDuckVolume.current);
-      setIsDucking(false);
+      // Fade back to original volume over 3 seconds
+      const startVolume = videoVolume;
+      const targetVolume = preDuckVolume.current;
+      const steps = 25;
+      const stepDuration = 3000 / steps;
+      let currentStep = 0;
+
+      const fadeInterval = setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
+        setVideoVolume(newVolume);
+
+        if (currentStep >= steps) {
+          clearInterval(fadeInterval);
+          setIsDucking(false);
+        }
+      }, stepDuration);
     }
   }, [isDucking, videoVolume]);
 
@@ -307,11 +324,9 @@ const AppContent: React.FC = () => {
       } else if (event.code === 'KeyT' && !event.repeat) {
         event.preventDefault();
         handleSlideTransitionsToggle();
-      } else if (event.code === 'KeyD' && !event.repeat) {
+      } else if (event.code === 'KeyD' && !event.repeat && !isMuted) {
         event.preventDefault();
-        const newVolume = isDucking ? preDuckVolume.current : Math.round(videoVolume * 0.75);
-        setVideoVolume(newVolume);
-        setIsDucking(!isDucking);
+        handleDuckingToggle();
       } else if (event.code === 'KeyP' && !event.repeat) {
         event.preventDefault();
         handlePipToggle();
@@ -326,7 +341,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, videoVolume, isDucking, handlePipToggle, handleToggleMute]);
+      handleSlideTransitionsToggle, handleDuckingToggle, handlePipToggle, handleToggleMute, isMuted]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -380,6 +395,16 @@ const AppContent: React.FC = () => {
       }
     };
   }, [isSlideTransitionsEnabled]);
+
+  useEffect(() => {
+    return () => {
+      // Clean up any running fade intervals when component unmounts
+      const fadeIntervals = window.setInterval(() => {}, 0);
+      for (let i = 1; i < fadeIntervals; i++) {
+        window.clearInterval(i);
+      }
+    };
+  }, []);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
