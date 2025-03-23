@@ -3,6 +3,9 @@ A frontend to facilitate displaying streamed service videos to groups of remote 
 
 TODO:
 * Popout fullscreen behavior is still buggy
+* Easy mode
+* Fix YouTube video id settings
+* Set ducking to 66%
 * Correct the names of the component files to match current state
 * Hosted build on github
 * Possible server component to allow centralized configuration
