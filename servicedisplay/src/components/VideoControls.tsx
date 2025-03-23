@@ -22,6 +22,8 @@ interface VideoControlsProps {
   onFullscreen: () => void;
   onSlideTransitionsToggle: () => void;
   onPipToggle: () => void;
+  onEnablePip: () => void;
+  onDisablePip: () => void;
   onRestart: () => void;
   onVolumeChange: (volume: number) => void;
   onDuckingToggle: () => void;
@@ -41,6 +43,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onFullscreen,
   onSlideTransitionsToggle,
   onPipToggle,
+  onEnablePip,
+  onDisablePip,
   onRestart,
   onVolumeChange,
   onDuckingToggle,
@@ -287,7 +291,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       </Tooltip>
 
       <Tooltip title={isPipMode ? "Exit Picture-in-Picture (P)" : "Enter Picture-in-Picture (P)"}>
-        <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
+        <IconButton 
+          onClick={isPipMode ? onDisablePip : onEnablePip} 
+          sx={pipButtonStyle}
+        >
           {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
         </IconButton>
       </Tooltip>

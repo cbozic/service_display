@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Box, TextField, Typography, Card, CardContent, Button } from '@mui/material';
+import * as React from 'react';
+import { Box, TextField, Typography, Card, CardContent, Button, FormControlLabel, Switch } from '@mui/material';
 
 interface VideoConfigurationFormProps {
   video: string;
@@ -10,6 +10,8 @@ interface VideoConfigurationFormProps {
   setPlaylistUrl: (value: string) => void;
   backgroundPlaylistUrl: string;
   setBackgroundPlaylistUrl: (value: string) => void;
+  isAutomaticEventsEnabled: boolean;
+  onAutomaticEventsToggle: (enabled: boolean) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -20,164 +22,60 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   playlistUrl,
   setPlaylistUrl,
   backgroundPlaylistUrl,
-  setBackgroundPlaylistUrl
+  setBackgroundPlaylistUrl,
+  isAutomaticEventsEnabled,
+  onAutomaticEventsToggle
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const [formWidth, setFormWidth] = useState('100%');
-
-  // Handle container resizing
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        const width = containerRef.current.offsetWidth;
-        setFormWidth(`${width}px`);
-      }
-    };
-
-    resizeObserverRef.current = new ResizeObserver(updateWidth);
-    if (containerRef.current) {
-      resizeObserverRef.current.observe(containerRef.current);
-    }
-
-    return () => {
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-      }
-    };
-  }, []);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
 
   return (
-    <Box 
-      ref={containerRef}
-      sx={{ 
-        height: '100%',
-        backgroundColor: '#282c34',
-        padding: 2,
-        boxSizing: 'border-box',
-        overflowY: 'auto'
-      }}
-    >
-      <Card sx={{ 
-        backgroundColor: '#1e1e1e',
-        color: 'white',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography variant="h6" sx={{ color: 'white' }}>
-              Video Configuration
-            </Typography>
-
-            <Box>
-              <Typography sx={{ color: 'white', mb: 1 }}>
-                YouTube Video ID
-              </Typography>
-              <TextField
-                fullWidth
-                value={video}
-                onChange={(e) => setVideo(e.target.value)}
-                sx={{
-                  backgroundColor: '#282c34',
-                  input: { color: 'white' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: '#404040',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#4a4a4a',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#4a90e2',
-                    },
-                  },
-                }}
+    <Card>
+      <CardContent>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            label="Video ID"
+            value={video}
+            onChange={(e) => setVideo(e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="Start Time (seconds)"
+            type="number"
+            value={startTimeInSeconds}
+            onChange={(e) => setStartTimeInSeconds(e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="Playlist URL"
+            value={playlistUrl}
+            onChange={(e) => setPlaylistUrl(e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="Background Playlist URL"
+            value={backgroundPlaylistUrl}
+            onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
+            fullWidth
+          />
+          
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isAutomaticEventsEnabled}
+                onChange={(e) => onAutomaticEventsToggle(e.target.checked)}
+                color="primary"
               />
-            </Box>
-
-            <Box>
-              <Typography sx={{ color: 'white', mb: 1 }}>
-                Start Time (seconds)
-              </Typography>
-              <TextField
-                fullWidth
-                value={startTimeInSeconds}
-                onChange={(e) => setStartTimeInSeconds(e.target.value)}
-                sx={{
-                  backgroundColor: '#282c34',
-                  input: { color: 'white' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: '#404040',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#4a4a4a',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#4a90e2',
-                    },
-                  },
-                }}
-              />
-            </Box>
-
-            <Box>
-              <Typography sx={{ color: 'white', mb: 1 }}>
-                Main Display Playlist URL
-              </Typography>
-              <TextField
-                fullWidth
-                value={playlistUrl}
-                onChange={(e) => setPlaylistUrl(e.target.value)}
-                sx={{
-                  backgroundColor: '#282c34',
-                  input: { color: 'white' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: '#404040',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#4a4a4a',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#4a90e2',
-                    },
-                  },
-                }}
-              />
-            </Box>
-
-            <Box>
-              <Typography sx={{ color: 'white', mb: 1 }}>
-                Background Music Playlist URL
-              </Typography>
-              <TextField
-                fullWidth
-                value={backgroundPlaylistUrl}
-                onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
-                placeholder="Enter YouTube playlist URL for background music"
-                sx={{
-                  backgroundColor: '#282c34',
-                  input: { color: 'white' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: '#404040',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#4a4a4a',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#4a90e2',
-                    },
-                  },
-                }}
-              />
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+            }
+            label="Enable Automatic Events"
+          />
+          <Typography variant="caption" color="text.secondary">
+            Automatically trigger events at specific times (e.g., PiP mode at 5s, disable at 20s)
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
   );
 };
 

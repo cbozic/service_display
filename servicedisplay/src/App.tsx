@@ -13,6 +13,7 @@ import 'flexlayout-react/style/light.css';
 import { Box, Tabs, Tab } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
+import VideoTimeEvents from './components/VideoTimeEvents';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -151,6 +152,8 @@ const AppContent: React.FC = () => {
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
   const { setIsPlayEnabled } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
+  const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
+  const timeEventsRef = useRef<any>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -235,6 +238,26 @@ const AppContent: React.FC = () => {
   const handlePipToggle = useCallback(() => {
     setIsPipMode(prev => !prev);
   }, []);
+
+  const handleEnablePip = useCallback(() => {
+    if (!isPipMode) {
+      console.log('[App] Enabling PiP mode (current state:', isPipMode, ')');
+      setIsPipMode(true);
+      console.log('[App] PiP mode state after enable:', true);
+    } else {
+      console.log('[App] PiP mode already enabled, skipping enable');
+    }
+  }, [isPipMode]);
+
+  const handleDisablePip = useCallback(() => {
+    if (isPipMode) {
+      console.log('[App] Disabling PiP mode (current state:', isPipMode, ')');
+      setIsPipMode(false);
+      console.log('[App] PiP mode state after disable:', false);
+    } else {
+      console.log('[App] PiP mode already disabled, skipping disable');
+    }
+  }, [isPipMode]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
@@ -329,7 +352,11 @@ const AppContent: React.FC = () => {
         handleDuckingToggle();
       } else if (event.code === 'KeyP' && !event.repeat) {
         event.preventDefault();
-        handlePipToggle();
+        if (isPipMode) {
+          handleDisablePip();
+        } else {
+          handleEnablePip();
+        }
       } else if (event.code === 'KeyM' && !event.repeat) {
         event.preventDefault();
         handleToggleMute();
@@ -341,7 +368,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleDuckingToggle, handlePipToggle, handleToggleMute, isMuted]);
+      handleSlideTransitionsToggle, handleDuckingToggle, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -397,6 +424,77 @@ const AppContent: React.FC = () => {
   }, [isSlideTransitionsEnabled]);
 
   useEffect(() => {
+    if (isPlayerReady && player && timeEventsRef.current) {
+      console.log('[App] Setting up time events');
+      // Clear existing events
+      timeEventsRef.current.clearEvents();
+
+      // Only register events if automatic events are enabled
+      if (isAutomaticEventsEnabled) {
+        const currentTime = player.getCurrentTime();
+        console.log('[App] Automatic events are enabled, registering events (current time:', currentTime, 's)');
+
+        // Register fullscreen enable event at 1 second
+        if (currentTime < 1) {
+          console.log('[App] Registering fullscreen enable event for 1s');
+          timeEventsRef.current.registerEvent(1, () => {
+            console.log(`[App] Checking fullscreen enable event at 1s (current fullscreen state: ${isFullscreen})`);
+            if (!isFullscreen) {
+              console.log('[App] Auto-enabling fullscreen at 1s');
+              handleFullscreen();
+            } else {
+              console.log('[App] Fullscreen already enabled, skipping enable event');
+            }
+          });
+        } else {
+          console.log('[App] Skipping fullscreen enable event registration (current time > 1s)');
+        }
+
+        // Only register enable event if we're before 5 seconds
+        if (currentTime < 5) {
+          console.log('[App] Registering PiP enable event for 5s');
+          timeEventsRef.current.registerEvent(5, () => {
+            console.log(`[App] Checking PiP enable event at 5s (current PiP state: ${isPipMode})`);
+            if (!isPipMode) {
+              console.log('[App] Auto-enabling PiP mode at 5s');
+              handleEnablePip();
+            } else {
+              console.log('[App] PiP mode already enabled, skipping enable event');
+            }
+          });
+        } else {
+          console.log('[App] Skipping PiP enable event registration (current time > 5s)');
+        }
+
+        // Only register disable event if we're before 8 minutes
+        if (currentTime < 480) {
+          console.log('[App] Registering PiP disable event for 8 minutes');
+          timeEventsRef.current.registerEvent(480, () => {
+            console.log(`[App] Checking PiP disable event at 8 minutes (current PiP state: ${isPipMode})`);
+            if (isPipMode) {
+              console.log('[App] Auto-disabling PiP mode at 8 minutes');
+              handleDisablePip();
+            } else {
+              console.log('[App] PiP mode already disabled, skipping disable event');
+            }
+          });
+        } else {
+          console.log('[App] Skipping PiP disable event registration (current time > 8 minutes)');
+        }
+      } else {
+        console.log('[App] Automatic events are disabled, not registering events');
+      }
+    } else {
+      console.log('[App] Player not ready or timeEventsRef not available, skipping event setup');
+    }
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen]);
+
+  // Add a new effect to monitor PiP state changes
+  useEffect(() => {
+    console.log('[App] PiP mode state changed:', isPipMode);
+  }, [isPipMode]);
+
+  useEffect(() => {
     return () => {
       // Clean up any running fade intervals when component unmounts
       const fadeIntervals = window.setInterval(() => {}, 0);
@@ -419,6 +517,8 @@ const AppContent: React.FC = () => {
           setPlaylistUrl={setPlaylistUrl}
           backgroundPlaylistUrl={backgroundPlaylistUrl}
           setBackgroundPlaylistUrl={setBackgroundPlaylistUrl}
+          isAutomaticEventsEnabled={isAutomaticEventsEnabled}
+          onAutomaticEventsToggle={setIsAutomaticEventsEnabled}
         />
       );
     } else if (component === "video") {
@@ -437,6 +537,11 @@ const AppContent: React.FC = () => {
             volume={videoVolume}
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
+          />
+          <VideoTimeEvents
+            ref={timeEventsRef}
+            player={player}
+            isPlaying={isPlaying}
           />
         </div>
       );
@@ -478,6 +583,8 @@ const AppContent: React.FC = () => {
               onFullscreen={handleFullscreen}
               onSlideTransitionsToggle={handleSlideTransitionsToggle}
               onPipToggle={handlePipToggle}
+              onEnablePip={handleEnablePip}
+              onDisablePip={handleDisablePip}
               onRestart={handleRestart}
               onVolumeChange={setVideoVolume}
               onDuckingToggle={handleDuckingToggle}
