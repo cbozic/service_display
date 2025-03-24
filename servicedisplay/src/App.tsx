@@ -38,14 +38,14 @@ const flexlayout_json: IJsonModel = {
             children: [
               {
                 type: "tab",
-                name: "Videos",
-                component: "videoList",
+                name: "Slides",
+                component: "slides",
                 enableClose: false,
               },
               {
                 type: "tab",
-                name: "Slides",
-                component: "slides",
+                name: "Videos",
+                component: "videoList",
                 enableClose: false,
               },
               {
@@ -157,6 +157,7 @@ const AppContent: React.FC = () => {
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
   const slidesInitializedRef = useRef<boolean>(false);
+  const videoListInitializedRef = useRef<boolean>(false);
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const { backgroundPlayerRef } = useYouTube();
 
@@ -548,6 +549,25 @@ const AppContent: React.FC = () => {
       slidesInitializedRef.current = true;
     }
   }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
+
+  // Initialize video list when app loads
+  useEffect(() => {
+    if (!videoListInitializedRef.current) {
+      console.log('[App] Initializing video list');
+      const videoListComponent = document.createElement('div');
+      const videoListInstance = (
+        <VideoList 
+          setVideo={setVideo} 
+          playlistUrl={playlistUrl} 
+          currentVideo={video}
+          onError={handleVideoListError}
+        />
+      );
+      // @ts-ignore - ReactDOM is available in the browser
+      ReactDOM.render(videoListInstance, videoListComponent);
+      videoListInitializedRef.current = true;
+    }
+  }, [handleVideoListError, playlistUrl, setVideo, video]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
