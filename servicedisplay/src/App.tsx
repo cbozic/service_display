@@ -576,6 +576,8 @@ const AppContent: React.FC = () => {
     if (player) {
       player.seekTo(0);
     }
+    // Also restart the video when starting the service
+    handleRestart();
   };
 
   const factory = (node: TabNode) => {
