@@ -28,6 +28,21 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
   const buttonSize = size === 'small' ? 'small' : 'medium';
   const sliderWidth = size === 'small' ? 100 : 120;
 
+  // Custom PopperProps for tooltips to ensure high z-index
+  const tooltipPopperProps = {
+    sx: {
+      zIndex: 20000, // Higher than the overlay's z-index (9999)
+    }
+  };
+
+  // Custom tooltip styling
+  const tooltipSx = {
+    fontSize: '0.95rem', // Larger font size
+    fontWeight: 500,     // Slightly bolder 
+    py: 1,               // More padding
+    px: 1.5
+  };
+
   return (
     <Box sx={{ 
       display: 'flex', 
@@ -44,7 +59,17 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
         gap: 2,
         justifyContent: 'center'
       }}>
-        <Tooltip title={isMuted ? "Unmute" : "Mute"}>
+        <Tooltip 
+          title={isMuted ? "Unmute background music" : "Mute background music"} 
+          arrow 
+          placement="top"
+          PopperProps={tooltipPopperProps}
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+        >
           <IconButton 
             onClick={onMuteToggle} 
             size={buttonSize}
@@ -58,15 +83,37 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             {isMuted || volume === 0 ? <VolumeOff /> : <VolumeUp />}
           </IconButton>
         </Tooltip>
-        <Slider
-          value={isMuted ? 0 : volume}
-          onChange={handleVolumeChange}
-          min={0}
-          max={100}
-          aria-label="Volume"
-          sx={{ width: sliderWidth }}
-        />
-        <Tooltip title="Skip to Next">
+        <Tooltip 
+          title="Adjust background music volume" 
+          arrow 
+          placement="top"
+          PopperProps={tooltipPopperProps}
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+        >
+          <Slider
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            min={0}
+            max={100}
+            aria-label="Volume"
+            sx={{ width: sliderWidth }}
+          />
+        </Tooltip>
+        <Tooltip 
+          title="Skip to next track in playlist" 
+          arrow 
+          placement="top"
+          PopperProps={tooltipPopperProps}
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+        >
           <IconButton 
             onClick={onSkipNext} 
             size={buttonSize}
@@ -80,7 +127,17 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             <SkipNext />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Skip to Random">
+        <Tooltip 
+          title="Play a random track from playlist" 
+          arrow 
+          placement="top"
+          PopperProps={tooltipPopperProps}
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+        >
           <IconButton 
             onClick={onSkipRandom}
             size={buttonSize}

@@ -200,9 +200,10 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                     display: 'block', 
                     mt: 1, 
                     px: 1, 
-                    fontSize: '0.75rem',
+                    fontSize: '0.85rem',
                     color: 'text.secondary',
-                    fontStyle: 'italic'
+                    fontStyle: 'italic',
+                    lineHeight: 1.4
                   }}
                 >
                   TIP: Set your TV or PC volume where you normally would for the service and adjust the above slider so the background music would be soft enough to not be a distraction during prayer or fellowship. The main service will be louder!

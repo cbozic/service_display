@@ -499,7 +499,26 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           p: 1,
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <Tooltip title={isMuted ? "Unmute" : "Mute"}>
+          <Tooltip 
+            title={isMuted ? "Unmute background music" : "Mute background music"} 
+            arrow 
+            placement="top"
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
             <IconButton 
               onClick={handleMuteToggle} 
               size="small"
@@ -513,15 +532,55 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               {isMuted || backgroundVolume === 0 ? <VolumeOff /> : <VolumeUp />}
             </IconButton>
           </Tooltip>
-          <Slider
-            value={isMuted ? 0 : backgroundVolume}
-            onChange={handleVolumeChange}
-            min={0}
-            max={100}
-            aria-label="Volume"
-            sx={{ width: 100 }}
-          />
-          <Tooltip title="Skip to Next">
+          <Tooltip 
+            title="Adjust background music volume" 
+            arrow 
+            placement="top"
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
+            <Slider
+              value={isMuted ? 0 : backgroundVolume}
+              onChange={handleVolumeChange}
+              min={0}
+              max={100}
+              aria-label="Volume"
+              sx={{ width: 100 }}
+            />
+          </Tooltip>
+          <Tooltip 
+            title="Skip to next track in playlist" 
+            arrow 
+            placement="top"
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
             <IconButton 
               onClick={handleSkipNext} 
               size="small"
@@ -535,7 +594,26 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               <SkipNext />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Skip to Random">
+          <Tooltip 
+            title="Play a random track from playlist" 
+            arrow 
+            placement="top"
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
             <IconButton 
               onClick={handleSkipToRandom}
               size="small"
