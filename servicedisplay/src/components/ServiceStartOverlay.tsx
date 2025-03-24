@@ -16,7 +16,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     backgroundVolume, 
     backgroundMuted,
     setBackgroundVolume,
-    setBackgroundMuted
+    setBackgroundMuted,
+    setIsPlayEnabled
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
 
@@ -94,15 +95,16 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         backgroundPlayerRef.current.unMute();
         backgroundPlayerRef.current.setVolume(backgroundVolume);
         setBackgroundMuted(false);
+        setIsPlayEnabled(true); // Enable background playback
         // Skip to a random video and play it
         const playlist = backgroundPlayerRef.current.getPlaylist();
         if (playlist && playlist.length > 0) {
           const randomIndex = Math.floor(Math.random() * playlist.length);
           backgroundPlayerRef.current.playVideoAt(randomIndex);
-          // Don't explicitly call playVideo here - let the isPlayEnabled state control it
         }
       } else {
         // When disabling music
+        setIsPlayEnabled(false); // Disable background playback
         backgroundPlayerRef.current.pauseVideo();
       }
     }
