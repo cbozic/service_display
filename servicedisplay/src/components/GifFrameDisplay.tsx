@@ -132,7 +132,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#282c34'
+        backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111'
       }}>
         <CircularProgress />
       </Box>
@@ -146,7 +146,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#282c34',
+        backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
         color: 'red'
       }}>
         {error}
@@ -159,7 +159,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
       height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
-      backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
+      backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
       transition: 'background-color 0.3s ease'
     }}>
       <div style={{ 
@@ -167,14 +167,14 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
         display: 'flex', 
         flexDirection: 'column', 
         gap: '20px',
-        backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
+        backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
         transition: 'background-color 0.3s ease'
       }}>
         <div style={{ 
           display: 'flex', 
           gap: '10px', 
           alignItems: 'center',
-          backgroundColor: isAnimationEnabled ? '#1a1a1a' : '#ffffff',
+          backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
           transition: 'background-color 0.3s ease'
         }}>
           <input
@@ -218,7 +218,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
         ref={containerRef}
         sx={{ 
           height: '100%',
-          backgroundColor: isAnimationEnabled ? '#1a332a' : '#282c34',
+          backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
           overflowY: 'auto',
           overflowX: 'hidden',
           padding: 2,
@@ -232,7 +232,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white'
+            color: 'white',
+            backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111'
           }}>
             <Typography>Select a GIF file to view frames</Typography>
           </Box>
@@ -240,6 +241,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
           <List sx={{ 
             width: '100%',
             padding: 0,
+            backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
+            transition: 'background-color 0.3s ease',
             '& > *:last-child': {
               marginBottom: 0
             }
@@ -255,7 +258,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'stretch',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  backgroundColor: isAnimationEnabled ? '#1a332a' : '#111111',
                 }}
                 onClick={() => handleFrameClick(index, frameUrl)}
               >
