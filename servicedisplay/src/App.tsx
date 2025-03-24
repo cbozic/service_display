@@ -331,6 +331,46 @@ const AppContent: React.FC = () => {
     }
   }, [isDucking, videoVolume]);
 
+  const handleEnableDucking = useCallback(() => {
+    if (!isDucking && !isMuted) {
+      console.log('[App] Enabling audio ducking (current state:', isDucking, ')');
+      // Instant duck down to 66%
+      preDuckVolume.current = videoVolume;
+      setVideoVolume(Math.round(videoVolume * 0.66));
+      setIsDucking(true);
+      console.log('[App] Audio ducking state after enable:', true);
+    } else {
+      console.log('[App] Audio ducking already enabled or audio is muted, skipping enable');
+    }
+  }, [isDucking, isMuted, videoVolume]);
+
+  const handleDisableDucking = useCallback(() => {
+    if (isDucking) {
+      console.log('[App] Disabling audio ducking (current state:', isDucking, ')');
+      // Fade back to original volume over 3 seconds
+      const startVolume = videoVolume;
+      const targetVolume = preDuckVolume.current;
+      const steps = 25;
+      const stepDuration = 3000 / steps;
+      let currentStep = 0;
+
+      const fadeInterval = setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
+        setVideoVolume(newVolume);
+
+        if (currentStep >= steps) {
+          clearInterval(fadeInterval);
+          setIsDucking(false);
+          console.log('[App] Audio ducking state after disable:', false);
+        }
+      }, stepDuration);
+    } else {
+      console.log('[App] Audio ducking already disabled, skipping disable');
+    }
+  }, [isDucking, videoVolume]);
+
   const handleToggleMute = useCallback(() => {
     if (!isMuted) {
       previousVolumeRef.current = videoVolume;
@@ -373,7 +413,11 @@ const AppContent: React.FC = () => {
         handleSlideTransitionsToggle();
       } else if (event.code === 'KeyD' && !event.repeat && !isMuted) {
         event.preventDefault();
-        handleDuckingToggle();
+        if (isDucking) {
+          handleDisableDucking();
+        } else {
+          handleEnableDucking();
+        }
       } else if (event.code === 'KeyP' && !event.repeat) {
         event.preventDefault();
         if (isPipMode) {
@@ -392,7 +436,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleDuckingToggle, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode]);
+      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -665,6 +709,8 @@ const AppContent: React.FC = () => {
               onRestart={handleRestart}
               onVolumeChange={setVideoVolume}
               onDuckingToggle={handleDuckingToggle}
+              onEnableDucking={handleEnableDucking}
+              onDisableDucking={handleDisableDucking}
               onToggleMute={handleToggleMute}
               isPlaying={isPlaying}
               isSlideTransitionsEnabled={isSlideTransitionsEnabled}

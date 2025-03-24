@@ -27,6 +27,8 @@ interface VideoControlsProps {
   onRestart: () => void;
   onVolumeChange: (volume: number) => void;
   onDuckingToggle: () => void;
+  onEnableDucking: () => void;
+  onDisableDucking: () => void;
   onToggleMute: () => void;
   isPlaying: boolean;
   isSlideTransitionsEnabled: boolean;
@@ -48,6 +50,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onRestart,
   onVolumeChange,
   onDuckingToggle,
+  onEnableDucking,
+  onDisableDucking,
   onToggleMute,
   isPlaying,
   isSlideTransitionsEnabled,
@@ -267,7 +271,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         >
           <span>
             <IconButton 
-              onClick={onDuckingToggle} 
+              onClick={isDucking ? onDisableDucking : onEnableDucking} 
               sx={duckingButtonStyle}
               disabled={isMuted}
             >
