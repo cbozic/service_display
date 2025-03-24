@@ -12,6 +12,8 @@ interface YouTubeContextType {
   setBackgroundVolume: (volume: number) => void;
   backgroundMuted: boolean;
   setBackgroundMuted: (muted: boolean) => void;
+  isManualVolumeChange: React.MutableRefObject<boolean>;
+  setManualVolumeChange: (isManual: boolean) => void;
 }
 
 const YouTubeContext = createContext<YouTubeContextType | undefined>(undefined);
@@ -23,6 +25,17 @@ export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [backgroundVolume, setBackgroundVolume] = useState(10);
   const [backgroundMuted, setBackgroundMuted] = useState(false);
   const backgroundPlayerRef = useRef<any>(null);
+  const isManualVolumeChange = useRef<boolean>(false);
+  
+  const setManualVolumeChange = (isManual: boolean) => {
+    isManualVolumeChange.current = isManual;
+    // Clear the flag after a short delay if it's set to true
+    if (isManual) {
+      setTimeout(() => {
+        isManualVolumeChange.current = false;
+      }, 100);
+    }
+  };
 
   return (
     <YouTubeContext.Provider value={{ 
@@ -36,7 +49,9 @@ export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       backgroundVolume,
       setBackgroundVolume,
       backgroundMuted,
-      setBackgroundMuted
+      setBackgroundMuted,
+      isManualVolumeChange,
+      setManualVolumeChange
     }}>
       {children}
     </YouTubeContext.Provider>

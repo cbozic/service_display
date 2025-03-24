@@ -18,13 +18,12 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isApiReady, setIsApiReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const { mainPlayersReady, isPlayEnabled, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted } = useYouTube();
+  const { mainPlayersReady, isPlayEnabled, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
   const [skipToRandomEnabled, setSkipToRandomEnabled] = useState(false);
   const fadeTimeoutRef = useRef<number | null>(null);
   const previousVolumeRef = useRef<number>(initialVolume);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [currentState, setCurrentState] = useState<number | null>(null);
-  const isManualVolumeChange = useRef<boolean>(false);
 
   // Add effect to update volume when initialVolume changes
   useEffect(() => {
@@ -137,7 +136,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     previousVolumeRef.current = volumeValue;
     
     // Set flag to indicate this is a manual volume change via the slider
-    isManualVolumeChange.current = true;
+    setManualVolumeChange(true);
     
     if (player) {
       try {
@@ -165,12 +164,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         console.error('Error adjusting volume:', error);
       }
     }
-    
-    // Clear the flag after a short delay
-    setTimeout(() => {
-      isManualVolumeChange.current = false;
-    }, 100);
-  }, [player, isMuted, isPlayEnabled, setBackgroundVolume, setBackgroundMuted]);
+  }, [player, isMuted, isPlayEnabled, setBackgroundVolume, setBackgroundMuted, setManualVolumeChange]);
 
   const handleMuteToggle = useCallback(() => {
     if (player) {
@@ -449,7 +443,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         console.error('[BackgroundPlayer] Error controlling player:', error);
       }
     }
-  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, backgroundVolume, previousVolumeRef, fadeVolume]);
+  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, backgroundVolume, previousVolumeRef, fadeVolume, isManualVolumeChange]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;

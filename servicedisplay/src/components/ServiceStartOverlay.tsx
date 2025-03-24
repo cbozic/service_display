@@ -17,7 +17,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     backgroundMuted,
     setBackgroundVolume,
     setBackgroundMuted,
-    setIsPlayEnabled
+    setIsPlayEnabled,
+    setManualVolumeChange
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
 
@@ -64,6 +65,10 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    
+    // Set flag to indicate this is a manual volume change via the slider
+    setManualVolumeChange(true);
+    
     if (backgroundPlayerRef.current) {
       backgroundPlayerRef.current.setVolume(volumeValue);
       setBackgroundVolume(volumeValue);
