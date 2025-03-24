@@ -249,7 +249,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       
       // Basic player setup
       console.log('[BackgroundPlayer] Setting up player instance');
-      playerInstance.unMute();
+      playerInstance.mute(); // Start muted by default
       // Use the volume from the main video if available, otherwise use initialVolume
       const targetVolume = previousVolumeRef.current || initialVolume;
       playerInstance.setVolume(targetVolume);
@@ -257,6 +257,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       playerInstance.setPlaybackQuality('small');
       setPlayer(playerInstance);
       setIsPlayerReady(true);
+      setIsMuted(true); // Set local muted state to true
       
       // Store player reference in context
       if (backgroundPlayerRef) {
@@ -288,7 +289,12 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
                   setTimeout(() => {
                     try {
                       console.log('[BackgroundPlayer] Attempting random skip');
-                      playerInstance.unMute();
+                      // Don't unmute automatically
+                      if (!backgroundMuted) {
+                        playerInstance.unMute();
+                      } else {
+                        playerInstance.mute();
+                      }
                       // Use the synced volume
                       playerInstance.setVolume(targetVolume);
                       handleSkipToRandom();
@@ -322,7 +328,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('[BackgroundPlayer] Error in onPlayerReady:', error);
     }
-  }, [initialVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef]);
+  }, [initialVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted]);
 
   const onStateChange = useCallback((event: YouTubeEvent) => {
     try {

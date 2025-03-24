@@ -109,6 +109,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         }
       } else {
         // When disabling music
+        backgroundPlayerRef.current.mute(); // Mute the player when disabling music
+        setBackgroundMuted(true); // Update the muted state in context
         setIsPlayEnabled(false); // Disable background playback
         backgroundPlayerRef.current.pauseVideo();
       }
