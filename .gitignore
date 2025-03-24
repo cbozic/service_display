@@ -4,3 +4,6 @@ node_modules
 
 ignored_native_experiments
 .DS_Store
+
+# Don't ignore the docs directory for GitHub Pages
+!docs/
