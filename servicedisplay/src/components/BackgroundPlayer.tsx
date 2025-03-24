@@ -24,6 +24,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const previousVolumeRef = useRef<number>(initialVolume);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [currentState, setCurrentState] = useState<number | null>(null);
+  const isManualVolumeChange = useRef<boolean>(false);
 
   // Add effect to update volume when initialVolume changes
   useEffect(() => {
@@ -135,6 +136,9 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     setBackgroundVolume(volumeValue);
     previousVolumeRef.current = volumeValue;
     
+    // Set flag to indicate this is a manual volume change via the slider
+    isManualVolumeChange.current = true;
+    
     if (player) {
       try {
         // If we're adjusting volume from 0, unmute and play if main player is paused
@@ -161,6 +165,11 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         console.error('Error adjusting volume:', error);
       }
     }
+    
+    // Clear the flag after a short delay
+    setTimeout(() => {
+      isManualVolumeChange.current = false;
+    }, 100);
   }, [player, isMuted, isPlayEnabled, setBackgroundVolume, setBackgroundMuted]);
 
   const handleMuteToggle = useCallback(() => {
@@ -412,6 +421,11 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       backgroundVolume,
       previousVolume: previousVolumeRef.current
     });
+
+    // Skip fade if this is a manual volume change from the slider
+    if (isManualVolumeChange.current) {
+      return;
+    }
 
     if (player && isPlayerReady && typeof player.playVideo === 'function') {
       try {
