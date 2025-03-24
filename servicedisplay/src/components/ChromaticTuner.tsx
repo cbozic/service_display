@@ -168,7 +168,25 @@ const ChromaticTuner: React.FC = () => {
           <Typography variant="h6" sx={{ opacity: 0.7 }}>
             {isListening ? 'Listening...' : 'Microphone Off'}
           </Typography>
-          <Tooltip title={isMicEnabled ? "Disable Microphone" : "Enable Microphone"}>
+          <Tooltip 
+            title={isMicEnabled ? "Disable Microphone" : "Enable Microphone"}
+            arrow
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
             <IconButton onClick={toggleMicrophone} sx={micButtonStyle}>
               {isMicEnabled ? <MicIcon /> : <MicOffIcon />}
             </IconButton>

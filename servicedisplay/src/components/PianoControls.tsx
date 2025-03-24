@@ -283,7 +283,25 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     <Box ref={containerRef} sx={containerStyle}>
       <Box sx={pianoGroupStyle}>
         <Box sx={controlsStyle}>
-          <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+          <Tooltip 
+            title={isMuted ? 'Unmute' : 'Mute'} 
+            arrow
+            PopperProps={{
+              sx: {
+                zIndex: 20000, // Higher than the overlay's z-index (9999)
+              }
+            }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  fontSize: '0.95rem', // Larger font size
+                  fontWeight: 500,     // Slightly bolder
+                  py: 1,               // More padding
+                  px: 1.5
+                }
+              }
+            }}
+          >
             <IconButton
               onClick={handleToggleMute}
               sx={buttonStyle}

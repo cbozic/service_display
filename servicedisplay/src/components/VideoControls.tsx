@@ -56,209 +56,193 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isDucking,
   isMuted,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const [controlSize, setControlSize] = useState({
-    iconSize: 24,
-    padding: 8,
-  });
-
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
   useEffect(() => {
-    const updateControlSizes = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = containerRef.current.clientHeight;
-
-        // Calculate sizes based on container dimensions
-        const minDimension = Math.min(containerWidth / 5, containerHeight / 2);
-        const iconSize = Math.max(20, Math.min(36, minDimension * 0.5));
-        const padding = Math.max(6, Math.min(12, minDimension * 0.25));
-
-        setControlSize({
-          iconSize: Math.round(iconSize),
-          padding: Math.round(padding),
-        });
-      }
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-
-    resizeObserverRef.current = new ResizeObserver(() => {
-      window.requestAnimationFrame(updateControlSizes);
-    });
-
-    if (containerRef.current) {
-      resizeObserverRef.current.observe(containerRef.current);
-    }
-
-    updateControlSizes();
-
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
     return () => {
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-      }
+      window.removeEventListener('resize', checkScreenSize);
     };
   }, []);
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
-    const value = Array.isArray(newValue) ? newValue[0] : newValue;
-    onVolumeChange(value);
+    const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    onVolumeChange(volumeValue);
+  };
+
+  // Custom tooltip styling
+  const tooltipSx = {
+    fontSize: '0.95rem', // Larger font size
+    fontWeight: 500,     // Slightly bolder 
+    py: 1,               // More padding
+    px: 1.5
+  };
+
+  // Custom PopperProps for tooltips to ensure high z-index
+  const tooltipPopperProps = {
+    sx: {
+      zIndex: 20000, // Higher than the overlay's z-index (9999)
+    }
   };
 
   const containerStyle = {
-    width: '100%',
-    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '10px',
+    padding: '10px',
     display: 'flex',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: `${controlSize.padding}px`,
-    padding: `${controlSize.padding}px`,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: '12px',
-  };
-
-  const spacerStyle = {
-    flexGrow: 1,
-    minWidth: `${controlSize.padding}px`, // Match the gap size
+    alignItems: 'center',
+    gap: 1,
+    transition: 'all 0.3s ease',
   };
 
   const buttonStyle = {
-    color: 'var(--dark-text)',
-    transition: 'all 0.2s ease',
+    color: 'white',
     '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)'
-    },
-    '& .MuiSvgIcon-root': {
-      fontSize: `${controlSize.iconSize}px`,
-      transition: 'font-size 0.2s ease',
-    },
-    padding: `${controlSize.padding * 0.75}px`,
-    borderRadius: '8px',
-    border: '2px solid transparent',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    }
   };
-
+  
   const volumeButtonStyle = {
     ...buttonStyle,
-    color: isMuted ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isMuted ? '#ef5350' : 'transparent',
-    '&:hover': {
-      backgroundColor: isMuted 
-        ? '#d32f2f'  // Darker red on hover
-        : 'rgba(255, 255, 255, 0.1)'
-    },
-    border: isMuted 
-      ? '2px solid #ef5350'
-      : '2px solid transparent',
+    ...(isMuted && {
+      color: 'rgba(255, 255, 255, 0.5)'
+    })
+  };
+  
+  const duckingButtonStyle = {
+    ...buttonStyle,
+    ...(isDucking && {
+      color: 'rgba(127, 255, 0, 0.8)',
+      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+    }),
+    ...(isMuted && {
+      color: 'rgba(255, 255, 255, 0.3)',
+      pointerEvents: 'none'
+    })
   };
 
   const slideTransitionsButtonStyle = {
     ...buttonStyle,
-    color: isSlideTransitionsEnabled ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isSlideTransitionsEnabled ? '#4CAF50' : 'transparent',
-    '&:hover': {
-      backgroundColor: isSlideTransitionsEnabled 
-        ? '#388E3C'
-        : 'rgba(255, 255, 255, 0.1)'
-    },
-    '& .MuiSvgIcon-root': {
-      fontSize: `${controlSize.iconSize}px`,
-      transition: 'all 0.2s ease',
-    },
-    transition: 'all 0.2s ease',
-    borderRadius: '8px',
-    padding: `${controlSize.padding * 0.75}px`,
-    border: isSlideTransitionsEnabled 
-      ? '2px solid #4CAF50'
-      : '2px solid transparent',
+    ...(isSlideTransitionsEnabled && {
+      color: 'rgba(127, 255, 0, 0.8)',
+      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+    })
   };
 
   const pipButtonStyle = {
     ...buttonStyle,
-    color: isPipMode ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isPipMode ? '#2196F3' : 'transparent',
-    '&:hover': {
-      backgroundColor: isPipMode 
-        ? '#1976D2'
-        : 'rgba(255, 255, 255, 0.1)'
-    },
-    '& .MuiSvgIcon-root': {
-      fontSize: `${controlSize.iconSize}px`,
-      transition: 'all 0.2s ease',
-    },
-    transition: 'all 0.2s ease',
-    borderRadius: '8px',
-    padding: `${controlSize.padding * 0.75}px`,
-    border: isPipMode 
-      ? '2px solid #2196F3'
-      : '2px solid transparent',
+    ...(isPipMode && {
+      color: 'rgba(127, 255, 0, 0.8)',
+      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+    })
   };
-
+  
   const sliderStyle = {
-    width: '120px',
-    color: 'var(--dark-text)',
+    width: isMobile ? 60 : 100,
+    color: 'white',
     '& .MuiSlider-thumb': {
-      color: 'var(--dark-text)',
-    },
-    '& .MuiSlider-track': {
-      color: 'var(--dark-text)',
+      width: 12,
+      height: 12,
+      '&:hover, &.Mui-focusVisible': {
+        boxShadow: '0px 0px 0px 8px rgba(255, 255, 255, 0.16)',
+      }
     },
     '& .MuiSlider-rail': {
-      color: 'rgba(255, 255, 255, 0.3)',
-    },
-  };
-
-  const duckingButtonStyle = {
-    ...buttonStyle,
-    color: isDucking ? '#ffffff' : 'var(--dark-text)',
-    backgroundColor: isDucking ? '#FFA726' : 'transparent',
-    '&:hover': {
-      backgroundColor: isDucking 
-        ? '#FF9800'  // Darker orange on hover
-        : 'rgba(255, 255, 255, 0.1)'
-    },
-    '& .MuiSvgIcon-root': {
-      fontSize: `${controlSize.iconSize}px`,
-      transition: 'all 0.2s ease',
-    },
-    transition: 'all 0.2s ease',
-    borderRadius: '8px',
-    padding: `${controlSize.padding * 0.75}px`,
-    border: isDucking 
-      ? '2px solid #FFA726'  // Back to orange border
-      : '2px solid transparent',
-    '&.Mui-disabled': {
-      backgroundColor: 'transparent',  // Changed from rgba(255, 255, 255, 0.12)
-      color: 'rgba(255, 255, 255, 0.3)',
-      border: '2px solid transparent'  // Added to ensure no border when disabled
+      opacity: 0.4,
     }
+  };
+  
+  const spacerStyle = {
+    flexGrow: 1,
   };
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
-      <Tooltip title="Restart Video" placement="top">
+      <Tooltip 
+        title="Restart Video" 
+        placement="top" 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onRestart} sx={buttonStyle}>
           <RestartAltIcon />
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Skip Back 5s (Left Arrow)" placement="top">
+      <Tooltip 
+        title="Skip Back 5s (Left Arrow)" 
+        placement="top" 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onSkipBack} sx={buttonStyle}>
           <FastRewindIcon />
         </IconButton>
       </Tooltip>
       
-      <Tooltip title={isPlaying ? "Pause (Space)" : "Play (Space)"} placement="top">
+      <Tooltip 
+        title={isPlaying ? "Pause (Space)" : "Play (Space)"} 
+        placement="top" 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onPlayPause} sx={buttonStyle}>
           {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
         </IconButton>
       </Tooltip>
       
-      <Tooltip title="Skip Forward 15s (Right Arrow)" placement="top">
+      <Tooltip 
+        title="Skip Forward 15s (Right Arrow)" 
+        placement="top" 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onSkipForward} sx={buttonStyle}>
           <FastForwardIcon />
         </IconButton>
       </Tooltip>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+        <Tooltip 
+          title={isMuted ? 'Unmute (M)' : 'Mute (M)'} 
+          arrow
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+          PopperProps={tooltipPopperProps}
+        >
           <IconButton onClick={onToggleMute} sx={volumeButtonStyle}>
             {isMuted ? <VolumeOffIcon /> : <VolumeUp />}
           </IconButton>
@@ -271,7 +255,16 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           max={100}
           sx={sliderStyle}
         />
-        <Tooltip title={isDucking ? "Disable Volume Ducking (D)" : "Enable Volume Ducking (D)"}>
+        <Tooltip 
+          title={isDucking ? "Disable Volume Ducking (D)" : "Enable Volume Ducking (D)"} 
+          arrow
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+          PopperProps={tooltipPopperProps}
+        >
           <span>
             <IconButton 
               onClick={onDuckingToggle} 
@@ -284,13 +277,31 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </Tooltip>
       </Box>
 
-      <Tooltip title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"}>
+      <Tooltip 
+        title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onSlideTransitionsToggle} sx={slideTransitionsButtonStyle}>
           {isSlideTransitionsEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
         </IconButton>
       </Tooltip>
 
-      <Tooltip title={isPipMode ? "Exit Picture-in-Picture (P)" : "Enter Picture-in-Picture (P)"}>
+      <Tooltip 
+        title={isPipMode ? "Exit Picture-in-Picture (P)" : "Enter Picture-in-Picture (P)"} 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton 
           onClick={isPipMode ? onDisablePip : onEnablePip} 
           sx={pipButtonStyle}
@@ -299,7 +310,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Toggle Fullscreen (F)" placement="top">
+      <Tooltip 
+        title="Toggle Fullscreen (F)" 
+        placement="top" 
+        arrow
+        componentsProps={{
+          tooltip: {
+            sx: tooltipSx
+          }
+        }}
+        PopperProps={tooltipPopperProps}
+      >
         <IconButton onClick={onFullscreen} sx={buttonStyle}>
           <FullscreenIcon />
         </IconButton>
