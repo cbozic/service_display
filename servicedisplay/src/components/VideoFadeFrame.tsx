@@ -50,8 +50,10 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
+  const [showInstructions, setShowInstructions] = useState<boolean>(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userExitedFullscreenRef = useRef<boolean>(false);
   const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
 
@@ -363,6 +365,31 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }
   }, [isFullscreen, fullscreen, openFullscreen]);
 
+  // Show instructions when entering fullscreen
+  useEffect(() => {
+    if (fullscreen) {
+      setShowInstructions(true);
+      
+      // Clear any existing timeout
+      if (instructionsTimeoutRef.current) {
+        clearTimeout(instructionsTimeoutRef.current);
+      }
+      
+      // Hide instructions after 5 seconds
+      instructionsTimeoutRef.current = setTimeout(() => {
+        setShowInstructions(false);
+      }, 5000);
+    } else {
+      setShowInstructions(false);
+    }
+    
+    return () => {
+      if (instructionsTimeoutRef.current) {
+        clearTimeout(instructionsTimeoutRef.current);
+      }
+    };
+  }, [fullscreen]);
+
   // Create a separate handler specifically for the button
   const handleFullscreenButtonClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -541,6 +568,24 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }
   }, [player, volume]);
 
+  const instructionsOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: 'white',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    zIndex: 1000,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    opacity: showInstructions ? 1 : 0,
+    transition: 'opacity 0.5s ease-in-out',
+    pointerEvents: 'none',
+    visibility: showInstructions ? 'visible' : 'hidden',
+  };
+
   return (
     <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
       {isPipMode && overlaySlide && (
@@ -588,6 +633,9 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       >
         GO FULLSCREEN
       </button>
+      <div style={instructionsOverlayStyle}>
+        Click or press SPACEBAR to play/pause video
+      </div>
     </div>
   );
 }
