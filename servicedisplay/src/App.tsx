@@ -663,7 +663,7 @@ const AppContent: React.FC = () => {
             overlaySlide={overlaySlide}
             onPlayerReady={handlePlayerReady}
             onStateChange={handleStateChange}
-            isPlaying={isPlaying}
+            isPlaying={isPlaying && !showStartOverlay}
             isFullscreen={isFullscreen}
             isPipMode={isPipMode}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
@@ -675,8 +675,20 @@ const AppContent: React.FC = () => {
           <VideoTimeEvents
             ref={timeEventsRef}
             player={player}
-            isPlaying={isPlaying}
+            isPlaying={isPlaying && !showStartOverlay}
           />
+          {showStartOverlay && (
+            <div style={{ 
+              width: '100%', 
+              height: '100%', 
+              backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              zIndex: 5000,
+              pointerEvents: 'all'
+            }}></div>
+          )}
         </div>
       );
     } else if (component === "background") {
@@ -780,17 +792,24 @@ const AppContent: React.FC = () => {
     <YouTubeProvider>
       <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
         {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
-        <Layout 
-          model={model} 
-          factory={factory}
-          onModelChange={(model: Model) => {
-            if (window.opener && document.fullscreenElement) {
-              document.exitFullscreen().catch((e: Error) => {
-                console.log('Error exiting fullscreen:', e);
-              });
-            }
+        <Box 
+          sx={{ 
+            height: '100%',
+            pointerEvents: showStartOverlay ? 'none' : 'auto' // Disable ALL interactions with app content when overlay is shown
           }}
-        />
+        >
+          <Layout 
+            model={model} 
+            factory={factory}
+            onModelChange={(model: Model) => {
+              if (window.opener && document.fullscreenElement) {
+                document.exitFullscreen().catch((e: Error) => {
+                  console.log('Error exiting fullscreen:', e);
+                });
+              }
+            }}
+          />
+        </Box>
       </Box>
     </YouTubeProvider>
   );

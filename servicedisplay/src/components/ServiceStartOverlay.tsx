@@ -136,7 +136,15 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         justifyContent: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         zIndex: 9999,
+        pointerEvents: 'auto',
+        touchAction: 'none',
+        userSelect: 'none',
       }}
+      tabIndex={0}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <Paper
         elevation={3}
@@ -146,12 +154,23 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
           width: '90%',
           textAlign: 'center',
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          pointerEvents: 'auto',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         {!isReady ? (
-          <Typography variant="h4" component="h1" gutterBottom>
-            Loading...
-          </Typography>
+          <Box 
+            sx={{ 
+              minHeight: '300px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Typography variant="h4" component="h1" gutterBottom>
+              Loading...
+            </Typography>
+          </Box>
         ) : (
           <>
             <Typography variant="h4" component="h1" gutterBottom>
