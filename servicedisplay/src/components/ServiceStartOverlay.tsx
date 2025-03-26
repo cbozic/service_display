@@ -92,6 +92,24 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             backgroundPlayerRef.current.setVolume(newVolume);
           }
         }
+      } else if (event.code === 'KeyN' && !event.repeat) {
+        event.preventDefault();
+        console.log('n key pressed in overlay, skipping to next track');
+        // Skip to next track in background player
+        if (backgroundPlayerRef?.current) {
+          backgroundPlayerRef.current.nextVideo();
+        }
+      } else if (event.code === 'KeyR' && !event.repeat) {
+        event.preventDefault();
+        console.log('r key pressed in overlay, skipping to random track');
+        // Skip to random track in background player
+        if (backgroundPlayerRef?.current) {
+          const playlist = backgroundPlayerRef.current.getPlaylist();
+          if (playlist && playlist.length > 0) {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            backgroundPlayerRef.current.playVideoAt(randomIndex);
+          }
+        }
       }
     };
 
@@ -232,8 +250,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
-        // Don't stop propagation for < and > keys
-        if (e.code !== 'Comma' && e.code !== 'Period') {
+        // Don't stop propagation for these keys
+        if (e.code !== 'Comma' && e.code !== 'Period' && e.code !== 'KeyN' && e.code !== 'KeyR') {
           e.stopPropagation();
         }
       }}

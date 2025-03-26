@@ -544,6 +544,30 @@ const AppContent: React.FC = () => {
       } else if (event.code === 'KeyM' && !event.repeat) {
         event.preventDefault();
         handleToggleMute();
+      } else if (event.code === 'KeyN' && !event.repeat) {
+        event.preventDefault();
+        // Skip to next track in background player
+        if (backgroundPlayerRef?.current) {
+          try {
+            backgroundPlayerRef.current.nextVideo();
+          } catch (error) {
+            console.error('[App] Error skipping to next track:', error);
+          }
+        }
+      } else if (event.code === 'KeyR' && !event.repeat) {
+        event.preventDefault();
+        // Skip to random track in background player
+        if (backgroundPlayerRef?.current) {
+          try {
+            const playlist = backgroundPlayerRef.current.getPlaylist();
+            if (playlist && playlist.length > 0) {
+              const randomIndex = Math.floor(Math.random() * playlist.length);
+              backgroundPlayerRef.current.playVideoAt(randomIndex);
+            }
+          } catch (error) {
+            console.error('[App] Error skipping to random track:', error);
+          }
+        }
       } else if (event.code === 'BracketLeft' && !event.repeat && !isMuted) {
         event.preventDefault();
         // Decrease volume by 5% of total (5 out of 100)
