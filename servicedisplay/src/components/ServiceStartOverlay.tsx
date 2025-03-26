@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Switch, FormControlLabel, Button, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Button, Paper, CircularProgress, GlobalStyles } from '@mui/material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import MusicOffIcon from '@mui/icons-material/MusicOff';
 
 interface ServiceStartOverlayProps {
   onStartService: () => void;
@@ -171,6 +173,15 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       onTouchStart={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
+      <GlobalStyles
+        styles={{
+          '@keyframes pulse': {
+            '0%': { transform: 'scale(1)', opacity: 0.5 },
+            '50%': { transform: 'scale(1.05)', opacity: 0.8 },
+            '100%': { transform: 'scale(1)', opacity: 0.5 },
+          }
+        }}
+      />
       <Paper
         elevation={5}
         sx={{
@@ -249,18 +260,50 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             >
               {currentTime}
             </Typography>
-            <Box sx={{ mt: 3, mb: 2 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={isMusicEnabled}
-                    onChange={handleMusicToggle}
-                    color="primary"
-                  />
-                }
-                label="Background music while you wait?"
-                sx={{ color: 'rgba(255, 255, 255, 0.9)' }}
-              />
+            <Box sx={{ 
+              mt: 3, 
+              mb: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}>
+              <Button
+                onClick={handleMusicToggle}
+                variant="contained"
+                color={isMusicEnabled ? "primary" : "inherit"}
+                startIcon={isMusicEnabled ? <MusicNoteIcon /> : <MusicOffIcon />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 3,
+                  py: 1,
+                  backgroundColor: isMusicEnabled ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  border: '1px solid',
+                  borderColor: isMusicEnabled ? 'transparent' : 'rgba(255, 255, 255, 0.3)',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'visible',
+                  boxShadow: isMusicEnabled ? '0 0 10px var(--accent-color)' : 'none',
+                  '&:hover': {
+                    backgroundColor: isMusicEnabled ? 'var(--accent-hover)' : 'rgba(255, 255, 255, 0.25)',
+                    transform: 'scale(1.05)',
+                  },
+                  '&::after': isMusicEnabled ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: '-4px',
+                    left: '-4px',
+                    right: '-4px',
+                    bottom: '-4px',
+                    borderRadius: '24px',
+                    border: '2px solid var(--accent-color)',
+                    opacity: 0.5,
+                    animation: 'pulse 1.5s infinite'
+                  } : {}
+                }}
+              >
+                {isMusicEnabled ? "Background Music On" : "Enable Background Music"}
+              </Button>
             </Box>
             {isMusicEnabled && (
               <Box sx={{ 
