@@ -85,7 +85,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           </IconButton>
         </Tooltip>
         <Tooltip 
-          title="Adjust background music volume" 
+          title="Adjust background music volume (< and > keys adjust by 5%)" 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}

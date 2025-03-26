@@ -124,16 +124,14 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     e.preventDefault();
     e.stopPropagation();
     
-    // Stop background music if it's playing
-    if (backgroundPlayerRef.current && isMusicEnabled) {
-      backgroundPlayerRef.current.pauseVideo();
-      backgroundPlayerRef.current.mute();
-      setBackgroundMuted(true);
-      setIsPlayEnabled(false);
-    }
-    
+    // Preserve background music settings - don't mute or pause if music is enabled
     // Use a custom event to signal this is just opening controls without starting media
-    const customEvent = new CustomEvent('openControlsOnly', { detail: { startMedia: false } });
+    const customEvent = new CustomEvent('openControlsOnly', { 
+      detail: { 
+        startMedia: false,
+        preserveBackgroundMusic: isMusicEnabled 
+      } 
+    });
     window.dispatchEvent(customEvent);
     
     // Still close the overlay
@@ -143,7 +141,12 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   // Handle start service button click
   const handleStartServiceClick = () => {
     // Signal this is a full service start
-    const customEvent = new CustomEvent('openControlsOnly', { detail: { startMedia: true } });
+    const customEvent = new CustomEvent('openControlsOnly', { 
+      detail: { 
+        startMedia: true,
+        preserveBackgroundMusic: isMusicEnabled  
+      } 
+    });
     window.dispatchEvent(customEvent);
     
     onStartService();

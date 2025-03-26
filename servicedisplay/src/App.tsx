@@ -16,6 +16,9 @@ import BackgroundPlayer from './components/BackgroundPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
 import ReactDOM from 'react-dom';
 import ServiceStartOverlay from './components/ServiceStartOverlay';
+import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
+import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
+import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 
 const flexlayout_json: IJsonModel = {
   global: {
@@ -153,14 +156,13 @@ const AppContent: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
-  const { setIsPlayEnabled, isPlayEnabled } = useYouTube();
+  const { setIsPlayEnabled, isPlayEnabled, backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
   const slidesInitializedRef = useRef<boolean>(false);
   const videoListInitializedRef = useRef<boolean>(false);
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
-  const { backgroundPlayerRef } = useYouTube();
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
 
@@ -552,6 +554,18 @@ const AppContent: React.FC = () => {
         // Increase volume by 5% of total (5 out of 100)
         const newVolume = Math.min(100, videoVolume + 5);
         setVideoVolume(newVolume);
+      } else if (event.code === 'Comma' && !event.repeat) {
+        event.preventDefault();
+        // Decrease background volume by 5% of total (5 out of 100)
+        const newVolume = Math.max(0, backgroundVolume - 5);
+        console.log('< key pressed, decreasing background volume from', backgroundVolume, 'to', newVolume);
+        setBackgroundVolume(newVolume);
+      } else if (event.code === 'Period' && !event.repeat) {
+        event.preventDefault();
+        // Increase background volume by 5% of total (5 out of 100)
+        const newVolume = Math.min(100, backgroundVolume + 5);
+        console.log('> key pressed, increasing background volume from', backgroundVolume, 'to', newVolume);
+        setBackgroundVolume(newVolume);
       }
     };
 
@@ -560,7 +574,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume]);
+      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, setBackgroundVolume]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -686,6 +700,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleOpenControlsOnly = (e: CustomEvent) => {
       const shouldStartMedia = e.detail?.startMedia;
+      const preserveBackgroundMusic = e.detail?.preserveBackgroundMusic;
       
       if (!shouldStartMedia) {
         // Just opening controls, don't start media
@@ -693,6 +708,14 @@ const AppContent: React.FC = () => {
           player.pauseVideo();
         }
         setIsPlaying(false);
+        
+        // Only affect background player if preserveBackgroundMusic is false
+        if (!preserveBackgroundMusic && backgroundPlayerRef?.current) {
+          backgroundPlayerRef.current.pauseVideo();
+          backgroundPlayerRef.current.mute();
+          setBackgroundMuted(true);
+          setIsPlayEnabled(false);
+        }
       } else {
         // Start the service - restart and play the video
         if (player) {
@@ -716,7 +739,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
     };
-  }, [player, videoMonitorPlayer]);
+  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, setIsPlayEnabled]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
@@ -833,7 +856,6 @@ const AppContent: React.FC = () => {
       return (
         <BackgroundPlayer
           playlistUrl={backgroundPlaylistUrl}
-          volume={15}
         />
       );
     } else if (component === "videoList") {
@@ -928,29 +950,27 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <YouTubeProvider>
-      <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
-        {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
-        <Box 
-          sx={{ 
-            height: '100%',
-            pointerEvents: showStartOverlay ? 'none' : 'auto' // Disable ALL interactions with app content when overlay is shown
+    <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
+      <Box 
+        sx={{ 
+          height: '100%',
+          pointerEvents: showStartOverlay ? 'none' : 'auto' // Disable ALL interactions with app content when overlay is shown
+        }}
+      >
+        <Layout 
+          model={model} 
+          factory={factory}
+          onModelChange={(model: Model) => {
+            if (window.opener && document.fullscreenElement) {
+              document.exitFullscreen().catch((e: Error) => {
+                console.log('Error exiting fullscreen:', e);
+              });
+            }
           }}
-        >
-          <Layout 
-            model={model} 
-            factory={factory}
-            onModelChange={(model: Model) => {
-              if (window.opener && document.fullscreenElement) {
-                document.exitFullscreen().catch((e: Error) => {
-                  console.log('Error exiting fullscreen:', e);
-                });
-              }
-            }}
-          />
-        </Box>
+        />
       </Box>
-    </YouTubeProvider>
+    </Box>
   );
 }
 

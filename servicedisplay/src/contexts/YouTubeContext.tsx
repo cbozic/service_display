@@ -27,6 +27,11 @@ export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const backgroundPlayerRef = useRef<any>(null);
   const isManualVolumeChange = useRef<boolean>(false);
   
+  const handleSetBackgroundVolume = (volume: number) => {
+    console.log('YouTubeContext: Setting background volume to', volume);
+    setBackgroundVolume(volume);
+  };
+  
   const setManualVolumeChange = (isManual: boolean) => {
     isManualVolumeChange.current = isManual;
     // Clear the flag after a short delay if it's set to true
@@ -47,7 +52,7 @@ export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isMainPlayerPlaying,
       setIsMainPlayerPlaying,
       backgroundVolume,
-      setBackgroundVolume,
+      setBackgroundVolume: handleSetBackgroundVolume,
       backgroundMuted,
       setBackgroundMuted,
       isManualVolumeChange,

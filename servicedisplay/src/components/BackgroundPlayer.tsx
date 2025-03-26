@@ -12,7 +12,7 @@ interface BackgroundPlayerProps {
 
 const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   playlistUrl = '',
-  volume: initialVolume = 2
+  volume: propVolume
 }): JSX.Element | null => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -21,39 +21,48 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const { mainPlayersReady, isPlayEnabled, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
   const [skipToRandomEnabled, setSkipToRandomEnabled] = useState(false);
   const fadeTimeoutRef = useRef<number | null>(null);
-  const previousVolumeRef = useRef<number>(initialVolume);
+  const initialVolumeSetRef = useRef<boolean>(false);
+  const previousVolumeRef = useRef<number>(backgroundVolume);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [currentState, setCurrentState] = useState<number | null>(null);
 
-  // Add effect to update volume when initialVolume changes
+  // Add effect to update volume when initialVolume changes - but only once on initial mount
   useEffect(() => {
-    console.log('[BackgroundPlayer] Initial volume changed:', initialVolume);
-    setBackgroundVolume(initialVolume);
-    previousVolumeRef.current = initialVolume;
-    
-    // Only try to set volume if player is fully initialized and ready
-    if (player && isPlayerReady && typeof player.setVolume === 'function') {
+    // Only set the initial volume if it hasn't been set before
+    if (!initialVolumeSetRef.current && player && isPlayerReady) {
+      const initialVolume = propVolume !== undefined ? propVolume : backgroundVolume;
+      console.log('[BackgroundPlayer] Setting initial volume:', initialVolume);
+      
       try {
-        console.log('[BackgroundPlayer] Setting player volume to:', initialVolume);
         player.setVolume(initialVolume);
+        // Only update context if we're using the prop volume
+        if (propVolume !== undefined && propVolume !== backgroundVolume) {
+          setBackgroundVolume(initialVolume);
+        }
+        previousVolumeRef.current = initialVolume;
+        initialVolumeSetRef.current = true;
       } catch (error) {
-        console.error('[BackgroundPlayer] Error setting volume:', error);
+        console.error('[BackgroundPlayer] Error setting initial volume:', error);
       }
-    } else {
-      console.log('[BackgroundPlayer] Player not ready for volume change:', {
-        hasPlayer: !!player,
-        isPlayerReady,
-        hasSetVolume: player && typeof player.setVolume === 'function'
-      });
     }
-  }, [initialVolume, player, isPlayerReady, setBackgroundVolume]);
+  }, [player, isPlayerReady, propVolume, backgroundVolume, setBackgroundVolume]);
 
   // Add effect to handle backgroundVolume changes from context
   useEffect(() => {
+    console.log('[BackgroundPlayer] Context volume changed:', backgroundVolume, 'Player ready:', isPlayerReady, 'Player exists:', !!player);
     if (player && isPlayerReady && typeof player.setVolume === 'function') {
       try {
-        console.log('[BackgroundPlayer] Context volume changed:', backgroundVolume);
+        console.log('[BackgroundPlayer] Actually setting player volume to:', backgroundVolume);
         player.setVolume(backgroundVolume);
+        // Verify the volume was set
+        setTimeout(() => {
+          try {
+            const currentVolume = player.getVolume();
+            console.log('[BackgroundPlayer] Volume verification - requested:', backgroundVolume, 'actual:', currentVolume);
+          } catch (error) {
+            console.error('[BackgroundPlayer] Error getting volume for verification:', error);
+          }
+        }, 100);
       } catch (error) {
         console.error('[BackgroundPlayer] Error setting volume from context:', error);
       }
@@ -250,10 +259,10 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       // Basic player setup
       console.log('[BackgroundPlayer] Setting up player instance');
       playerInstance.mute(); // Start muted by default
-      // Use the volume from the main video if available, otherwise use initialVolume
-      const targetVolume = previousVolumeRef.current || initialVolume;
-      playerInstance.setVolume(targetVolume);
-      setBackgroundVolume(targetVolume); // Update the state to match
+      // Use the volume from context
+      const volumeToUse = previousVolumeRef.current || backgroundVolume;
+      playerInstance.setVolume(volumeToUse);
+      setBackgroundVolume(volumeToUse); // Update the state to match
       playerInstance.setPlaybackQuality('small');
       setPlayer(playerInstance);
       setIsPlayerReady(true);
@@ -296,7 +305,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
                         playerInstance.mute();
                       }
                       // Use the synced volume
-                      playerInstance.setVolume(targetVolume);
+                      playerInstance.setVolume(volumeToUse);
                       handleSkipToRandom();
                       // Always play initially since main video is unstarted
                       console.log('[BackgroundPlayer] Main video is unstarted, playing after skip');
@@ -328,7 +337,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('[BackgroundPlayer] Error in onPlayerReady:', error);
     }
-  }, [initialVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted]);
+  }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted]);
 
   const onStateChange = useCallback((event: YouTubeEvent) => {
     try {
@@ -540,7 +549,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
             </IconButton>
           </Tooltip>
           <Tooltip 
-            title="Adjust background music volume" 
+            title="Adjust background music volume (< and > keys adjust by 5%)" 
             arrow 
             placement="top"
             PopperProps={{
