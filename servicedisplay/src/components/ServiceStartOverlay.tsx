@@ -134,7 +134,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
         zIndex: 9999,
         pointerEvents: 'auto',
         touchAction: 'none',
@@ -147,13 +147,17 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       onKeyDown={(e) => e.stopPropagation()}
     >
       <Paper
-        elevation={3}
+        elevation={5}
         sx={{
           p: 4,
           maxWidth: 400,
           width: '90%',
           textAlign: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: 'var(--dark-surface)',
+          color: 'var(--dark-text)',
+          border: '1px solid var(--dark-border)',
+          borderRadius: '8px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
           pointerEvents: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -180,13 +184,18 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                 }
               }}
             />
-            <Typography variant="h5" component="h2" gutterBottom>
+            <Typography 
+              variant="h5" 
+              component="h2" 
+              gutterBottom
+              sx={{ color: 'var(--accent-color)' }}
+            >
               Service Display
             </Typography>
             <Typography 
               variant="body1" 
               sx={{ 
-                color: 'text.secondary',
+                color: 'rgba(255, 255, 255, 0.7)',
                 maxWidth: '80%'
               }}
             >
@@ -195,7 +204,12 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
           </Box>
         ) : (
           <>
-            <Typography variant="h5" component="h2" gutterBottom>
+            <Typography 
+              variant="h5" 
+              component="h2" 
+              gutterBottom
+              sx={{ color: 'var(--accent-color)' }}
+            >
               Ready when you are!
             </Typography>
             <Typography 
@@ -204,7 +218,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
               sx={{ 
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
-                mb: 3
+                mb: 3,
+                color: '#fff'
               }}
             >
               {currentTime}
@@ -219,6 +234,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                   />
                 }
                 label="Background music while you wait?"
+                sx={{ color: 'rgba(255, 255, 255, 0.9)' }}
               />
             </Box>
             {isMusicEnabled && (
@@ -244,7 +260,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                     mt: 1, 
                     px: 1, 
                     fontSize: '0.85rem',
-                    color: 'text.secondary',
+                    color: 'rgba(255, 255, 255, 0.6)',
                     fontStyle: 'italic',
                     lineHeight: 1.4
                   }}
@@ -258,7 +274,13 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
               color="primary"
               size="large"
               onClick={handleStartServiceClick}
-              sx={{ mt: 2 }}
+              sx={{ 
+                mt: 2, 
+                fontWeight: 'bold',
+                px: 3,
+                py: 1,
+                fontSize: '1.1rem'
+              }}
             >
               Start the Service
             </Button>
