@@ -133,7 +133,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
     fontSize: '0.95rem', // Larger font size
     fontWeight: 500,     // Slightly bolder 
     py: 1,               // More padding
-    px: 1.5
+    px: 1.5,
+    backgroundColor: '#333333'  // Lighter background
   };
 
   // Custom PopperProps for tooltips to ensure high z-index
@@ -244,6 +245,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
           <Tooltip 
             title={isAnimationEnabled ? "Disable Slide Transitions" : "Enable Slide Transitions"} 
             arrow
+            placement="top"
             componentsProps={{
               tooltip: {
                 sx: tooltipSx

@@ -40,7 +40,8 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
     fontSize: '0.95rem', // Larger font size
     fontWeight: 500,     // Slightly bolder 
     py: 1,               // More padding
-    px: 1.5
+    px: 1.5,
+    backgroundColor: '#333333'  // Lighter background
   };
 
   return (

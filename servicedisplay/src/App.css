@@ -68,7 +68,7 @@
 
 /* Tooltip styles */
 .MuiTooltip-tooltip {
-  background-color: var(--dark-surface) !important;
+  background-color: #333333 !important;
   color: var(--dark-text) !important;
   border: 1px solid var(--dark-border) !important;
   font-size: 0.95rem !important;
