@@ -14,6 +14,7 @@ import { VolumeUp, VolumeOff } from '@mui/icons-material';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import VolumeMuteIcon from '@mui/icons-material/VolumeMute';
+import VideoTimeDisplay from './VideoTimeDisplay';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -36,6 +37,7 @@ interface VideoControlsProps {
   volume: number;
   isDucking: boolean;
   isMuted: boolean;
+  currentTime?: number;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -59,6 +61,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   volume,
   isDucking,
   isMuted,
+  currentTime = 0,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -172,6 +175,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
+      {/* Time Display */}
+      {currentTime !== undefined && (
+        <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
+          <VideoTimeDisplay 
+            currentTimeInSeconds={currentTime} 
+            position="left" 
+            size="small"
+          />
+        </Box>
+      )}
+      
       <Tooltip 
         title="Restart Video" 
         placement="top" 

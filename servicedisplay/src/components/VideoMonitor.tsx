@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import VideoTimeDisplay from './VideoTimeDisplay';
 
 interface YouTubeEvent {
   target: any;
@@ -52,6 +53,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   const initializedRef = useRef<boolean>(false);
   const syncIntervalRef = useRef<number | null>(null);
   const initAttemptsRef = useRef<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
@@ -184,6 +186,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
       try {
         const mainTime = mainPlayer.getCurrentTime();
         playerRef.current.seekTo(mainTime, true);
+        setCurrentTime(mainTime);
         
         if (mainPlayer.getPlayerState() === 1) {
           playerRef.current.playVideo();
@@ -204,6 +207,9 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
           const mainTime = mainPlayer.getCurrentTime();
           const monitorTime = playerRef.current.getCurrentTime();
           
+          // Update the time display
+          setCurrentTime(mainTime);
+          
           // If time difference is more than 0.3 seconds, sync
           if (Math.abs(mainTime - monitorTime) > 0.3) {
             playerRef.current.seekTo(mainTime, true);
@@ -219,7 +225,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
           console.error('Error during video sync:', error);
         }
       }
-    }, 500); // Check more frequently (every 500ms)
+    }, 1000); // Update every 1000ms
   };
 
   return (
@@ -257,7 +263,14 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
       <Box
         ref={containerRef}
         onClick={(e) => e.preventDefault()}
-        sx={{ flex: 1, width: '100%' }}
+        sx={{ flex: 1, width: '100%', position: 'relative' }}
+      />
+      
+      {/* Time Display Overlay */}
+      <VideoTimeDisplay 
+        currentTimeInSeconds={currentTime} 
+        position="bottom-left" 
+        size="medium"
       />
     </Box>
   );

@@ -161,6 +161,8 @@ const AppContent: React.FC = () => {
   const videoListInitializedRef = useRef<boolean>(false);
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const { backgroundPlayerRef } = useYouTube();
+  const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
+  const videoTimeUpdateIntervalRef = useRef<number | null>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -736,6 +738,32 @@ const AppContent: React.FC = () => {
     };
   }, [isFullscreen]);
 
+  // Set up video time update interval
+  useEffect(() => {
+    if (player && isPlayerReady) {
+      // Clear any previous interval
+      if (videoTimeUpdateIntervalRef.current) {
+        window.clearInterval(videoTimeUpdateIntervalRef.current);
+      }
+      
+      // Set up interval to update current time
+      videoTimeUpdateIntervalRef.current = window.setInterval(() => {
+        try {
+          const time = player.getCurrentTime();
+          setCurrentVideoTime(time);
+        } catch (error) {
+          console.error('Error getting current time:', error);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (videoTimeUpdateIntervalRef.current) {
+        window.clearInterval(videoTimeUpdateIntervalRef.current);
+      }
+    };
+  }, [player, isPlayerReady]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -843,6 +871,7 @@ const AppContent: React.FC = () => {
               isDucking={isDucking}
               isMuted={isMuted}
               volume={videoVolume}
+              currentTime={currentVideoTime}
             />
           </div>
         </div>
