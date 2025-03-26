@@ -247,7 +247,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
           padding: '8px',
           width: '100%',
           textAlign: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'darkred',
           fontWeight: 500,
           letterSpacing: '0.5px'
         }}
