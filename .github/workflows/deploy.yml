@@ -13,9 +13,6 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
       - name: Checkout
@@ -50,15 +47,28 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add docs/
+          git add docs/ .nojekyll
           git commit -m "Update docs with latest build" || echo "No changes to commit"
           git push
-          
+      
+  # Separate job for GitHub Pages deployment
+  deploy:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
+          # Explicitly disable Jekyll
           enablement: without-jekyll
-        
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
