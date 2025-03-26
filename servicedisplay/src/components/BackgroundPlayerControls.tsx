@@ -129,7 +129,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           </IconButton>
         </Tooltip>
         <Tooltip 
-          title="Play a random track from playlist" 
+          title="Skip to a random track from playlist" 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}

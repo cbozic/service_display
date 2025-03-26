@@ -44,6 +44,63 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     return () => clearInterval(interval);
   }, []);
 
+  // Add keyboard event handlers for volume control in overlay
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle keys when music is enabled
+      if (!isMusicEnabled) return;
+
+      if (event.code === 'Comma' && !event.repeat) {
+        event.preventDefault();
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          // If player is muted, unmute it first
+          console.log('< key pressed in overlay, unmuting background player');
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          // Make sure we keep the current volume
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          // Decrease background volume by 5% of total (5 out of 100)
+          const newVolume = Math.max(0, backgroundVolume - 5);
+          console.log('< key pressed in overlay, decreasing background volume from', backgroundVolume, 'to', newVolume);
+          setBackgroundVolume(newVolume);
+          
+          // Update the actual player volume
+          if (backgroundPlayerRef.current) {
+            backgroundPlayerRef.current.setVolume(newVolume);
+          }
+        }
+      } else if (event.code === 'Period' && !event.repeat) {
+        event.preventDefault();
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          // If player is muted, unmute it first
+          console.log('> key pressed in overlay, unmuting background player');
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          // Make sure we keep the current volume
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          // Increase background volume by 5% of total (5 out of 100)
+          const newVolume = Math.min(100, backgroundVolume + 5);
+          console.log('> key pressed in overlay, increasing background volume from', backgroundVolume, 'to', newVolume);
+          setBackgroundVolume(newVolume);
+          
+          // Update the actual player volume
+          if (backgroundPlayerRef.current) {
+            backgroundPlayerRef.current.setVolume(newVolume);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [backgroundMuted, backgroundVolume, backgroundPlayerRef, setBackgroundMuted, setBackgroundVolume, isMusicEnabled]);
+
   // Check if all players are ready
   useEffect(() => {
     if (mainPlayersReady && backgroundPlayerRef.current) {
@@ -174,7 +231,12 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Don't stop propagation for < and > keys
+        if (e.code !== 'Comma' && e.code !== 'Period') {
+          e.stopPropagation();
+        }
+      }}
     >
       <GlobalStyles
         styles={{
