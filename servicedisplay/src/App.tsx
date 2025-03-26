@@ -626,15 +626,46 @@ const AppContent: React.FC = () => {
     }
   }, [handleVideoListError, playlistUrl, setVideo, video]);
 
+  useEffect(() => {
+    const handleOpenControlsOnly = (e: CustomEvent) => {
+      const shouldStartMedia = e.detail?.startMedia;
+      
+      if (!shouldStartMedia) {
+        // Just opening controls, don't start media
+        if (player) {
+          player.pauseVideo();
+        }
+        setIsPlaying(false);
+      } else {
+        // Start the service - restart and play the video
+        if (player) {
+          player.seekTo(0, true);
+          player.playVideo();
+        }
+        setIsPlaying(true);
+        
+        // Also restart monitor player if it exists
+        if (videoMonitorPlayer) {
+          videoMonitorPlayer.seekTo(0, true);
+          videoMonitorPlayer.playVideo();
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
+    };
+  }, [player, videoMonitorPlayer]);
+
   const handleStartService = () => {
     setShowStartOverlay(false);
-    // Set isPlayEnabled to true so the background player will play
-    setIsPlayEnabled(true);
-    if (player) {
-      player.seekTo(0);
-    }
-    // Also restart the video when starting the service
-    handleRestart();
+    
+    // The rest of the function will now be controlled by the custom event
+    // so we can just close the overlay here
   };
 
   const factory = (node: TabNode) => {

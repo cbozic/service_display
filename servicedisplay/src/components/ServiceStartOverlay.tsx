@@ -117,8 +117,33 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     }
   };
 
+  // Add a new function to handle fancy controls option
+  const handleOpenFancyControls = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Stop background music if it's playing
+    if (backgroundPlayerRef.current && isMusicEnabled) {
+      backgroundPlayerRef.current.pauseVideo();
+      backgroundPlayerRef.current.mute();
+      setBackgroundMuted(true);
+      setIsPlayEnabled(false);
+    }
+    
+    // Use a custom event to signal this is just opening controls without starting media
+    const customEvent = new CustomEvent('openControlsOnly', { detail: { startMedia: false } });
+    window.dispatchEvent(customEvent);
+    
+    // Still close the overlay
+    onStartService();
+  };
+
   // Handle start service button click
   const handleStartServiceClick = () => {
+    // Signal this is a full service start
+    const customEvent = new CustomEvent('openControlsOnly', { detail: { startMedia: true } });
+    window.dispatchEvent(customEvent);
+    
     onStartService();
   };
 
@@ -284,6 +309,26 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             >
               Start the Service
             </Button>
+            
+            {/* Add the subtle text link below the button */}
+            <Typography 
+              variant="body2" 
+              component="div"
+              onClick={handleOpenFancyControls}
+              sx={{ 
+                mt: 2,
+                color: 'rgba(255, 255, 255, 0.5)',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'color 0.2s ease',
+                '&:hover': {
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  textDecoration: 'underline'
+                }
+              }}
+            >
+              ...or open all the fancy controls
+            </Typography>
           </>
         )}
       </Paper>
