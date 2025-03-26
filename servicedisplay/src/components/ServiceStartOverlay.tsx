@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Switch, FormControlLabel, Button, Paper } from '@mui/material';
+import { Box, Typography, Switch, FormControlLabel, Button, Paper, CircularProgress } from '@mui/material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
 
@@ -163,18 +163,40 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             sx={{ 
               minHeight: '300px',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              gap: 3
             }}
           >
-            <Typography variant="h4" component="h1" gutterBottom>
-              Loading...
+            <CircularProgress 
+              size={60} 
+              thickness={4} 
+              color="primary"
+              sx={{ 
+                mb: 2,
+                '& .MuiCircularProgress-circle': {
+                  strokeLinecap: 'round',
+                }
+              }}
+            />
+            <Typography variant="h5" component="h2" gutterBottom>
+              Service Display
+            </Typography>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: 'text.secondary',
+                maxWidth: '80%'
+              }}
+            >
+              Loading media players and content...
             </Typography>
           </Box>
         ) : (
           <>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Getting ready!
+            <Typography variant="h5" component="h2" gutterBottom>
+              Ready when you are!
             </Typography>
             <Typography 
               variant="h2" 
@@ -196,7 +218,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                     color="primary"
                   />
                 }
-                label="Background Music"
+                label="Background music while you wait?"
               />
             </Box>
             {isMusicEnabled && (
