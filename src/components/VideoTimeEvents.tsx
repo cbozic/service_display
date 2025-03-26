@@ -94,7 +94,7 @@ const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, i
         intervalRef.current = null;
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, checkEvents, player]);
 
   // Expose methods through ref
   React.useImperativeHandle(ref, () => ({

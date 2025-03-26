@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, TextField, Typography, Card, CardContent, Button, FormControlLabel, Switch } from '@mui/material';
+import { Box, TextField, Typography, Card, CardContent, FormControlLabel, Switch } from '@mui/material';
 
 interface VideoConfigurationFormProps {
   video: string;

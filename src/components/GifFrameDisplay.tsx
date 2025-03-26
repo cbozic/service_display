@@ -30,7 +30,6 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   const [error, setError] = useState<string | null>(null);
   const selectedFrameRef = useRef<HTMLLIElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to selected frame
   useEffect(() => {
@@ -126,7 +125,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
         URL.revokeObjectURL(gifPath);
       }
     };
-  }, []);
+  }, [gifPath]);
 
   // Custom tooltip styling
   const tooltipSx = {

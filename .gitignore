@@ -2,8 +2,6 @@ package-lock.json
 servicedisplay/package-lock.json
 node_modules
 build/
-
-ignored_native_experiments
 .DS_Store
 
 # Don't ignore the docs directory for GitHub Pages

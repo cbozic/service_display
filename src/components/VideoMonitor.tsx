@@ -60,8 +60,62 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
     const match = url?.match(regex);
     return match ? match[1] : '';
   }, []);
+  
+  // Define startSyncWithMainPlayer before it's used
+  const startSyncWithMainPlayer = useCallback(() => {
+    // Clear any existing sync interval
+    if (syncIntervalRef.current) {
+      window.clearInterval(syncIntervalRef.current);
+    }
 
-  const initPlayer = () => {
+    // Initial sync
+    if (mainPlayer && playerRef.current) {
+      try {
+        const mainTime = mainPlayer.getCurrentTime();
+        playerRef.current.seekTo(mainTime, true);
+        setCurrentTime(mainTime);
+        
+        if (mainPlayer.getPlayerState() === 1) {
+          playerRef.current.playVideo();
+        } else {
+          playerRef.current.pauseVideo();
+        }
+      } catch (error) {
+        console.error('Error during initial sync:', error);
+      }
+    }
+
+    // Set up sync interval
+    syncIntervalRef.current = window.setInterval(() => {
+      if (mainPlayer && playerRef.current) {
+        try {
+          // Get main player state and time
+          const mainPlayerState = mainPlayer.getPlayerState();
+          const mainTime = mainPlayer.getCurrentTime();
+          const monitorTime = playerRef.current.getCurrentTime();
+          
+          // Update the time display
+          setCurrentTime(mainTime);
+          
+          // If time difference is more than 0.3 seconds, sync
+          if (Math.abs(mainTime - monitorTime) > 0.3) {
+            playerRef.current.seekTo(mainTime, true);
+          }
+
+          // Match play/pause state
+          if (mainPlayerState === 1 && playerRef.current.getPlayerState() !== 1) {
+            playerRef.current.playVideo();
+          } else if (mainPlayerState === 2 && playerRef.current.getPlayerState() !== 2) {
+            playerRef.current.pauseVideo();
+          }
+        } catch (error) {
+          console.error('Error during video sync:', error);
+        }
+      }
+    }, 1000); // Update every 1000ms
+  }, [mainPlayer]);
+
+  const initPlayer = useCallback(() => {
     if (!containerRef.current || (!videoId && !usePlaylistMode)) return;
 
     if (window.YT && window.YT.Player) {
@@ -142,7 +196,7 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
     } else {
       setTimeout(initPlayer, 100);
     }
-  };
+  }, [videoId, usePlaylistMode, getPlaylistId, playlistUrl, mainPlayer, startSyncWithMainPlayer]);
 
   useEffect(() => {
     initAttemptsRef.current = 0; // Reset attempts counter
@@ -166,67 +220,14 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
         window.clearInterval(syncIntervalRef.current);
       }
     };
-  }, [videoId]);
+  }, [videoId, initPlayer]);
 
   // Add new effect to handle mainPlayer changes
   useEffect(() => {
     if (mainPlayer && playerRef.current) {
       startSyncWithMainPlayer();
     }
-  }, [mainPlayer]);
-
-  const startSyncWithMainPlayer = () => {
-    // Clear any existing sync interval
-    if (syncIntervalRef.current) {
-      window.clearInterval(syncIntervalRef.current);
-    }
-
-    // Initial sync
-    if (mainPlayer && playerRef.current) {
-      try {
-        const mainTime = mainPlayer.getCurrentTime();
-        playerRef.current.seekTo(mainTime, true);
-        setCurrentTime(mainTime);
-        
-        if (mainPlayer.getPlayerState() === 1) {
-          playerRef.current.playVideo();
-        } else {
-          playerRef.current.pauseVideo();
-        }
-      } catch (error) {
-        console.error('Error during initial sync:', error);
-      }
-    }
-
-    // Set up sync interval
-    syncIntervalRef.current = window.setInterval(() => {
-      if (mainPlayer && playerRef.current) {
-        try {
-          // Get main player state and time
-          const mainPlayerState = mainPlayer.getPlayerState();
-          const mainTime = mainPlayer.getCurrentTime();
-          const monitorTime = playerRef.current.getCurrentTime();
-          
-          // Update the time display
-          setCurrentTime(mainTime);
-          
-          // If time difference is more than 0.3 seconds, sync
-          if (Math.abs(mainTime - monitorTime) > 0.3) {
-            playerRef.current.seekTo(mainTime, true);
-          }
-
-          // Match play/pause state
-          if (mainPlayerState === 1 && playerRef.current.getPlayerState() !== 1) {
-            playerRef.current.playVideo();
-          } else if (mainPlayerState === 2 && playerRef.current.getPlayerState() !== 2) {
-            playerRef.current.pauseVideo();
-          }
-        } catch (error) {
-          console.error('Error during video sync:', error);
-        }
-      }
-    }, 1000); // Update every 1000ms
-  };
+  }, [mainPlayer, startSyncWithMainPlayer]);
 
   return (
     <Box

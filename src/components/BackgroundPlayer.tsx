@@ -19,7 +19,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isApiReady, setIsApiReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const { mainPlayersReady, isPlayEnabled, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
-  const [skipToRandomEnabled, setSkipToRandomEnabled] = useState(false);
   const fadeTimeoutRef = useRef<number | null>(null);
   const initialVolumeSetRef = useRef<boolean>(false);
   const previousVolumeRef = useRef<number>(backgroundVolume);

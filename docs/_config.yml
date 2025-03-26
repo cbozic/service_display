@@ -1,2 +1,0 @@
-include: [".well-known", ".nojekyll"]
-exclude: ["node_modules", "README.md"] 

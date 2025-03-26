@@ -8,9 +8,9 @@ import PianoControls from './components/PianoControls';
 import GifFrameDisplay from './components/GifFrameDisplay';
 import ChromaticTuner from './components/ChromaticTuner';
 import VideoMonitor from './components/VideoMonitor';
-import { Layout, Model, TabNode, Actions, IJsonModel } from 'flexlayout-react';
+import { Layout, Model, TabNode, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
-import { Box, Tabs, Tab } from '@mui/material';
+import { Box } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
@@ -148,7 +148,6 @@ const AppContent: React.FC = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
-  const [tabValue, setTabValue] = useState<number>(0);
   const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<any>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
@@ -165,10 +164,6 @@ const AppContent: React.FC = () => {
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-  };
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -191,7 +186,7 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [isPlayerReady, isPlaying, backgroundPlayerRef]);
+  }, [isPlayerReady, isPlaying, backgroundPlayerRef, setIsPlayEnabled]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -221,16 +216,6 @@ const AppContent: React.FC = () => {
     setIsFullscreen(prev => !prev);
   }, []);
 
-  // Handle flexlayout popout state
-  const handleTabPopout = useCallback((node: TabNode) => {
-    // When a tab is popped out, we want to exit fullscreen if it's active
-    if (node.getComponent() === 'video' && document.fullscreenElement) {
-      document.exitFullscreen().catch(e => {
-        console.log('Error exiting fullscreen:', e);
-      });
-    }
-  }, []);
-
   const handlePlayerReady = useCallback((playerInstance: any) => {
     setPlayer(playerInstance);
     setIsPlayerReady(true);
@@ -245,7 +230,7 @@ const AppContent: React.FC = () => {
       setIsPlaying(shouldBePlaying);
       setIsPlayEnabled(!shouldBePlaying);
     }
-  }, [isPlaying, isPlayerReady]);
+  }, [isPlaying, isPlayerReady, setIsPlayEnabled]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);

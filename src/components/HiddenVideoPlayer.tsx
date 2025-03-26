@@ -57,7 +57,6 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     let startVolume = currentVolume;
     const steps = 30; // More steps for smoother fade
     const interval = 3000 / steps; // Total time = 3000ms
-    const volumeStep = startVolume / steps;
     let currentStep = 0;
 
     fadeIntervalRef.current = window.setInterval(() => {
@@ -135,7 +134,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
         console.error('Error controlling video:', error);
       }
     }
-  }, [isPlaying, isPlayerReady, player, hasStarted, volume]);
+  }, [isPlaying, isPlayerReady, player, hasStarted, volume, fadeOut]);
 
   const opts: YouTubeProps['opts'] = {
     height: '1',

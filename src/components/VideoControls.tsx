@@ -10,10 +10,9 @@ import StopIcon from '@mui/icons-material/Stop';
 import PictureInPictureIcon from '@mui/icons-material/PictureInPicture';
 import PictureInPictureAltIcon from '@mui/icons-material/PictureInPictureAlt';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { VolumeUp, VolumeOff } from '@mui/icons-material';
+import { VolumeUp } from '@mui/icons-material';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-import VolumeMuteIcon from '@mui/icons-material/VolumeMute';
 import VideoTimeDisplay from './VideoTimeDisplay';
 
 interface VideoControlsProps {
@@ -167,10 +166,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     '& .MuiSlider-rail': {
       opacity: 0.4,
     }
-  };
-  
-  const spacerStyle = {
-    flexGrow: 1,
   };
 
   return (
