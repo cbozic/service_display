@@ -33,6 +33,10 @@ jobs:
         working-directory: ./servicedisplay
         run: npm install
         
+      - name: Install TypeScript types
+        working-directory: ./servicedisplay
+        run: npm install --save-dev @types/react-dom
+        
       - name: Build React app
         working-directory: ./servicedisplay
         run: npm run build
