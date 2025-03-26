@@ -48,13 +48,13 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
             fullWidth
           />
           <TextField
-            label="Playlist URL"
+            label="Videos Playlist URL"
             value={playlistUrl}
             onChange={(e) => setPlaylistUrl(e.target.value)}
             fullWidth
           />
           <TextField
-            label="Background Playlist URL"
+            label="Background Music Playlist URL"
             value={backgroundPlaylistUrl}
             onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
             fullWidth

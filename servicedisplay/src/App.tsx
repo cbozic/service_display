@@ -250,7 +250,11 @@ const AppContent: React.FC = () => {
   const handleFrameSelect = useCallback((frameUrl: string, index: number) => {
     setOverlaySlide(frameUrl);
     setCurrentFrameIndex(index);
-  }, []);
+    // Disable slide transitions when manually selecting frames
+    if (isSlideTransitionsEnabled) {
+      setIsSlideTransitionsEnabled(false);
+    }
+  }, [isSlideTransitionsEnabled]);
 
   const handleFramesUpdate = useCallback((frames: string[]) => {
     framesRef.current = frames;
