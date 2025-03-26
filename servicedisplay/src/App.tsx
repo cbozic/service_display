@@ -138,6 +138,7 @@ const AppContent: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [userExitedFullscreen, setUserExitedFullscreen] = useState<boolean>(false);
   const [gifPath, setGifPath] = useState<string>('/default_content/ONLslideloop2025.gif');
   const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,6 +212,8 @@ const AppContent: React.FC = () => {
   }, [player, isPlayerReady, videoMonitorPlayer]);
 
   const handleFullscreen = useCallback(() => {
+    console.log('[App] Manually toggling fullscreen, resetting userExitedFullscreen flag');
+    setUserExitedFullscreen(false);
     setIsFullscreen(prev => !prev);
   }, []);
 
@@ -299,12 +302,13 @@ const AppContent: React.FC = () => {
         if (currentTime < 1) {
           console.log('[App] Re-registering fullscreen enable event for 1s');
           timeEventsRef.current.registerEvent(1, () => {
-            console.log(`[App] Checking fullscreen enable event at 1s (current fullscreen state: ${isFullscreen})`);
-            if (!isFullscreen) {
+            console.log(`[App] Checking fullscreen enable event at 1s (current fullscreen state: ${isFullscreen}, user exited: ${userExitedFullscreen})`);
+            // Only auto-enable fullscreen if the user hasn't manually exited it
+            if (!isFullscreen && !userExitedFullscreen) {
               console.log('[App] Auto-enabling fullscreen at 1s');
               handleFullscreen();
             } else {
-              console.log('[App] Fullscreen already enabled, skipping enable event');
+              console.log('[App] Fullscreen already enabled or user manually exited, skipping enable event');
             }
           });
           
@@ -378,7 +382,7 @@ const AppContent: React.FC = () => {
     } else {
       console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
     }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted]);
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
@@ -393,6 +397,9 @@ const AppContent: React.FC = () => {
           videoMonitorPlayer.playVideo();
         }
       }
+      
+      // Reset the user exited fullscreen flag when restarting
+      setUserExitedFullscreen(false);
       
       // Reset time events when restarting so they will trigger again
       console.log('[App] Calling resetTimeEvents after restart');
@@ -543,6 +550,13 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = Boolean(document.fullscreenElement);
+      
+      // If user exited fullscreen manually (e.g., pressing Escape)
+      if (!isCurrentlyFullscreen && isFullscreen) {
+        console.log('[App] Detected fullscreen exit via browser (likely Escape key)');
+        setUserExitedFullscreen(true);
+      }
+      
       if (isCurrentlyFullscreen !== isFullscreen) {
         setIsFullscreen(isCurrentlyFullscreen);
       }
@@ -695,6 +709,29 @@ const AppContent: React.FC = () => {
     // so we can just close the overlay here
   };
 
+  // Add listener for user exited fullscreen event with improved logging and debugging
+  useEffect(() => {
+    const handleUserExitedFullscreen = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      console.log('[App] User manually exited fullscreen, details:', customEvent.detail);
+      
+      // Set the flag to prevent auto re-entering fullscreen
+      setUserExitedFullscreen(true);
+      
+      // If we were in fullscreen mode, update our state
+      if (isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    // Add listeners for both our custom event and the native fullscreenchange event
+    window.addEventListener('userExitedFullscreen', handleUserExitedFullscreen);
+    
+    return () => {
+      window.removeEventListener('userExitedFullscreen', handleUserExitedFullscreen);
+    };
+  }, [isFullscreen]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -729,6 +766,7 @@ const AppContent: React.FC = () => {
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
             isPlayEnabled={isPlayEnabled}
+            onFullscreenChange={setIsFullscreen}
           />
           <VideoTimeEvents
             ref={timeEventsRef}

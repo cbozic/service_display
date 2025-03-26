@@ -23,6 +23,7 @@ interface VideoFadeFrameProps {
   playlistUrl?: string;
   usePlaylistMode?: boolean;
   isPlayEnabled?: boolean;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -42,7 +43,8 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   volume = 100,
   playlistUrl,
   usePlaylistMode = false,
-  isPlayEnabled = true
+  isPlayEnabled = true,
+  onFullscreenChange
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -50,6 +52,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const userExitedFullscreenRef = useRef<boolean>(false);
   const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
 
   const handleClick = () => {
@@ -269,6 +272,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     };
   }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume, setIsPlayEnabled]);
 
+  // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
     const element = videoContainerRef.current as HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void>;
@@ -278,10 +282,22 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     if (element) {
       try {
         if (document.fullscreenElement) {
-          document.exitFullscreen();
+          document.exitFullscreen()
+            .then(() => {
+              // We don't need to call onFullscreenChange here because the fullscreenchange event will handle it
+            })
+            .catch(e => {
+              console.log('Error exiting fullscreen:', e);
+            });
         } else {
           if (element.requestFullscreen) {
-            element.requestFullscreen();
+            element.requestFullscreen()
+              .then(() => {
+                // We don't need to call onFullscreenChange here because the fullscreenchange event will handle it
+              })
+              .catch(e => {
+                console.log('Error entering fullscreen:', e);
+              });
           } else if (element.webkitRequestFullscreen) { /* Safari */
             element.webkitRequestFullscreen();
           } else if (element.msRequestFullscreen) { /* IE11 */
@@ -297,16 +313,37 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = Boolean(document.fullscreenElement);
+      
+      // If exiting fullscreen and we were in fullscreen mode before, mark as user exited
+      if (!isCurrentlyFullscreen && fullscreen) {
+        userExitedFullscreenRef.current = true;
+        console.log('User manually exited fullscreen (likely using Escape key)');
+        
+        // Immediately dispatch the event instead of waiting for the next render cycle
+        const event = new CustomEvent('userExitedFullscreen', { detail: { userExited: true } });
+        window.dispatchEvent(event);
+      }
+      
       if (isCurrentlyFullscreen !== fullscreen) {
         setFullscreen(isCurrentlyFullscreen);
+        // Also notify the parent component with the manual exit status
+        onFullscreenChange?.(isCurrentlyFullscreen);
       }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    // Add additional listeners for cross-browser compatibility
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, [fullscreen]);
+  }, [fullscreen, onFullscreenChange]);
 
   // Handle external fullscreen requests
   useEffect(() => {
@@ -320,6 +357,45 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       }
     }
   }, [isFullscreen, fullscreen, openFullscreen]);
+
+  // Create a separate handler specifically for the button
+  const handleFullscreenButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // If we're already in fullscreen mode, don't do anything
+    if (document.fullscreenElement) return;
+    
+    // Reset the user exited flag when user explicitly requests fullscreen
+    userExitedFullscreenRef.current = false;
+    
+    // Update the parent's state first to prevent conflicts
+    onFullscreenChange?.(true);
+    
+    // Request fullscreen immediately - user interaction allows this without delay
+    const element = videoContainerRef.current as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+      msRequestFullscreen?: () => Promise<void>;
+    };
+
+    if (element) {
+      try {
+        console.log('Requesting fullscreen from button click');
+        
+        if (element.requestFullscreen) {
+          element.requestFullscreen().catch(e => {
+            console.error('Error requesting fullscreen:', e);
+          });
+        } else if (element.webkitRequestFullscreen) { /* Safari */
+          element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) { /* IE11 */
+          element.msRequestFullscreen();
+        }
+      } catch (e) {
+        console.error('Error entering fullscreen:', e);
+      }
+    }
+  };
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
@@ -404,6 +480,42 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     boxShadow: isPipMode ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
   };
 
+  const fullscreenButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 1000,
+    backgroundColor: 'var(--accent-color, #4caf50)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+    transition: 'all 0.3s ease',
+    opacity: fullscreen ? 0 : 0.8,
+    visibility: fullscreen ? 'hidden' : 'visible',
+    display: isPipMode ? 'none' : 'block',
+  };
+
+  // Create a styled class in CSS for the hover effects
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .fullscreen-button:hover {
+        background-color: var(--accent-hover, #45a049) !important;
+        transform: scale(1.05) !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   useEffect(() => {
     if (player && isPlayerReady) {
       // Force player to resize when underlay mode changes
@@ -463,6 +575,13 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           style={overlayStyle}
         />
       )}
+      <button 
+        style={fullscreenButtonStyle} 
+        onClick={handleFullscreenButtonClick}
+        className="fullscreen-button"
+      >
+        GO FULLSCREEN
+      </button>
     </div>
   );
 }
