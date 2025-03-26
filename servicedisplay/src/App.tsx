@@ -283,6 +283,103 @@ const AppContent: React.FC = () => {
     }
   }, [isPipMode]);
 
+  // Add a resetTimeEvents function outside of handleRestart
+  const resetTimeEvents = useCallback(() => {
+    if (isPlayerReady && player && timeEventsRef.current) {
+      console.log('[App] Resetting time events');
+      // Clear existing events
+      timeEventsRef.current.clearEvents();
+
+      // Only register events if automatic events are enabled
+      if (isAutomaticEventsEnabled) {
+        const currentTime = player.getCurrentTime();
+        console.log('[App] Automatic events are enabled, re-registering events (current time:', currentTime, 's)');
+
+        // Register fullscreen enable event at 1 second
+        if (currentTime < 1) {
+          console.log('[App] Re-registering fullscreen enable event for 1s');
+          timeEventsRef.current.registerEvent(1, () => {
+            console.log(`[App] Checking fullscreen enable event at 1s (current fullscreen state: ${isFullscreen})`);
+            if (!isFullscreen) {
+              console.log('[App] Auto-enabling fullscreen at 1s');
+              handleFullscreen();
+            } else {
+              console.log('[App] Fullscreen already enabled, skipping enable event');
+            }
+          });
+          
+          // Register ducking enable event at 1 second
+          console.log('[App] Re-registering ducking enable event for 1s');
+          timeEventsRef.current.registerEvent(1, () => {
+            console.log(`[App] Checking ducking enable event at 1s (current ducking state: ${isDucking})`);
+            if (!isDucking && !isMuted) {
+              console.log('[App] Auto-enabling ducking at 1s');
+              handleEnableDucking();
+            } else {
+              console.log('[App] Ducking already enabled or audio is muted, skipping enable event');
+            }
+          });
+        } else {
+          console.log('[App] Skipping fullscreen enable event registration (current time > 1s)');
+          console.log('[App] Skipping ducking enable event registration (current time > 1s)');
+        }
+
+        // Check if current time is eligible for PiP events
+        // Saturday is day 6, Sunday is day 0
+        const now = new Date();
+        const day = now.getDay();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const isPipTimeAllowed = (
+          // Saturday (day 6) after or at 2:00 PM (14:00)
+          (day === 6 && hours >= 14) || 
+          // Sunday (day 0) before 11:45 PM (23:45)
+          (day === 0 && (hours < 23 || (hours === 23 && minutes < 45)))
+        );
+
+        if (isPipTimeAllowed) {
+          // Only register enable event if we're before 5 seconds
+          if (currentTime < 5) {
+            console.log('[App] Re-registering PiP enable event for 5s');
+            timeEventsRef.current.registerEvent(5, () => {
+              console.log(`[App] Checking PiP enable event at 5s (current PiP state: ${isPipMode})`);
+              if (!isPipMode) {
+                console.log('[App] Auto-enabling PiP mode at 5s');
+                handleEnablePip();
+              } else {
+                console.log('[App] PiP mode already enabled, skipping enable event');
+              }
+            });
+          } else {
+            console.log('[App] Skipping PiP enable event registration (current time > 5s)');
+          }
+
+          // Only register disable event if we're before 8 minutes
+          if (currentTime < 480) {
+            console.log('[App] Re-registering PiP disable event for 8 minutes');
+            timeEventsRef.current.registerEvent(480, () => {
+              console.log(`[App] Checking PiP disable event at 8 minutes (current PiP state: ${isPipMode})`);
+              if (isPipMode) {
+                console.log('[App] Auto-disabling PiP mode at 8 minutes');
+                handleDisablePip();
+              } else {
+                console.log('[App] PiP mode already disabled, skipping disable event');
+              }
+            });
+          } else {
+            console.log('[App] Skipping PiP disable event registration (current time > 8 minutes)');
+          }
+        } else {
+          console.log('[App] PiP events not re-registered - not within allowed time window (Sat after 2pm or Sun before 11:45pm)');
+        }
+      } else {
+        console.log('[App] Automatic events are disabled, not re-registering events');
+      }
+    } else {
+      console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
+    }
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted]);
+
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
       player.seekTo(0, true);
@@ -296,8 +393,12 @@ const AppContent: React.FC = () => {
           videoMonitorPlayer.playVideo();
         }
       }
+      
+      // Reset time events when restarting so they will trigger again
+      console.log('[App] Calling resetTimeEvents after restart');
+      resetTimeEvents();
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents]);
 
   const handleMonitorPlayerReady = useCallback((playerInstance: any) => {
     setVideoMonitorPlayer(playerInstance);
@@ -492,83 +593,9 @@ const AppContent: React.FC = () => {
   }, [isSlideTransitionsEnabled]);
 
   useEffect(() => {
-    if (isPlayerReady && player && timeEventsRef.current) {
-      console.log('[App] Setting up time events');
-      // Clear existing events
-      timeEventsRef.current.clearEvents();
-
-      // Only register events if automatic events are enabled
-      if (isAutomaticEventsEnabled) {
-        const currentTime = player.getCurrentTime();
-        console.log('[App] Automatic events are enabled, registering events (current time:', currentTime, 's)');
-
-        // Register fullscreen enable event at 1 second
-        if (currentTime < 1) {
-          console.log('[App] Registering fullscreen enable event for 1s');
-          timeEventsRef.current.registerEvent(1, () => {
-            console.log(`[App] Checking fullscreen enable event at 1s (current fullscreen state: ${isFullscreen})`);
-            if (!isFullscreen) {
-              console.log('[App] Auto-enabling fullscreen at 1s');
-              handleFullscreen();
-            } else {
-              console.log('[App] Fullscreen already enabled, skipping enable event');
-            }
-          });
-          
-          // Register ducking enable event at 1 second
-          console.log('[App] Registering ducking enable event for 1s');
-          timeEventsRef.current.registerEvent(1, () => {
-            console.log(`[App] Checking ducking enable event at 1s (current ducking state: ${isDucking})`);
-            if (!isDucking && !isMuted) {
-              console.log('[App] Auto-enabling ducking at 1s');
-              handleEnableDucking();
-            } else {
-              console.log('[App] Ducking already enabled or audio is muted, skipping enable event');
-            }
-          });
-        } else {
-          console.log('[App] Skipping fullscreen enable event registration (current time > 1s)');
-          console.log('[App] Skipping ducking enable event registration (current time > 1s)');
-        }
-
-        // Only register enable event if we're before 5 seconds
-        if (currentTime < 5) {
-          console.log('[App] Registering PiP enable event for 5s');
-          timeEventsRef.current.registerEvent(5, () => {
-            console.log(`[App] Checking PiP enable event at 5s (current PiP state: ${isPipMode})`);
-            if (!isPipMode) {
-              console.log('[App] Auto-enabling PiP mode at 5s');
-              handleEnablePip();
-            } else {
-              console.log('[App] PiP mode already enabled, skipping enable event');
-            }
-          });
-        } else {
-          console.log('[App] Skipping PiP enable event registration (current time > 5s)');
-        }
-
-        // Only register disable event if we're before 8 minutes
-        if (currentTime < 480) {
-          console.log('[App] Registering PiP disable event for 8 minutes');
-          timeEventsRef.current.registerEvent(480, () => {
-            console.log(`[App] Checking PiP disable event at 8 minutes (current PiP state: ${isPipMode})`);
-            if (isPipMode) {
-              console.log('[App] Auto-disabling PiP mode at 8 minutes');
-              handleDisablePip();
-            } else {
-              console.log('[App] PiP mode already disabled, skipping disable event');
-            }
-          });
-        } else {
-          console.log('[App] Skipping PiP disable event registration (current time > 8 minutes)');
-        }
-      } else {
-        console.log('[App] Automatic events are disabled, not registering events');
-      }
-    } else {
-      console.log('[App] Player not ready or timeEventsRef not available, skipping event setup');
-    }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen]);
+    // Set up time events when player becomes ready or other dependencies change
+    resetTimeEvents();
+  }, [resetTimeEvents]);
 
   // Add a new effect to monitor PiP state changes
   useEffect(() => {
