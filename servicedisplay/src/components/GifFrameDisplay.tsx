@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, List, ListItem, Paper, CircularProgress, Typography, Button } from '@mui/material';
+import { Box, List, ListItem, Paper, CircularProgress, Typography, Button, IconButton, Tooltip } from '@mui/material';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import CountdownOverlay from './CountdownOverlay';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
+import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
+import StopIcon from '@mui/icons-material/Stop';
 
 interface GifFrameDisplayProps {
   gifPath: string;
@@ -125,6 +128,36 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
     };
   }, []);
 
+  // Custom tooltip styling
+  const tooltipSx = {
+    fontSize: '0.95rem', // Larger font size
+    fontWeight: 500,     // Slightly bolder 
+    py: 1,               // More padding
+    px: 1.5
+  };
+
+  // Custom PopperProps for tooltips to ensure high z-index
+  const tooltipPopperProps = {
+    sx: {
+      zIndex: 20000, // Higher than the overlay's z-index (9999)
+    }
+  };
+
+  const buttonStyle = {
+    color: 'white',
+    '&:hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+
+  const slideTransitionsButtonStyle = {
+    ...buttonStyle,
+    ...(isAnimationEnabled && {
+      color: 'rgba(127, 255, 0, 0.8)',
+      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+    })
+  };
+
   if (loading) {
     return (
       <Box sx={{ 
@@ -165,7 +198,8 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
       <div style={{ 
         padding: '20px', 
         display: 'flex', 
-        flexDirection: 'column', 
+        flexDirection: 'row', 
+        justifyContent: 'center',
         gap: '20px',
         backgroundColor: '#111111',
         transition: 'background-color 0.3s ease'
@@ -174,7 +208,10 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
           display: 'flex', 
           gap: '10px', 
           alignItems: 'center',
-          backgroundColor: '#111111',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '10px',
+          padding: '10px',
           transition: 'background-color 0.3s ease'
         }}>
           <input
@@ -184,34 +221,43 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
             style={{ display: 'none' }}
             id="gif-upload"
           />
-          <label htmlFor="gif-upload">
-            <Button
-              variant="contained"
-              component="span"
-              sx={{
-                backgroundColor: '#1976d2',
-                '&:hover': {
-                  backgroundColor: '#1565c0',
-                },
-                transition: 'background-color 0.3s ease'
-              }}
-            >
-              Load New Slides
-            </Button>
-          </label>
-          <Button
-            variant="contained"
-            onClick={handleAnimationToggle}
-            sx={{
-              backgroundColor: '#1976d2',
-              '&:hover': {
-                backgroundColor: '#1565c0',
-              },
-              transition: 'background-color 0.3s ease'
+          <Tooltip 
+            title="Load New Slides" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
             }}
+            PopperProps={tooltipPopperProps}
           >
-            {isAnimationEnabled ? 'Disable Transitions' : 'Enable Transitions'}
-          </Button>
+            <label htmlFor="gif-upload">
+              <IconButton
+                component="span"
+                sx={buttonStyle}
+              >
+                <FileUploadIcon />
+              </IconButton>
+            </label>
+          </Tooltip>
+          <Tooltip 
+            title={isAnimationEnabled ? "Disable Slide Transitions" : "Enable Slide Transitions"} 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={handleAnimationToggle} 
+              sx={slideTransitionsButtonStyle}
+            >
+              {isAnimationEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
         </div>
       </div>
       <Box 
