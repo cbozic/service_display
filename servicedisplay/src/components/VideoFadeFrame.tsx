@@ -56,7 +56,12 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
 
   const handleClick = () => {
-    //do something here if you want
+    if (player && isPlayerReady) {
+      // Toggle play/pause state by sending appropriate state code
+      // YouTube API: 1 = playing, 2 = paused
+      const newState = isPlaying ? 2 : 1;
+      onStateChange?.(newState);
+    }
   };
 
   const rewindSeconds = useCallback((seconds: number) => {
@@ -434,6 +439,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     overflow: 'hidden',
+    cursor: 'pointer',
   };
 
   const underlayStyle: React.CSSProperties = {
