@@ -542,6 +542,16 @@ const AppContent: React.FC = () => {
       } else if (event.code === 'KeyM' && !event.repeat) {
         event.preventDefault();
         handleToggleMute();
+      } else if (event.code === 'BracketLeft' && !event.repeat && !isMuted) {
+        event.preventDefault();
+        // Decrease volume by 5% of total (5 out of 100)
+        const newVolume = Math.max(0, videoVolume - 5);
+        setVideoVolume(newVolume);
+      } else if (event.code === 'BracketRight' && !event.repeat && !isMuted) {
+        event.preventDefault();
+        // Increase volume by 5% of total (5 out of 100)
+        const newVolume = Math.min(100, videoVolume + 5);
+        setVideoVolume(newVolume);
       }
     };
 
@@ -550,7 +560,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking]);
+      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {

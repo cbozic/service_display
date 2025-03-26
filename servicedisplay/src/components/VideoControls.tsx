@@ -265,14 +265,26 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             {isMuted ? <VolumeOffIcon /> : <VolumeUp />}
           </IconButton>
         </Tooltip>
-        <Slider
-          value={isMuted ? 0 : volume}
-          onChange={handleVolumeChange}
-          aria-label="Volume"
-          min={0}
-          max={100}
-          sx={sliderStyle}
-        />
+        <Tooltip
+          title="Adjust volume (use [ to decrease, ] to increase)"
+          arrow
+          placement="top"
+          componentsProps={{
+            tooltip: {
+              sx: tooltipSx
+            }
+          }}
+          PopperProps={tooltipPopperProps}
+        >
+          <Slider
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            aria-label="Volume"
+            min={0}
+            max={100}
+            sx={sliderStyle}
+          />
+        </Tooltip>
         <Tooltip 
           title={isDucking ? "Disable Volume Ducking (D)" : "Enable Volume Ducking (D)"} 
           arrow
