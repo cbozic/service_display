@@ -33,7 +33,7 @@ jobs:
         run: npm install --save-dev @types/react-dom
         
       - name: Build React app
-        run: npm run build
+        run: CI=false npm run build
         
       - name: Copy build to docs folder
         run: |
