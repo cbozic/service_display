@@ -156,7 +156,7 @@ const AppContent: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
-  const { setIsPlayEnabled, isPlayEnabled, backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted } = useYouTube();
+  const { setIsPlayEnabled, isPlayEnabled, backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
@@ -556,16 +556,36 @@ const AppContent: React.FC = () => {
         setVideoVolume(newVolume);
       } else if (event.code === 'Comma' && !event.repeat) {
         event.preventDefault();
-        // Decrease background volume by 5% of total (5 out of 100)
-        const newVolume = Math.max(0, backgroundVolume - 5);
-        console.log('< key pressed, decreasing background volume from', backgroundVolume, 'to', newVolume);
-        setBackgroundVolume(newVolume);
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          // If player is muted, unmute it first
+          console.log('< key pressed, unmuting background player');
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          // Make sure we keep the current volume
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          // Decrease background volume by 5% of total (5 out of 100)
+          const newVolume = Math.max(0, backgroundVolume - 5);
+          console.log('< key pressed, decreasing background volume from', backgroundVolume, 'to', newVolume);
+          setBackgroundVolume(newVolume);
+        }
       } else if (event.code === 'Period' && !event.repeat) {
         event.preventDefault();
-        // Increase background volume by 5% of total (5 out of 100)
-        const newVolume = Math.min(100, backgroundVolume + 5);
-        console.log('> key pressed, increasing background volume from', backgroundVolume, 'to', newVolume);
-        setBackgroundVolume(newVolume);
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          // If player is muted, unmute it first
+          console.log('> key pressed, unmuting background player');
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          // Make sure we keep the current volume
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          // Increase background volume by 5% of total (5 out of 100)
+          const newVolume = Math.min(100, backgroundVolume + 5);
+          console.log('> key pressed, increasing background volume from', backgroundVolume, 'to', newVolume);
+          setBackgroundVolume(newVolume);
+        }
       }
     };
 
@@ -574,7 +594,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, setBackgroundVolume]);
+      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
