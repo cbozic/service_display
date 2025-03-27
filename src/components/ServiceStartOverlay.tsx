@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Button, Paper, CircularProgress, GlobalStyles } from '@mui/material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
@@ -12,6 +12,8 @@ interface ServiceStartOverlayProps {
 const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartService }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [isMusicEnabled, setIsMusicEnabled] = useState<boolean>(false);
+  const [animationPhase, setAnimationPhase] = useState<'hidden' | 'expanding' | 'showing'>('hidden');
+  const animationTimeout = useRef<NodeJS.Timeout | null>(null);
   const { 
     backgroundPlayerRef, 
     mainPlayersReady, 
@@ -182,8 +184,23 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   // Handle music toggle
   const handleMusicToggle = () => {
     setIsMusicEnabled(!isMusicEnabled);
-    if (backgroundPlayerRef.current) {
-      if (!isMusicEnabled) {
+    
+    // Clear any existing animation timeouts
+    if (animationTimeout.current) {
+      clearTimeout(animationTimeout.current);
+    }
+    
+    if (!isMusicEnabled) {
+      // Start animation sequence when enabling music
+      setAnimationPhase('expanding');
+      
+      // After container expansion, show the content
+      animationTimeout.current = setTimeout(() => {
+        setAnimationPhase('showing');
+      }, 300); // Timing should match the container expansion animation
+      
+      // Handle music playback
+      if (backgroundPlayerRef.current) {
         // When enabling music
         backgroundPlayerRef.current.unMute();
         backgroundPlayerRef.current.setVolume(backgroundVolume);
@@ -195,7 +212,13 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
           const randomIndex = Math.floor(Math.random() * playlist.length);
           backgroundPlayerRef.current.playVideoAt(randomIndex);
         }
-      } else {
+      }
+    } else {
+      // Reset animation phase when disabling music
+      setAnimationPhase('hidden');
+      
+      // Handle music playback
+      if (backgroundPlayerRef.current) {
         // When disabling music
         backgroundPlayerRef.current.mute(); // Mute the player when disabling music
         setBackgroundMuted(true); // Update the muted state in context
@@ -204,6 +227,15 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       }
     }
   };
+
+  // Clean up timeouts
+  useEffect(() => {
+    return () => {
+      if (animationTimeout.current) {
+        clearTimeout(animationTimeout.current);
+      }
+    };
+  }, []);
 
   // Add a new function to handle fancy controls option
   const handleOpenFancyControls = (e: React.MouseEvent) => {
@@ -273,6 +305,14 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             '0%': { transform: 'scale(1)', opacity: 0.5 },
             '50%': { transform: 'scale(1.05)', opacity: 0.8 },
             '100%': { transform: 'scale(1)', opacity: 0.5 },
+          },
+          '@keyframes expandContainer': {
+            '0%': { maxHeight: '0px', opacity: 0 },
+            '100%': { maxHeight: '250px', opacity: 1 },
+          },
+          '@keyframes fadeInContent': {
+            '0%': { opacity: 0, transform: 'translateY(10px)' },
+            '100%': { opacity: 1, transform: 'translateY(0)' },
           }
         }}
       />
@@ -419,35 +459,46 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
               </Button>
             </Box>
             {isMusicEnabled && (
-              <Box sx={{ 
-                mt: 2, 
-                mb: 3,
-                position: 'relative',
-                zIndex: 10000
-              }}>
-                <BackgroundPlayerControls
-                  isMuted={backgroundMuted}
-                  volume={backgroundVolume}
-                  onMuteToggle={handleMuteToggle}
-                  onVolumeChange={handleVolumeChange}
-                  onSkipNext={handleSkipNext}
-                  onSkipRandom={handleSkipRandom}
-                  size="small"
-                />
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    display: 'block', 
-                    mt: 1, 
-                    px: 1, 
-                    fontSize: '0.85rem',
-                    color: 'rgba(255, 255, 255, 0.6)',
-                    fontStyle: 'italic',
-                    lineHeight: 1.4
+              <Box 
+                sx={{ 
+                  mt: 2, 
+                  mb: 3,
+                  position: 'relative',
+                  zIndex: 10000,
+                  overflow: 'hidden',
+                  animation: animationPhase !== 'hidden' ? 'expandContainer 300ms ease-out forwards' : 'none',
+                }}
+              >
+                <Box
+                  sx={{
+                    opacity: 0,
+                    animation: animationPhase === 'showing' ? 'fadeInContent 400ms ease-out 100ms forwards' : 'none',
                   }}
                 >
-                  TIP: Set your TV or PC volume where you normally would for the service and adjust the above slider so the background music would be soft enough to not be a distraction during prayer or fellowship. The main service will be louder!
-                </Typography>
+                  <BackgroundPlayerControls
+                    isMuted={backgroundMuted}
+                    volume={backgroundVolume}
+                    onMuteToggle={handleMuteToggle}
+                    onVolumeChange={handleVolumeChange}
+                    onSkipNext={handleSkipNext}
+                    onSkipRandom={handleSkipRandom}
+                    size="small"
+                  />
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block', 
+                      mt: 1, 
+                      px: 1, 
+                      fontSize: '0.85rem',
+                      color: 'rgba(255, 255, 255, 0.6)',
+                      fontStyle: 'italic',
+                      lineHeight: 1.4
+                    }}
+                  >
+                    TIP: Set your TV or PC volume where you normally would for the service and adjust the above slider so the background music would be soft enough to not be a distraction during prayer or fellowship. The main service will be louder!
+                  </Typography>
+                </Box>
               </Box>
             )}
             <Button
