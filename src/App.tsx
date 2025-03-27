@@ -181,18 +181,6 @@ const AppContent: React.FC = () => {
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
 
-  // Add a timeout to automatically dismiss the overlay after 30 seconds
-  useEffect(() => {
-    if (showStartOverlay) {
-      const overlayTimeout = setTimeout(() => {
-        console.log('[App] Auto-dismissing start overlay after timeout');
-        setShowStartOverlay(false);
-      }, 30000); // 30 seconds
-      
-      return () => clearTimeout(overlayTimeout);
-    }
-  }, [showStartOverlay]);
-
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
