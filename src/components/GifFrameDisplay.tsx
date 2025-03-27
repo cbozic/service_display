@@ -14,6 +14,7 @@ interface GifFrameDisplayProps {
   isAnimationEnabled?: boolean;
   setGifPath: (path: string) => void;
   onAnimationToggle?: (enabled: boolean) => void;
+  onError?: () => void;
 }
 
 const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ 
@@ -23,13 +24,15 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   currentFrameIndex = -1,
   isAnimationEnabled = false,
   setGifPath,
-  onAnimationToggle
+  onAnimationToggle,
+  onError
 }) => {
   const [frames, setFrames] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const selectedFrameRef = useRef<HTMLLIElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to selected frame
   useEffect(() => {
@@ -48,17 +51,40 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
       setLoading(true);
       setError(null);
       setFrames([]);
+      
+      console.log(`Attempting to load GIF from path: ${gifPath}`);
+
+      // Set a timeout to clear loading state if it gets stuck
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('Loading timeout reached - forcing loading state to false');
+        setLoading(false);
+        setError('Loading timed out. Please try again or use a different GIF file.');
+      }, 15000); // 15 second timeout
 
       try {
         const response = await fetch(gifPath);
+        
+        // Check if the response is successful
+        if (!response.ok) {
+          throw new Error(`Failed to fetch GIF: ${response.status} ${response.statusText}`);
+        }
+        
+        console.log('GIF fetch successful, processing...');
         const buffer = await response.arrayBuffer();
+        console.log(`GIF buffer size: ${buffer.byteLength} bytes`);
         const gif = parseGIF(buffer);
         const frames = decompressFrames(gif, true);
+        console.log(`GIF frames parsed: ${frames.length} frames`);
         
         // Create canvas for frame rendering
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('Could not get canvas context');
+
+        // Check if frames array is empty
+        if (!frames || frames.length === 0) {
+          throw new Error('No frames found in the GIF');
+        }
 
         // Set canvas size to first frame dimensions
         canvas.width = frames[0].dims.width;
@@ -66,21 +92,27 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
 
         // Convert frames to data URLs
         const frameUrls = frames.map(frame => {
-          // Clear canvas
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          try {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // Create ImageData from pixel array
-          const imageData = new ImageData(
-            new Uint8ClampedArray(frame.patch),
-            frame.dims.width,
-            frame.dims.height
-          );
+            // Create ImageData from pixel array
+            const imageData = new ImageData(
+              new Uint8ClampedArray(frame.patch),
+              frame.dims.width,
+              frame.dims.height
+            );
 
-          // Draw frame
-          ctx.putImageData(imageData, frame.dims.left, frame.dims.top);
+            // Draw frame
+            ctx.putImageData(imageData, frame.dims.left, frame.dims.top);
 
-          // Convert to data URL
-          return canvas.toDataURL('image/png');
+            // Convert to data URL
+            return canvas.toDataURL('image/png');
+          } catch (frameErr) {
+            console.error('Error processing frame:', frameErr);
+            // Return a placeholder for the error frame
+            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+          }
         });
 
         setFrames(frameUrls);
@@ -88,13 +120,30 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load GIF');
         console.error('Error loading GIF:', err);
+        // Call the onError callback if provided
+        if (onError) {
+          onError();
+        }
       } finally {
+        // Clear the timeout and set loading to false
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
         setLoading(false);
       }
     };
 
     loadGif();
-  }, [gifPath, onFramesUpdate]);
+
+    // Clean up the timeout if the component unmounts or gifPath changes
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [gifPath, onFramesUpdate, onError]);
 
   const handleFrameClick = (index: number, frameUrl: string) => {
     onFrameSelect?.(frameUrl, index);

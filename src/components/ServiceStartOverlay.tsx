@@ -23,6 +23,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     setManualVolumeChange
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
+  const [showBypassButton, setShowBypassButton] = useState<boolean>(false);
 
   // Update clock every second
   useEffect(() => {
@@ -128,6 +129,16 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       return () => clearTimeout(timer);
     }
   }, [mainPlayersReady, backgroundPlayerRef]);
+  
+  // Add a fallback timer to show bypass button after 10 seconds
+  useEffect(() => {
+    const bypassTimer = setTimeout(() => {
+      console.log('Bypass timer triggered - showing bypass button');
+      setShowBypassButton(true);
+    }, 10000);
+    
+    return () => clearTimeout(bypassTimer);
+  }, []);
 
   const handleMuteToggle = () => {
     if (backgroundPlayerRef.current) {
@@ -320,6 +331,25 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
             >
               Loading media players and content...
             </Typography>
+            
+            {/* Add bypass button after timeout */}
+            {showBypassButton && (
+              <Button
+                variant="outlined"
+                onClick={handleStartServiceClick}
+                sx={{
+                  mt: 2,
+                  color: 'white',
+                  borderColor: 'red',
+                  '&:hover': {
+                    borderColor: 'red',
+                    backgroundColor: 'rgba(255, 0, 0, 0.1)'
+                  }
+                }}
+              >
+                Force Start (Bypass Loading)
+              </Button>
+            )}
           </Box>
         ) : (
           <>

@@ -142,7 +142,23 @@ const AppContent: React.FC = () => {
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [userExitedFullscreen, setUserExitedFullscreen] = useState<boolean>(false);
-  const [gifPath, setGifPath] = useState<string>('/default_content/ONLslideloop2025.gif');
+  
+  // Determine appropriate base path for assets
+  const getBasePath = () => {
+    // For GitHub Pages, use a format that works with the repo structure
+    if (window.location.hostname.includes('github.io')) {
+      const pathParts = window.location.pathname.split('/');
+      // If pathname has more than one part (e.g., /repo-name/), use it
+      if (pathParts.length > 2 && pathParts[1]) {
+        return `/${pathParts[1]}`;
+      }
+    }
+    // Default to process.env.PUBLIC_URL or empty string
+    return process.env.PUBLIC_URL || '';
+  };
+  
+  const [gifPath, setGifPath] = useState<string>(`${getBasePath()}/default_content/ONLslideloop2025.gif`);
+  
   const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
@@ -164,6 +180,18 @@ const AppContent: React.FC = () => {
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
+
+  // Add a timeout to automatically dismiss the overlay after 30 seconds
+  useEffect(() => {
+    if (showStartOverlay) {
+      const overlayTimeout = setTimeout(() => {
+        console.log('[App] Auto-dismissing start overlay after timeout');
+        setShowStartOverlay(false);
+      }, 30000); // 30 seconds
+      
+      return () => clearTimeout(overlayTimeout);
+    }
+  }, [showStartOverlay]);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
