@@ -169,50 +169,73 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
   };
 
   return (
-    <Box sx={{ padding: 2 }}>
-      {error ? (
-        <Alert severity="info" sx={alertStyle}>
-          <Typography variant="body1" sx={{ textAlign: 'left' }}>
-            Unable to fetch video data. You may need to:
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1, textAlign: 'left' }}>
-            1. Enable Developer Mode in your browser's settings
-          </Typography>
-          <Typography variant="body2" sx={{ textAlign: 'left' }}>
-            2. Disable CORS or "cross-origin restrictions" in Advanced Developer Settings
-          </Typography>
-          <Typography variant="body2" sx={{ textAlign: 'left' }}>
-            3. Refresh the page
-          </Typography>
-        </Alert>
-      ) : (
-        <Grid container spacing={2}>
-          {videos.map((video) => (
-            <Grid item xs={12} key={video.videoId}>
-              <Card 
-                sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
-                onClick={() => handleVideoClick(video.videoId)}
-              >
-                <CardMedia
-                  component="img"
-                  sx={mediaStyle}
-                  image={video.thumbnailUrl}
-                  alt={video.title}
-                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                    e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
-                  }}
-                />
-                <CardContent>
-                  <Typography sx={titleStyle}>
-                    {video.title}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-
+    <Box sx={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      width: '100%'
+    }}>
+      <Typography
+        variant="subtitle1"
+        sx={{
+          color: '#fff',
+          padding: '4px',
+          width: '100%',
+          textAlign: 'center',
+          backgroundColor: 'darkred',
+          fontWeight: 500,
+          letterSpacing: '0.5px',
+          fontSize: '0.875rem',
+          marginBottom: '8px'
+        }}
+      >
+        Video List (Experimental)
+      </Typography>
+      <Box sx={{ padding: 2, flex: '1 1 auto', overflowY: 'auto' }}>
+        {error ? (
+          <Alert severity="info" sx={alertStyle}>
+            <Typography variant="body1" sx={{ textAlign: 'left' }}>
+              Unable to fetch video data. You may need to:
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'left' }}>
+              1. Enable Developer Mode in your browser's settings
+            </Typography>
+            <Typography variant="body2" sx={{ textAlign: 'left' }}>
+              2. Disable CORS or "cross-origin restrictions" in Advanced Developer Settings
+            </Typography>
+            <Typography variant="body2" sx={{ textAlign: 'left' }}>
+              3. Refresh the page
+            </Typography>
+          </Alert>
+        ) : (
+          <Grid container spacing={2}>
+            {videos.map((video) => (
+              <Grid item xs={12} key={video.videoId}>
+                <Card 
+                  sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
+                  onClick={() => handleVideoClick(video.videoId)}
+                >
+                  <CardMedia
+                    component="img"
+                    sx={mediaStyle}
+                    image={video.thumbnailUrl}
+                    alt={video.title}
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
+                    }}
+                  />
+                  <CardContent>
+                    <Typography sx={titleStyle}>
+                      {video.title}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Box>
+      
       <Dialog
         open={dialogOpen}
         onClose={handleCancel}

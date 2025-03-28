@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Piano, MidiNumbers } from 'react-piano';
 import 'react-piano/dist/styles.css';
 import HiddenVideoPlayer from './HiddenVideoPlayer';
-import { Box, IconButton, Tooltip, Slider } from '@mui/material';
+import { Box, IconButton, Tooltip, Slider, Typography } from '@mui/material';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
 
@@ -96,29 +96,32 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   const containerStyle = {
     backgroundColor: '#282c34',
     borderRadius: '8px',
-    padding: '16px',
+    padding: '8px',
     display: 'flex',
+    flexDirection: 'column' as const,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     width: '100%',
     height: '100%',
     overflow: 'hidden',
     position: 'relative' as const,
-    minHeight: '200px',
+    minHeight: '180px',
   };
 
   const pianoGroupStyle = {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Keep the inner box semi-transparent
-    padding: '16px',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: '8px',
     borderRadius: '12px',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '16px',
-    maxHeight: '80%',
-    border: '1px solid rgba(255, 255, 255, 0.1)', // Subtle border
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' // Optional: adds subtle depth
+    gap: '8px',
+    maxHeight: '95%',
+    width: '100%',
+    flex: '1 1 auto',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
   };
 
   const controlsStyle = {
@@ -127,7 +130,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    padding: '0 16px',
+    padding: '0 8px',
   };
 
   const pianoWrapperStyle = {
@@ -281,6 +284,22 @@ const PianoControls: React.FC<PianoControlsProps> = ({
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
+      <Typography
+        variant="subtitle1"
+        sx={{
+          color: '#fff',
+          padding: '4px',
+          width: '100%',
+          textAlign: 'center',
+          backgroundColor: 'darkred',
+          fontWeight: 500,
+          letterSpacing: '0.5px',
+          fontSize: '0.875rem',
+          marginBottom: '4px'
+        }}
+      >
+        Keys (Experimental)
+      </Typography>
       <Box sx={pianoGroupStyle}>
         <Box sx={controlsStyle}>
           <Tooltip 

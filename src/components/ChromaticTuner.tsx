@@ -99,17 +99,20 @@ const ChromaticTuner: React.FC = () => {
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '20px',
+    padding: '12px',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: '12px',
     color: 'white',
-    gap: '10px'
+    gap: '6px',
+    width: '100%',
+    flex: '1 1 auto',
   };
 
   const noteStyle = {
-    fontSize: '48px',
+    fontSize: '40px',
     fontWeight: 'bold',
-    fontFamily: 'monospace'
+    fontFamily: 'monospace',
+    lineHeight: 1.1
   };
 
   const centsStyle = {
@@ -151,19 +154,35 @@ const ChromaticTuner: React.FC = () => {
   return (
     <Box sx={{ 
       height: '100%',
-      backgroundColor: '#282c34',  // Match BackgroundPlayer color
+      backgroundColor: '#282c34',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
-      padding: 2
+      justifyContent: 'flex-start',
+      padding: '8px'
     }}>
+      <Typography
+        variant="subtitle1"
+        sx={{
+          color: '#fff',
+          padding: '4px',
+          width: '100%',
+          textAlign: 'center',
+          backgroundColor: 'darkred',
+          fontWeight: 500,
+          letterSpacing: '0.5px',
+          fontSize: '0.875rem',
+          marginBottom: '8px'
+        }}
+      >
+        Tuner (Experimental)
+      </Typography>
       <Box sx={tunerStyle}>
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
           gap: 2, 
-          marginBottom: 2 
+          marginBottom: 1
         }}>
           <Typography variant="h6" sx={{ opacity: 0.7 }}>
             {isListening ? 'Listening...' : 'Microphone Off'}
