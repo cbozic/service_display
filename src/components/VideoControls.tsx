@@ -15,7 +15,7 @@ import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import VideoTimeDisplay from './VideoTimeDisplay';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import HotkeyGuide from './HotkeyGuide';
+import OnlineHelp from './OnlineHelp';
 import { useHotkeys } from '../contexts/HotkeyContext';
 
 interface VideoControlsProps {
@@ -433,7 +433,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </Box>
       </Box>
 
-      <HotkeyGuide 
+      <OnlineHelp 
         open={showHotkeyGuide} 
         onClose={() => setShowHotkeyGuide(false)} 
       />

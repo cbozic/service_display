@@ -3,12 +3,12 @@ import { Dialog, DialogTitle, DialogContent, Typography, Box, IconButton, Link, 
 import CloseIcon from '@mui/icons-material/Close';
 import { useHotkeys } from '../contexts/HotkeyContext';
 
-interface HotkeyGuideProps {
+interface OnlineHelpProps {
   open: boolean;
   onClose: () => void;
 }
 
-const HotkeyGuide: React.FC<HotkeyGuideProps> = ({ open, onClose }) => {
+const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
   const { getHotkeyDescription } = useHotkeys();
 
   const scrollToSection = (sectionId: string) => {
@@ -387,4 +387,4 @@ const HotkeyGuide: React.FC<HotkeyGuideProps> = ({ open, onClose }) => {
   );
 };
 
-export default HotkeyGuide; 
+export default OnlineHelp; 

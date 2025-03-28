@@ -470,7 +470,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                   }
                 }}
               >
-                Force Start (Bypass Loading)
+                Click here to bypass and start the service. (Youtube is taking too long to load)
               </Button>
             )}
           </Box>
