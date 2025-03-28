@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert, Dialog, DialogContent, DialogActions, Button, DialogContentText } from '@mui/material';
+import { VideoData, fetchPlaylistVideos } from '../utils/playlistUtils';
 
 interface VideoListProps {
   setVideo: (videoId: string) => void;
   playlistUrl: string;
   currentVideo: string;
   onError?: (hasError: boolean) => void;
-}
-
-interface VideoData {
-  title: string;
-  videoId: string;
-  thumbnailUrl: string;
 }
 
 const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo, onError }) => {
@@ -23,62 +17,25 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
   const [initialized, setInitialized] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchVideos = async () => {
+    const loadVideos = async () => {
       try {
-        if (!playlistUrl) {
-          setError(true);
-          onError?.(true);
-          return;
-        }
-
-        const response = await axios.get(playlistUrl);
-        const html = response.data as string;
-        const videoMatches = Array.from(html.matchAll(/\{".*?videoRenderer":\{"videoId":"(.*?)"/gi));
-        const titleMatches = Array.from(html.matchAll(/"title":{"runs":\[{"text":"(.*?)"/g));
-        
-        const videoIds = videoMatches.map(match => match[1]);
-        const titles = titleMatches.map(match => match[1]);
-        
-        if (!videoIds.length || !titles.length) {
-          setError(true);
-          onError?.(true);
-          return;
-        }
-
-        const videoDataMap = new Map<string, { title: string; thumbnailUrl: string }>();
-        videoIds.forEach((videoId, index) => {
-          if (index < titles.length && !videoDataMap.has(videoId)) {
-            videoDataMap.set(videoId, {
-              title: titles[index],
-              thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-            });
-          }
-        });
-        
-        const videoData = Array.from(videoDataMap.entries()).map(([videoId, data]) => ({
-          videoId,
-          title: data.title,
-          thumbnailUrl: data.thumbnailUrl
-        }));
-        
+        const videoData = await fetchPlaylistVideos(playlistUrl);
         setVideos(videoData);
-        
         setInitialized(true);
         onError?.(false);
       } catch (error) {
-        console.error('Error fetching videos:', error);
+        console.error('Error loading videos:', error);
         setError(true);
         onError?.(true);
       }
     };
 
-    fetchVideos();
+    loadVideos();
   }, [playlistUrl, onError]);
 
   useEffect(() => {
     if (videos.length > 0 && initialized) {
       setVideo(videos[0].videoId);
-      
       setInitialized(false);
     }
   }, [videos, initialized, setVideo]);
@@ -150,47 +107,34 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
     }
   };
 
-  const dialogStyle = {
-    '& .MuiPaper-root': {
-      backgroundColor: 'var(--dark-surface)',
-      border: '1px solid var(--dark-border)',
-      borderRadius: '8px',
-      color: 'var(--dark-text)',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
-    }
-  };
-  
-  const dialogContentStyle = {
-    color: 'var(--dark-text)'
-  };
-  
-  const buttonStyle = {
-    color: 'var(--accent-color)'
-  };
-
   return (
-    <Box sx={{ 
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      width: '100%'
-    }}>
-      <Typography
-        variant="subtitle1"
-        sx={{
-          color: '#fff',
-          padding: '4px',
-          width: '100%',
-          textAlign: 'center',
-          backgroundColor: 'darkred',
-          fontWeight: 500,
-          letterSpacing: '0.5px',
-          fontSize: '0.875rem',
-          marginBottom: '8px'
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'var(--dark-surface)',
+            color: 'var(--dark-text)',
+            border: '1px solid var(--dark-border)'
+          }
         }}
       >
-        Video List (Experimental)
-      </Typography>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'var(--dark-text)' }}>
+            Are you sure you want to switch videos? This will restart the current video.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancel} sx={{ color: 'var(--dark-text)' }}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} sx={{ color: 'var(--accent-color)' }}>
+            Switch
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Box sx={{ padding: 2, flex: '1 1 auto', overflowY: 'auto' }}>
         {error ? (
           <Alert severity="info" sx={alertStyle}>
@@ -235,27 +179,6 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
           </Grid>
         )}
       </Box>
-      
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCancel}
-        aria-describedby="alert-dialog-description"
-        sx={dialogStyle}
-      >
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description" sx={dialogContentStyle}>
-            Selecting a new video will replace the currently selected one.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancel} sx={buttonStyle}>
-            Nevermind
-          </Button>
-          <Button onClick={handleConfirm} sx={buttonStyle} autoFocus>
-            Continue
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

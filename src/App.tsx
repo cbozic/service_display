@@ -21,6 +21,7 @@ import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import { HotkeyProvider } from './contexts/HotkeyContext';
 import { useHotkeys } from './contexts/HotkeyContext';
+import { fetchPlaylistVideos } from './utils/playlistUtils';
 
 // Create a function to generate the flexlayout json based on experimental features flag
 const createLayoutJson = (showExperimental: boolean): IJsonModel => {
@@ -935,6 +936,25 @@ const AppContent: React.FC = () => {
     registerHotkey,
     unregisterHotkey
   ]);
+
+  // Add effect to handle playlist URL changes
+  useEffect(() => {
+    const initializePlaylist = async () => {
+      if (playlistUrl && usePlaylistMode) {
+        try {
+          const videoData = await fetchPlaylistVideos(playlistUrl);
+          if (videoData.length > 0) {
+            setVideo(videoData[0].videoId);
+          }
+        } catch (error) {
+          console.error('Error initializing playlist:', error);
+          handleVideoListError(true);
+        }
+      }
+    };
+
+    initializePlaylist();
+  }, [playlistUrl, usePlaylistMode, setVideo, handleVideoListError]);
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
