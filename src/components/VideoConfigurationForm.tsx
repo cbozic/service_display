@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, TextField, Typography, Card, CardContent, FormControlLabel, Switch } from '@mui/material';
+import { Box, TextField, Typography, Card, CardContent, FormControlLabel, Switch, Divider } from '@mui/material';
 
 interface VideoConfigurationFormProps {
   video: string;
@@ -12,6 +12,8 @@ interface VideoConfigurationFormProps {
   setBackgroundPlaylistUrl: (value: string) => void;
   isAutomaticEventsEnabled: boolean;
   onAutomaticEventsToggle: (enabled: boolean) => void;
+  isExperimentalFeaturesEnabled?: boolean;
+  onExperimentalFeaturesToggle?: (enabled: boolean) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -24,7 +26,9 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   backgroundPlaylistUrl,
   setBackgroundPlaylistUrl,
   isAutomaticEventsEnabled,
-  onAutomaticEventsToggle
+  onAutomaticEventsToggle,
+  isExperimentalFeaturesEnabled = false,
+  onExperimentalFeaturesToggle = () => {}
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +76,22 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
           />
           <Typography variant="caption" color="text.secondary">
             Automatically trigger events at specific times (e.g., PiP mode at 5s, disable at 20s)
+          </Typography>
+          
+          <Divider sx={{ my: 1 }} />
+          
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isExperimentalFeaturesEnabled}
+                onChange={(e) => onExperimentalFeaturesToggle(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Enable Experimental Features"
+          />
+          <Typography variant="caption" color="text.secondary">
+            Show experimental components (Keys, Tuner, Video List, Monitor) - requires page refresh
           </Typography>
         </Box>
       </CardContent>

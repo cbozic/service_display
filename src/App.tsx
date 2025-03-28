@@ -20,116 +20,135 @@ import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, Skip
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 
-const flexlayout_json: IJsonModel = {
-  global: {
-    tabEnableClose: false,
-    tabSetEnableClose: false,
-    tabSetEnableMaximize: true,
-  },
-  borders: [],
-  layout: {
-    type: "row",
-    children: [
-      {
-        type: "column",
-        weight: 25,
-        children: [
-          {
-            type: "tabset",
-            weight: 65,
-            enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Slides",
-                component: "slides",
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Videos",
-                component: "videoList",
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Settings",
-                component: "form",
-                enableClose: false,
-              }
-            ]
-          },
-          {
-            type: "tabset",
-            weight: 35,
-            enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Music",
-                component: "background",
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Keys",
-                component: "piano",
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Tuner",
-                component: "tuner",
-                enableClose: false,
-              }
-            ]
-          }
-        ]
-      },
-      {
-        type: "column",
-        weight: 75,
-        children: [
-          {
-            type: "tabset",
-            weight: 85,
-            enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Display",
-                component: "video",
-                enablePopout: true,
-                enableClose: false,
-              },
-              {
-                type: "tab",
-                name: "Monitor",
-                component: "videoMonitor",
-                enableClose: false,
-              }
-            ]
-          },
-          {
-            type: "tabset",
-            weight: 15,
-            enableClose: false,
-            children: [
-              {
-                type: "tab",
-                name: "Controls",
-                component: "controls",
-                enableClose: false,
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
+// Create a function to generate the flexlayout json based on experimental features flag
+const createLayoutJson = (showExperimental: boolean): IJsonModel => {
+  return {
+    global: {
+      tabEnableClose: false,
+      tabSetEnableClose: false,
+      tabSetEnableMaximize: true,
+    },
+    borders: [],
+    layout: {
+      type: "row",
+      children: [
+        {
+          type: "column",
+          weight: 25,
+          children: [
+            {
+              type: "tabset",
+              weight: 65,
+              enableClose: false,
+              children: [
+                {
+                  type: "tab",
+                  name: "Slides",
+                  component: "slides",
+                  enableClose: false,
+                },
+                // Include Video List only if experimental features are enabled
+                ...(showExperimental ? [
+                  {
+                    type: "tab",
+                    name: "Videos",
+                    component: "videoList",
+                    enableClose: false,
+                  }
+                ] : []),
+                {
+                  type: "tab",
+                  name: "Settings",
+                  component: "form",
+                  enableClose: false,
+                }
+              ]
+            },
+            {
+              type: "tabset",
+              weight: 35,
+              enableClose: false,
+              children: [
+                {
+                  type: "tab",
+                  name: "Music",
+                  component: "background",
+                  enableClose: false,
+                },
+                // Include experimental Keys and Tuner only if enabled
+                ...(showExperimental ? [
+                  {
+                    type: "tab",
+                    name: "Keys",
+                    component: "piano",
+                    enableClose: false,
+                  },
+                  {
+                    type: "tab",
+                    name: "Tuner",
+                    component: "tuner",
+                    enableClose: false,
+                  }
+                ] : [])
+              ]
+            }
+          ]
+        },
+        {
+          type: "column",
+          weight: 75,
+          children: [
+            {
+              type: "tabset",
+              weight: 85,
+              enableClose: false,
+              children: [
+                {
+                  type: "tab",
+                  name: "Display",
+                  component: "video",
+                  enablePopout: true,
+                  enableClose: false,
+                },
+                // Include Monitor only if experimental features are enabled
+                ...(showExperimental ? [
+                  {
+                    type: "tab",
+                    name: "Monitor",
+                    component: "videoMonitor",
+                    enableClose: false,
+                  }
+                ] : [])
+              ]
+            },
+            {
+              type: "tabset",
+              weight: 15,
+              enableClose: false,
+              children: [
+                {
+                  type: "tab",
+                  name: "Controls",
+                  component: "controls",
+                  enableClose: false,
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  };
 };
 
-const model = Model.fromJson(flexlayout_json);
+// Use a function to create model based on the stored experimental features preference
+const getInitialLayoutModel = () => {
+  const storedExperimental = localStorage.getItem('experimentalFeaturesEnabled');
+  const showExperimental = storedExperimental ? JSON.parse(storedExperimental) : false;
+  return Model.fromJson(createLayoutJson(showExperimental));
+};
+
+const model = getInitialLayoutModel();
 
 const AppContent: React.FC = () => {
   const [video, setVideo] = useState<string>('oQYRNeM-awo');
@@ -142,6 +161,18 @@ const AppContent: React.FC = () => {
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [userExitedFullscreen, setUserExitedFullscreen] = useState<boolean>(false);
+  
+  // State to track experimental features
+  const [isExperimentalFeaturesEnabled, setIsExperimentalFeaturesEnabled] = useState<boolean>(() => {
+    // Load from localStorage or default to false
+    const saved = localStorage.getItem('experimentalFeaturesEnabled');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  // Save to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('experimentalFeaturesEnabled', JSON.stringify(isExperimentalFeaturesEnabled));
+  }, [isExperimentalFeaturesEnabled]);
   
   // Determine appropriate base path for assets
   const getBasePath = () => {
@@ -857,6 +888,16 @@ const AppContent: React.FC = () => {
           setBackgroundPlaylistUrl={setBackgroundPlaylistUrl}
           isAutomaticEventsEnabled={isAutomaticEventsEnabled}
           onAutomaticEventsToggle={setIsAutomaticEventsEnabled}
+          isExperimentalFeaturesEnabled={isExperimentalFeaturesEnabled}
+          onExperimentalFeaturesToggle={(enabled) => {
+            setIsExperimentalFeaturesEnabled(enabled);
+            // Prompt user to refresh the page to apply changes
+            if (enabled !== isExperimentalFeaturesEnabled) {
+              if (window.confirm("Changing experimental features requires a page refresh. Refresh now?")) {
+                window.location.reload();
+              }
+            }
+          }}
         />
       );
     } else if (component === "video") {
