@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './VideoFadeFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
+import { Box } from '@mui/material';
 
 import Overlay from './Overlay';
 import { useYouTube } from '../contexts/YouTubeContext';
+import { useHotkeys } from '../contexts/HotkeyContext';
 
 interface VideoFadeFrameProps {
   video: string;
@@ -24,6 +26,10 @@ interface VideoFadeFrameProps {
   usePlaylistMode?: boolean;
   isPlayEnabled?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  isMainPlayerPlaying: boolean;
+  setIsMainPlayerPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsPlayEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  setMainPlayersReady: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
@@ -44,7 +50,11 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   playlistUrl,
   usePlaylistMode = false,
   isPlayEnabled = true,
-  onFullscreenChange
+  onFullscreenChange,
+  isMainPlayerPlaying,
+  setIsMainPlayerPlaying,
+  setIsPlayEnabled,
+  setMainPlayersReady,
 }) => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -55,7 +65,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userExitedFullscreenRef = useRef<boolean>(false);
-  const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
+  const { registerHotkey, unregisterHotkey } = useHotkeys();
 
   const handleClick = () => {
     if (player && isPlayerReady) {
@@ -81,21 +91,46 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   }, [player, isPlayerReady]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'ArrowLeft') {
-        rewindSeconds(5);
-      } else if (event.code === 'ArrowRight') {
-        fastForwardSeconds(15);
-      } else if (event.code === 'KeyF') {
+    // Register hotkeys for video control
+    registerHotkey({
+      key: 'ArrowLeft',
+      description: 'Rewind video by 5 seconds',
+      handler: () => {
+        if (player && isPlayerReady) {
+          const currentTime = player.getCurrentTime();
+          player.seekTo(Math.max(0, currentTime - 5));
+        }
+      },
+      enabled: isPlayerReady
+    });
+
+    registerHotkey({
+      key: 'ArrowRight',
+      description: 'Fast forward video by 15 seconds',
+      handler: () => {
+        if (player && isPlayerReady) {
+          const currentTime = player.getCurrentTime();
+          player.seekTo(currentTime + 15);
+        }
+      },
+      enabled: isPlayerReady
+    });
+
+    registerHotkey({
+      key: 'KeyF',
+      description: 'Toggle fullscreen',
+      handler: () => {
         setFullscreen(!fullscreen);
       }
-    };
+    });
 
-    window.addEventListener('keydown', handleKeyDown);
+    // Cleanup hotkeys on unmount
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      unregisterHotkey('ArrowLeft');
+      unregisterHotkey('ArrowRight');
+      unregisterHotkey('KeyF');
     };
-  }, [fullscreen, fastForwardSeconds, rewindSeconds]);
+  }, [player, isPlayerReady, fullscreen, registerHotkey, unregisterHotkey]);
 
   const onPlayerReadyHandler: YouTubeProps['onReady'] = useCallback((event: YouTubeEvent) => {
     const playerInstance = event.target;

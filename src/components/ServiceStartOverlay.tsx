@@ -4,6 +4,7 @@ import { useYouTube } from '../contexts/YouTubeContext';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import MusicOffIcon from '@mui/icons-material/MusicOff';
+import { useHotkeys } from '../contexts/HotkeyContext';
 
 interface ServiceStartOverlayProps {
   onStartService: () => void;
@@ -11,7 +12,7 @@ interface ServiceStartOverlayProps {
 
 const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartService }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [isMusicEnabled, setIsMusicEnabled] = useState<boolean>(false);
+  const [isMusicEnabled, setIsMusicEnabled] = useState<boolean>(true);
   const [animationPhase, setAnimationPhase] = useState<'hidden' | 'expanding' | 'showing'>('hidden');
   const animationTimeout = useRef<NodeJS.Timeout | null>(null);
   const { 
@@ -26,6 +27,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
   const [showBypassButton, setShowBypassButton] = useState<boolean>(false);
+  const { registerHotkey, unregisterHotkey } = useHotkeys();
 
   // Update clock every second
   useEffect(() => {
@@ -269,6 +271,87 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     
     onStartService();
   };
+
+  useEffect(() => {
+    // Register hotkeys for volume control and track navigation
+    registerHotkey({
+      key: 'Comma',
+      description: 'Decrease background music volume by 5%',
+      handler: () => {
+        if (!isMusicEnabled) return;
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          const newVolume = Math.max(0, backgroundVolume - 5);
+          setBackgroundVolume(newVolume);
+          if (backgroundPlayerRef.current) {
+            backgroundPlayerRef.current.setVolume(newVolume);
+          }
+        }
+      },
+      enabled: isMusicEnabled
+    });
+
+    registerHotkey({
+      key: 'Period',
+      description: 'Increase background music volume by 5%',
+      handler: () => {
+        if (!isMusicEnabled) return;
+        
+        if (backgroundMuted && backgroundPlayerRef?.current) {
+          backgroundPlayerRef.current.unMute();
+          setBackgroundMuted(false);
+          backgroundPlayerRef.current.setVolume(backgroundVolume);
+        } else {
+          const newVolume = Math.min(100, backgroundVolume + 5);
+          setBackgroundVolume(newVolume);
+          if (backgroundPlayerRef.current) {
+            backgroundPlayerRef.current.setVolume(newVolume);
+          }
+        }
+      },
+      enabled: isMusicEnabled
+    });
+
+    registerHotkey({
+      key: 'KeyN',
+      description: 'Skip to next track',
+      handler: () => {
+        if (!isMusicEnabled) return;
+        if (backgroundPlayerRef?.current) {
+          backgroundPlayerRef.current.nextVideo();
+        }
+      },
+      enabled: isMusicEnabled
+    });
+
+    registerHotkey({
+      key: 'Slash',
+      description: 'Skip to random track',
+      handler: () => {
+        if (!isMusicEnabled) return;
+        if (backgroundPlayerRef?.current) {
+          const playlist = backgroundPlayerRef.current.getPlaylist();
+          if (playlist && playlist.length > 0) {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            backgroundPlayerRef.current.playVideoAt(randomIndex);
+          }
+        }
+      },
+      enabled: isMusicEnabled
+    });
+
+    // Cleanup hotkeys on unmount
+    return () => {
+      unregisterHotkey('Comma');
+      unregisterHotkey('Period');
+      unregisterHotkey('KeyN');
+      unregisterHotkey('Slash');
+    };
+  }, [backgroundMuted, backgroundVolume, isMusicEnabled, registerHotkey, unregisterHotkey]);
 
   return (
     <Box

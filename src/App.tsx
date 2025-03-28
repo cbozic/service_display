@@ -19,6 +19,8 @@ import ServiceStartOverlay from './components/ServiceStartOverlay';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { HotkeyProvider } from './contexts/HotkeyContext';
+import { useHotkeys } from './contexts/HotkeyContext';
 
 // Create a function to generate the flexlayout json based on experimental features flag
 const createLayoutJson = (showExperimental: boolean): IJsonModel => {
@@ -151,10 +153,10 @@ const getInitialLayoutModel = () => {
 const model = getInitialLayoutModel();
 
 const AppContent: React.FC = () => {
-  const [video, setVideo] = useState<string>('oQYRNeM-awo');
-  const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
-  const [overlaySlide, setOverlaySlide] = useState<string>();
-  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
+  const [video, setVideo] = useState<string>('');
+  const [startSeconds, setStartSeconds] = useState<number>(0);
+  const [overlaySlide, setOverlaySlide] = useState<string | undefined>();
+  const [playlistUrl, setPlaylistUrl] = useState<string>('');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -211,6 +213,9 @@ const AppContent: React.FC = () => {
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
+  const { registerHotkey, unregisterHotkey } = useHotkeys();
+  const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState<boolean>(false);
+  const [mainPlayersReady, setMainPlayersReady] = useState<boolean>(false);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -586,30 +591,6 @@ const AppContent: React.FC = () => {
             console.error('[App] Error skipping to next track:', error);
           }
         }
-      } else if (event.code === 'Slash' && !event.repeat) {
-        event.preventDefault();
-        // Skip to random track in background player
-        if (backgroundPlayerRef?.current) {
-          try {
-            const playlist = backgroundPlayerRef.current.getPlaylist();
-            if (playlist && playlist.length > 0) {
-              const randomIndex = Math.floor(Math.random() * playlist.length);
-              backgroundPlayerRef.current.playVideoAt(randomIndex);
-            }
-          } catch (error) {
-            console.error('[App] Error skipping to random track:', error);
-          }
-        }
-      } else if (event.code === 'BracketLeft' && !event.repeat && !isMuted) {
-        event.preventDefault();
-        // Decrease volume by 5% of total (5 out of 100)
-        const newVolume = Math.max(0, videoVolume - 5);
-        setVideoVolume(newVolume);
-      } else if (event.code === 'BracketRight' && !event.repeat && !isMuted) {
-        event.preventDefault();
-        // Increase volume by 5% of total (5 out of 100)
-        const newVolume = Math.min(100, videoVolume + 5);
-        setVideoVolume(newVolume);
       } else if (event.code === 'Comma' && !event.repeat) {
         event.preventDefault();
         
@@ -873,6 +854,88 @@ const AppContent: React.FC = () => {
     };
   }, [player, isPlayerReady]);
 
+  useEffect(() => {
+    // Register global hotkeys
+    registerHotkey({
+      key: 'Space',
+      description: 'Play/Pause video',
+      handler: () => {
+        if (isPlayerReady) {
+          handlePlayPause();
+        }
+      },
+      enabled: isPlayerReady
+    });
+
+    registerHotkey({
+      key: 'KeyD',
+      description: 'Toggle ducking',
+      handler: () => {
+        if (!isMuted) {
+          if (isDucking) {
+            handleDisableDucking();
+          } else {
+            handleEnableDucking();
+          }
+        }
+      }
+    });
+
+    registerHotkey({
+      key: 'KeyP',
+      description: 'Toggle Picture-in-Picture',
+      handler: () => {
+        if (isPipMode) {
+          handleDisablePip();
+        } else {
+          handleEnablePip();
+        }
+      }
+    });
+
+    registerHotkey({
+      key: 'KeyM',
+      description: 'Toggle mute',
+      handler: () => {
+        handleToggleMute();
+      }
+    });
+
+    registerHotkey({
+      key: 'KeyT',
+      description: 'Toggle slide transitions',
+      handler: () => {
+        handleSlideTransitionsToggle();
+      }
+    });
+
+    // Remove the Slash hotkey from here since it's now handled by the help menu
+    // The background music random track feature will be handled by the ServiceStartOverlay component
+
+    // Cleanup hotkeys on unmount
+    return () => {
+      unregisterHotkey('Space');
+      unregisterHotkey('KeyD');
+      unregisterHotkey('KeyP');
+      unregisterHotkey('KeyM');
+      unregisterHotkey('KeyT');
+    };
+  }, [
+    isPlayerReady,
+    isMuted,
+    isDucking,
+    isPipMode,
+    handlePlayPause,
+    handleDisableDucking,
+    handleEnableDucking,
+    handleDisablePip,
+    handleEnablePip,
+    handleToggleMute,
+    handleSlideTransitionsToggle,
+    registerHotkey,
+    unregisterHotkey
+  ]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -880,8 +943,8 @@ const AppContent: React.FC = () => {
         <VideoConfigurationForm
           video={video}
           setVideo={setVideo}
-          startTimeInSeconds={startTimeInSeconds}
-          setStartTimeInSeconds={setStartTimeInSeconds}
+          startTimeInSeconds={startSeconds.toString()}
+          setStartTimeInSeconds={(seconds: string) => setStartSeconds(parseInt(seconds))}
           playlistUrl={playlistUrl}
           setPlaylistUrl={setPlaylistUrl}
           backgroundPlaylistUrl={backgroundPlaylistUrl}
@@ -902,41 +965,32 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "video") {
       return (
-        <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
-          <VideoFadeFrame 
-            video={video} 
-            startSeconds={parseInt(startTimeInSeconds)} 
-            overlaySlide={overlaySlide}
-            onPlayerReady={handlePlayerReady}
-            onStateChange={handleStateChange}
-            isPlaying={isPlaying && !showStartOverlay}
-            isFullscreen={isFullscreen}
-            isPipMode={isPipMode}
-            isSlideTransitionsEnabled={isSlideTransitionsEnabled}
-            volume={videoVolume}
-            playlistUrl={playlistUrl}
-            usePlaylistMode={usePlaylistMode}
-            isPlayEnabled={isPlayEnabled}
-            onFullscreenChange={setIsFullscreen}
-          />
-          <VideoTimeEvents
-            ref={timeEventsRef}
-            player={player}
-            isPlaying={isPlaying && !showStartOverlay}
-          />
-          {showStartOverlay && (
-            <div style={{ 
-              width: '100%', 
-              height: '100%', 
-              backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              zIndex: 5000,
-              pointerEvents: 'all'
-            }}></div>
-          )}
-        </div>
+        <VideoFadeFrame
+          video={video}
+          startSeconds={startSeconds}
+          overlaySlide={overlaySlide}
+          onPlayerReady={handlePlayerReady}
+          onStateChange={handleStateChange}
+          isPlaying={isPlaying && !showStartOverlay}
+          isFullscreen={isFullscreen}
+          isPipMode={isPipMode}
+          isSlideTransitionsEnabled={isSlideTransitionsEnabled}
+          volume={videoVolume}
+          playlistUrl={playlistUrl}
+          usePlaylistMode={usePlaylistMode}
+          isPlayEnabled={isPlayEnabled}
+          onFullscreenChange={setIsFullscreen}
+          isMainPlayerPlaying={isMainPlayerPlaying}
+          setIsMainPlayerPlaying={setIsMainPlayerPlaying}
+          setIsPlayEnabled={(value: boolean | ((prev: boolean) => boolean)) => {
+            if (typeof value === 'function') {
+              setIsPlayEnabled(value(isPlayEnabled));
+            } else {
+              setIsPlayEnabled(value);
+            }
+          }}
+          setMainPlayersReady={setMainPlayersReady}
+        />
       );
     } else if (component === "background") {
       return (
@@ -1062,9 +1116,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <YouTubeProvider>
-      <AppContent />
-    </YouTubeProvider>
+    <HotkeyProvider>
+      <YouTubeProvider>
+        <AppContent />
+      </YouTubeProvider>
+    </HotkeyProvider>
   );
 };
 
