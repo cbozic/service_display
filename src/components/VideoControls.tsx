@@ -231,7 +231,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           )}
           
           <Tooltip 
-            title="Restart Video" 
+            title="Restart video (R)" 
             placement="top" 
             arrow
             componentsProps={{
@@ -296,7 +296,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Tooltip 
-              title={isMuted ? 'Unmute (M)' : 'Mute (M)'} 
+              title="Toggle mute (M)" 
               arrow
               componentsProps={{
                 tooltip: {
@@ -352,7 +352,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </Box>
 
           <Tooltip 
-            title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
+            title={isSlideTransitionsEnabled ? "Disable slide transitions (T)" : "Enable slide transitions (T)"} 
             arrow
             componentsProps={{
               tooltip: {
@@ -385,7 +385,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </Tooltip>
 
           <Tooltip 
-            title="Toggle Fullscreen (F)" 
+            title="Toggle fullscreen (F)" 
             placement="top" 
             arrow
             componentsProps={{
