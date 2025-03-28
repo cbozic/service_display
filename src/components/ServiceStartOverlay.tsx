@@ -102,9 +102,9 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         if (backgroundPlayerRef?.current) {
           backgroundPlayerRef.current.nextVideo();
         }
-      } else if (event.code === 'KeyR' && !event.repeat) {
+      } else if (event.code === 'Slash' && !event.repeat) {
         event.preventDefault();
-        console.log('r key pressed in overlay, skipping to random track');
+        console.log('/ key pressed in overlay, skipping to random track');
         // Skip to random track in background player
         if (backgroundPlayerRef?.current) {
           const playlist = backgroundPlayerRef.current.getPlaylist();
@@ -294,7 +294,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
       onTouchStart={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         // Don't stop propagation for these keys
-        if (e.code !== 'Comma' && e.code !== 'Period' && e.code !== 'KeyN' && e.code !== 'KeyR') {
+        if (e.code !== 'Comma' && e.code !== 'Period' && e.code !== 'KeyN' && e.code !== 'Slash') {
           e.stopPropagation();
         }
       }}

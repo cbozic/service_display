@@ -586,7 +586,7 @@ const AppContent: React.FC = () => {
             console.error('[App] Error skipping to next track:', error);
           }
         }
-      } else if (event.code === 'KeyR' && !event.repeat) {
+      } else if (event.code === 'Slash' && !event.repeat) {
         event.preventDefault();
         // Skip to random track in background player
         if (backgroundPlayerRef?.current) {
