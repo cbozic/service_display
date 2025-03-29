@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
+import React, { useState, FormEvent, useRef, useEffect, useCallback, FC } from 'react';
 import './App.css';
 import VideoFadeFrame from './components/VideoFadeFrame';
 import VideoConfigurationForm from './components/VideoConfigurationForm';
@@ -10,7 +10,7 @@ import ChromaticTuner from './components/ChromaticTuner';
 import VideoMonitor from './components/VideoMonitor';
 import { Layout, Model, TabNode, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
-import { Box } from '@mui/material';
+import { Box, IconButton, Dialog, DialogContent, DialogTitle, useMediaQuery, useTheme } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundPlayer from './components/BackgroundPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
@@ -18,13 +18,15 @@ import ReactDOM from 'react-dom';
 import ServiceStartOverlay from './components/ServiceStartOverlay';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
-import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { Typography, Button, TextField, Grid, Avatar } from '@mui/material';
 import { HotkeyProvider } from './contexts/HotkeyContext';
 import { useHotkeys } from './contexts/HotkeyContext';
 import { fetchPlaylistVideos } from './utils/playlistUtils';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CloseIcon from '@mui/icons-material/Close';
 
-// Create a function to generate the flexlayout json based on experimental features flag
-const createLayoutJson = (showExperimental: boolean): IJsonModel => {
+// Create a function to generate the flexlayout json based on experimental features flag and screen size
+const createLayoutJson = (showExperimental: boolean, isMobile: boolean = false): IJsonModel => {
   return {
     global: {
       tabEnableClose: false,
@@ -37,7 +39,7 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
       children: [
         {
           type: "column",
-          weight: 25,
+          weight: isMobile ? 0 : 25,  // Hide settings column completely on mobile
           children: [
             {
               type: "tabset",
@@ -99,11 +101,11 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
         },
         {
           type: "column",
-          weight: 75,
+          weight: isMobile ? 100 : 75,  // Take full width on mobile
           children: [
             {
               type: "tabset",
-              weight: 85,
+              weight: isMobile ? 90 : 85,  // Slightly more space for video on mobile
               enableClose: false,
               children: [
                 {
@@ -126,7 +128,7 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
             },
             {
               type: "tabset",
-              weight: 15,
+              weight: isMobile ? 10 : 15,  // Slightly less space for controls on mobile
               enableClose: false,
               children: [
                 {
@@ -148,12 +150,13 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
 const getInitialLayoutModel = () => {
   const storedExperimental = localStorage.getItem('experimentalFeaturesEnabled');
   const showExperimental = storedExperimental ? JSON.parse(storedExperimental) : false;
-  return Model.fromJson(createLayoutJson(showExperimental));
+  const isMobile = window.innerWidth < 768;
+  return Model.fromJson(createLayoutJson(showExperimental, isMobile));
 };
 
-const model = getInitialLayoutModel();
+let model = getInitialLayoutModel();
 
-const AppContent: React.FC = () => {
+const AppContent: FC = () => {
   const [video, setVideo] = useState<string>('');
   const [startSeconds, setStartSeconds] = useState<number>(0);
   const [overlaySlide, setOverlaySlide] = useState<string | undefined>();
@@ -217,7 +220,30 @@ const AppContent: React.FC = () => {
   const { registerHotkey, unregisterHotkey } = useHotkeys();
   const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState<boolean>(false);
   const [mainPlayersReady, setMainPlayersReady] = useState<boolean>(false);
-
+  
+  // Add state to track screen size and settings dialog
+  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+  const [showSettingsDialog, setShowSettingsDialog] = useState<boolean>(false);
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // Handle screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth < 768;
+      if (newIsMobile !== isMobile) {
+        setIsMobile(newIsMobile);
+        // Update the layout model when screen size changes category
+        model = Model.fromJson(createLayoutJson(isExperimentalFeaturesEnabled, newIsMobile));
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isMobile, isExperimentalFeaturesEnabled]);
+  
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
@@ -1109,9 +1135,105 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Mobile settings dialog component
+  const MobileSettingsDialog: FC = () => (
+    <Dialog
+      open={showSettingsDialog}
+      onClose={() => setShowSettingsDialog(false)}
+      fullScreen={fullScreen}
+      aria-labelledby="settings-dialog-title"
+      PaperProps={{
+        sx: {
+          backgroundColor: 'var(--dark-bg, #1a1a1a)',
+          color: 'var(--dark-text, #ffffff)',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          maxWidth: '100%',
+          maxHeight: '100%',
+        }
+      }}
+    >
+      <DialogTitle 
+        id="settings-dialog-title"
+        sx={{ 
+          backgroundColor: 'var(--dark-surface, #222222)', 
+          color: 'var(--dark-text, #ffffff)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px'
+        }}
+      >
+        Settings
+        <IconButton 
+          edge="end" 
+          color="inherit" 
+          onClick={() => setShowSettingsDialog(false)}
+          aria-label="close"
+          sx={{ color: 'var(--dark-text, #ffffff)' }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ padding: '16px', backgroundColor: 'var(--dark-bg, #1a1a1a)' }}>
+        <VideoConfigurationForm
+          video={video}
+          setVideo={setVideo}
+          startTimeInSeconds={startSeconds.toString()}
+          setStartTimeInSeconds={(seconds: string) => setStartSeconds(parseInt(seconds))}
+          playlistUrl={playlistUrl}
+          setPlaylistUrl={setPlaylistUrl}
+          backgroundPlaylistUrl={backgroundPlaylistUrl}
+          setBackgroundPlaylistUrl={setBackgroundPlaylistUrl}
+          isAutomaticEventsEnabled={isAutomaticEventsEnabled}
+          onAutomaticEventsToggle={setIsAutomaticEventsEnabled}
+          isExperimentalFeaturesEnabled={isExperimentalFeaturesEnabled}
+          onExperimentalFeaturesToggle={(enabled) => {
+            setIsExperimentalFeaturesEnabled(enabled);
+            // Prompt user to refresh the page to apply changes
+            if (enabled !== isExperimentalFeaturesEnabled) {
+              if (window.confirm("Changing experimental features requires a page refresh. Refresh now?")) {
+                window.location.reload();
+              }
+            }
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
       {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
+      {/* Mobile Settings Button (fixed position) */}
+      {isMobile && (
+        <Box 
+          sx={{ 
+            position: 'fixed', 
+            top: '10px', 
+            right: '10px', 
+            zIndex: 9999,
+            pointerEvents: showStartOverlay ? 'none' : 'auto'
+          }}
+        >
+          <IconButton 
+            onClick={() => setShowSettingsDialog(true)}
+            sx={{
+              backgroundColor: 'var(--dark-surface, rgba(0, 0, 0, 0.7))',
+              backdropFilter: 'blur(10px)',
+              color: 'var(--dark-text, #ffffff)',
+              border: '1px solid var(--dark-border, #333333)',
+              '&:hover': {
+                backgroundColor: 'var(--accent-color, #3d84f7)',
+              }
+            }}
+          >
+            <SettingsIcon />
+          </IconButton>
+        </Box>
+      )}
+      {/* Mobile Settings Dialog */}
+      {isMobile && <MobileSettingsDialog />}
       <Box 
         sx={{ 
           height: '100%',
@@ -1134,7 +1256,7 @@ const AppContent: React.FC = () => {
   );
 }
 
-const App: React.FC = () => {
+const App: FC = () => {
   return (
     <HotkeyProvider>
       <YouTubeProvider>
