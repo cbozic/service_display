@@ -157,7 +157,7 @@ const AppContent: React.FC = () => {
   const [video, setVideo] = useState<string>('');
   const [startSeconds, setStartSeconds] = useState<number>(0);
   const [overlaySlide, setOverlaySlide] = useState<string | undefined>();
-  const [playlistUrl, setPlaylistUrl] = useState<string>('');
+  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
