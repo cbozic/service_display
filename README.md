@@ -91,6 +91,7 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 
+- Get the volume controls on background player to behave like main player
 - Make fullscreen button vanish when fullscreen is enabled in popout
 - Make ducking work when triggered by automatic events
 - Try duckduckgo player to get around ads
