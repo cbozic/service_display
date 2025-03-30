@@ -398,20 +398,20 @@ const AppContent: React.FC = () => {
             console.log('[App] Skipping PiP enable event registration (current time > 5s)');
           }
 
-          // Only register disable event if we're before 8 minutes
-          if (currentTime < 480) {
-            console.log('[App] Re-registering PiP disable event for 8 minutes');
-            timeEventsRef.current.registerEvent(480, () => {
-              console.log(`[App] Checking PiP disable event at 8 minutes (current PiP state: ${isPipMode})`);
+          // Only register disable event if we're before 6.5 minutes
+          if (currentTime < 390) {
+            console.log('[App] Re-registering PiP disable event for 6.5 minutes');
+            timeEventsRef.current.registerEvent(390, () => {
+              console.log(`[App] Checking PiP disable event at 6.5 minutes (current PiP state: ${isPipMode})`);
               if (isPipMode) {
-                console.log('[App] Auto-disabling PiP mode at 8 minutes');
+                console.log('[App] Auto-disabling PiP mode at 6.5 minutes');
                 handleDisablePip();
               } else {
                 console.log('[App] PiP mode already disabled, skipping disable event');
               }
             });
           } else {
-            console.log('[App] Skipping PiP disable event registration (current time > 8 minutes)');
+            console.log('[App] Skipping PiP disable event registration (current time > 6.5 minutes)');
           }
         } else {
           console.log('[App] PiP events not re-registered - not within allowed time window (Sat after 2pm or Sun before 11:45pm)');
