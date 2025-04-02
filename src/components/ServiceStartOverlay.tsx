@@ -26,6 +26,19 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
   const [showBypassButton, setShowBypassButton] = useState<boolean>(false);
+  const [isMobileDevice, setIsMobileDevice] = useState<boolean>(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobileDevice = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobileDevice(isMobile);
+    };
+
+    checkMobileDevice();
+    window.addEventListener('resize', checkMobileDevice);
+    return () => window.removeEventListener('resize', checkMobileDevice);
+  }, []);
 
   // Update clock every second
   useEffect(() => {
@@ -397,9 +410,12 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
               variant="h5" 
               component="h2" 
               gutterBottom
-              sx={{ color: 'var(--accent-color)' }}
+              sx={{ 
+                color: isMobileDevice ? 'red' : 'var(--accent-color)',
+                fontWeight: isMobileDevice ? 'bold' : 'normal'
+              }}
             >
-              Ready when you are!
+              {isMobileDevice ? "You will experience buggy behavior if you continue on a mobile device." : "Ready when you are!"}
             </Typography>
             <Typography 
               variant="h2" 
