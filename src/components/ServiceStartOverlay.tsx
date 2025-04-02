@@ -422,7 +422,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
               component="h2" 
               gutterBottom
               sx={{ 
-                color: isMobileDevice ? 'red' : 'var(--accent-color)',
+                color: isMobileDevice ? 'pink' : 'var(--accent-color)',
                 fontWeight: isMobileDevice ? 'bold' : 'normal'
               }}
             >
@@ -523,7 +523,7 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                       lineHeight: 1.4
                     }}
                   >
-                    TIP: There may be some Youtube commercials initially. Set your TV or PC volume where you normally would for the service and adjust the above slider so the background music would be soft enough to not be a distraction during prayer or fellowship. The main service will be louder!
+                    TIP: There may be YouTube commercials initially. Set your TV or PC volume where you normally would for the service and adjust the above slider so the background music would be soft enough to not be a distraction during prayer or fellowship. The main service will be louder!
                   </Typography>
                 </Box>
               </Box>

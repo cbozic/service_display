@@ -4,25 +4,38 @@ A browser-based application to facilitate displaying streamed service videos to 
 
 ## Overview
 
-Service Display is designed to help manage and display media content during services or presentations. It features a customizable interface with panels for:
-- Main video display with YouTube integration
-- Presentation slides and transitions
-- Background music controls
-- Piano/keyboard integration
-- Chromatic tuner
-- Video playlist management
-- Fullscreen and popout capabilities
+Service Display is a specialized application designed to enhance worship services and presentations. It combines video playback, slide presentations, and background music into a seamless experience. The application features intuitive controls, keyboard shortcuts, and various display modes to accommodate different presentation needs.
 
-The application uses a flexible layout system that allows users to arrange and resize different components according to their needs.
+### Key Features
 
-## Technologies
+- **Video Player**: Play YouTube videos with precise control, including start times, playback controls, and volume management
+- **Slide Display**: Show presentation slides with smooth transitions and support for animated GIFs
+- **Background Music**: Independent audio player for background music with volume control and track selection
+- **Video Controls**: Comprehensive control panel for managing video playback, volume, and display modes
+- **Picture-in-Picture**: Flexible display options for video content
+- **Keyboard Shortcuts**: Quick access to common functions
+- **Experimental Features**: Additional tools like video monitor, piano keyboard, and chromatic tuner
 
-- **Frontend**: React with TypeScript
-- **UI Components**: Material-UI (MUI)
-- **Layout Engine**: flexlayout-react for the customizable panel system
-- **Media Integration**: React YouTube for video playback
-- **Music Tools**: Includes piano interface and chromatic tuner
-- **Styling**: CSS with theme support including dark mode
+## Main Components
+
+### Video Player
+The main video display area supports YouTube videos with customizable start times and playback controls. You can pause, play, seek, and adjust volume. The player supports Picture-in-Picture mode for flexible display options, and includes features like volume ducking to quickly lower the volume when needed.
+
+### Slide Display
+A dedicated area for listing and selecting presentation slides to be shown during the service. The selected slide will be displayed when the main video player is paused and will fade away when the video is playing. You can manually advance slides or enable automatic transitions with customizable timing. Use the upload button to display your own presentations exported as GIF files (supported by PowerPoint and Keynote).
+
+### Background Music
+A separate audio player for background music that can be controlled independently of the main video. The background player will start when the main video player is paused and stop when the main video player is playing. Features include volume control, track selection, and random playback. The music player can be muted or adjusted without affecting the main video's audio.
+
+## Settings
+
+### Video Configuration
+- **Video ID**: The YouTube video ID to be displayed (found in the URL after 'v=')
+- **Start Time**: Set the time in seconds where the video should begin playing
+- **Videos Playlist URL**: A YouTube playlist URL containing multiple videos (first video will be selected)
+- **Background Music Playlist URL**: A YouTube playlist URL for background music tracks
+- **Automatic Events**: Enable automatic triggering of controls like Picture-in-Picture and audio ducking
+- **Experimental Features**: Enable access to additional components like video monitor, piano keyboard, and tuner
 
 ## Installation
 
@@ -78,16 +91,6 @@ npm test
 ```
 
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
-
-## Features
-
-- **YouTube Integration**: Play, control, and schedule videos from YouTube
-- **Flexible Layout**: Customizable panel system for different display needs
-- **Presentation Tools**: Show slides with transition effects
-- **Music Support**: Background player and piano interface
-- **Audio Tools**: Chromatic tuner and volume controls
-- **Fullscreen Mode**: Optimized display for presentation environments
-- **Theme Support**: Including dark mode
 
 ## To Do
 
