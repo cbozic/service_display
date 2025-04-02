@@ -528,9 +528,9 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     cursor: 'pointer',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
     transition: 'all 0.3s ease',
-    opacity: fullscreen ? 0 : 0.8,
-    visibility: fullscreen ? 'hidden' : 'visible',
-    display: isPipMode ? 'none' : 'block',
+    opacity: isFullscreen ? 0 : 0.8,
+    visibility: isFullscreen ? 'hidden' : 'visible',
+    display: isPipMode || isFullscreen ? 'none' : 'block',
   };
 
   // Create a styled class in CSS for the hover effects
