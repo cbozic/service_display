@@ -250,7 +250,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           player.unMute();
           player.playVideo();
           // Start the fade in effect for volume
-          fadeToVolume(100, fadeDurationInSeconds);
+          fadeToVolume(volume, fadeDurationInSeconds);
         } catch (e) {
           console.log('Error starting playback:', e);
         }
@@ -277,7 +277,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         fadeTimeoutRef.current = null;
       }
     };
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume, setIsPlayEnabled]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume, setIsPlayEnabled, volume]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
