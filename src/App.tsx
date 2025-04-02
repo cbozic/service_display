@@ -19,6 +19,7 @@ import ServiceStartOverlay from './components/ServiceStartOverlay';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import OnlineHelp from './components/OnlineHelp';
 
 // Create a function to generate the flexlayout json based on experimental features flag
 const createLayoutJson = (showExperimental: boolean): IJsonModel => {
@@ -211,6 +212,7 @@ const AppContent: React.FC = () => {
   const [showStartOverlay, setShowStartOverlay] = useState<boolean>(true);
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
+  const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -535,6 +537,10 @@ const AppContent: React.FC = () => {
     setUsePlaylistMode(hasError);
   }, []);
 
+  const handleToggleHelp = useCallback(() => {
+    setIsHelpOpen(prev => !prev);
+  }, []);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -576,6 +582,10 @@ const AppContent: React.FC = () => {
       } else if (event.code === 'KeyM' && !event.repeat) {
         event.preventDefault();
         handleToggleMute();
+      } else if (event.code === 'Slash' && event.shiftKey && !event.repeat) {
+        // Question mark key (Shift + /)
+        event.preventDefault();
+        handleToggleHelp();
       } else if (event.code === 'KeyN' && !event.repeat) {
         event.preventDefault();
         // Skip to next track in background player
@@ -586,7 +596,7 @@ const AppContent: React.FC = () => {
             console.error('[App] Error skipping to next track:', error);
           }
         }
-      } else if (event.code === 'Slash' && !event.repeat) {
+      } else if (event.code === 'Slash' && !event.shiftKey && !event.repeat) {
         event.preventDefault();
         // Skip to random track in background player
         if (backgroundPlayerRef?.current) {
@@ -610,6 +620,9 @@ const AppContent: React.FC = () => {
         // Increase volume by 5% of total (5 out of 100)
         const newVolume = Math.min(100, videoVolume + 5);
         setVideoVolume(newVolume);
+      } else if (event.code === 'KeyR' && event.altKey && !event.repeat) {
+        event.preventDefault();
+        handleRestart();
       } else if (event.code === 'Comma' && !event.repeat) {
         event.preventDefault();
         
@@ -650,7 +663,9 @@ const AppContent: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
-      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef]);
+      handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, 
+      handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
+      setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
@@ -794,11 +809,7 @@ const AppContent: React.FC = () => {
         }
       } else {
         // Start the service - restart and play the video
-        if (player) {
-          player.seekTo(0, true);
-          player.playVideo();
-        }
-        setIsPlaying(true);
+        handleRestart(); // Call the restart handler directly
         
         // Also restart monitor player if it exists
         if (videoMonitorPlayer) {
@@ -815,7 +826,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
     };
-  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, setIsPlayEnabled]);
+  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, setIsPlayEnabled, handleRestart]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
@@ -955,44 +966,32 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "controls") {
       return (
-        <div style={{ 
-          height: '100%', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          overflow: 'hidden'
-        }}>
-          <div style={{ 
-            height: '80px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center'
-          }}>
-            <VideoControls 
-              onPlayPause={handlePlayPause}
-              onSkipForward={handleSkipForward}
-              onSkipBack={handleSkipBack}
-              onFullscreen={handleFullscreen}
-              onSlideTransitionsToggle={handleSlideTransitionsToggle}
-              onPipToggle={handlePipToggle}
-              onEnablePip={handleEnablePip}
-              onDisablePip={handleDisablePip}
-              onRestart={handleRestart}
-              onVolumeChange={setVideoVolume}
-              onDuckingToggle={handleDuckingToggle}
-              onEnableDucking={handleEnableDucking}
-              onDisableDucking={handleDisableDucking}
-              onToggleMute={handleToggleMute}
-              isPlaying={isPlaying}
-              isSlideTransitionsEnabled={isSlideTransitionsEnabled}
-              isPipMode={isPipMode}
-              isDucking={isDucking}
-              isMuted={isMuted}
-              volume={videoVolume}
-              currentTime={currentVideoTime}
-            />
-          </div>
-        </div>
+        <Box sx={{ p: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <VideoControls
+            onPlayPause={handlePlayPause}
+            onSkipForward={handleSkipForward}
+            onSkipBack={handleSkipBack}
+            onFullscreen={handleFullscreen}
+            onSlideTransitionsToggle={handleSlideTransitionsToggle}
+            onPipToggle={handlePipToggle}
+            onEnablePip={handleEnablePip}
+            onDisablePip={handleDisablePip}
+            onRestart={handleRestart}
+            onVolumeChange={setVideoVolume}
+            onDuckingToggle={handleDuckingToggle}
+            onEnableDucking={handleEnableDucking}
+            onDisableDucking={handleDisableDucking}
+            onToggleMute={handleToggleMute}
+            onHelpClick={handleToggleHelp}
+            isPlaying={isPlaying}
+            isSlideTransitionsEnabled={isSlideTransitionsEnabled}
+            isPipMode={isPipMode}
+            volume={videoVolume}
+            isDucking={isDucking}
+            isMuted={isMuted}
+            currentTime={currentVideoTime}
+          />
+        </Box>
       );
     } else if (component === "piano") {
       return (
@@ -1036,7 +1035,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <React.Fragment>
       {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
       <Box 
         sx={{ 
@@ -1056,7 +1055,13 @@ const AppContent: React.FC = () => {
           }}
         />
       </Box>
-    </Box>
+      
+      {/* Help Dialog */}
+      <OnlineHelp 
+        open={isHelpOpen} 
+        onClose={() => setIsHelpOpen(false)}
+      />
+    </React.Fragment>
   );
 }
 
