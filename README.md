@@ -91,10 +91,9 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 
-- Get the volume controls on background player to behave like main player
-- Make fullscreen button vanish when fullscreen is enabled in popout
-- Try duckduckgo player to get around ads
 - Fix YouTube video ID settings
+- Get the volume controls on background player to behave like main player
+- Fullscreen button is sometimes still visible when fullscreen is enabled in popout mode
 - Correct the names of the component files to match current state
 - Fix popout fullscreen behavior issues
 - Possible server component to allow centralized configuration
