@@ -132,7 +132,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     ...buttonStyle,
     ...(isDucking && {
       color: 'rgba(127, 255, 0, 0.8)',
-      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+      backgroundColor: 'rgba(127, 255, 0, 0.1)',
+      transform: 'scale(0.9)', // Slightly smaller when active
     }),
     ...(isMuted && {
       color: 'rgba(255, 255, 255, 0.3)',
@@ -184,7 +185,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       }}>
         {/* Time Display */}
         {currentTime !== undefined && (
-          <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            marginRight: '10px',
+            borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+            paddingRight: 1,
+          }}>
             <VideoTimeDisplay 
               currentTimeInSeconds={currentTime} 
               position="left" 
@@ -192,72 +199,165 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             />
           </Box>
         )}
-        
-        <Tooltip 
-          title="Restart Video (Alt+R)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onRestart} sx={buttonStyle}>
-            <RestartAltIcon />
-          </IconButton>
-        </Tooltip>
 
-        <Tooltip 
-          title="Skip Back 5s (Left Arrow)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onSkipBack} sx={buttonStyle}>
-            <FastRewindIcon />
-          </IconButton>
-        </Tooltip>
-        
-        <Tooltip 
-          title={isPlaying ? "Pause (Space)" : "Play (Space)"} 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onPlayPause} sx={buttonStyle}>
-            {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-          </IconButton>
-        </Tooltip>
-        
-        <Tooltip 
-          title="Skip Forward 15s (Right Arrow)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onSkipForward} sx={buttonStyle}>
-            <FastForwardIcon />
-          </IconButton>
-        </Tooltip>
+        {/* Left side controls - Display and Mode controls */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+          paddingRight: 1,
+        }}>
+          <Tooltip 
+            title="Toggle Fullscreen (F)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onFullscreen} sx={buttonStyle}>
+              <FullscreenIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title="Toggle Picture-in-Picture (P)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
+              {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
+            </IconButton>
+          </Tooltip>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip 
+            title="Toggle Slide Transitions (T)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={onSlideTransitionsToggle} 
+              sx={slideTransitionsButtonStyle}
+            >
+              <SlideshowOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Center controls - Playback controls */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+          paddingRight: 1,
+        }}>
+          <Tooltip 
+            title="Restart Video (Alt+R)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onRestart} sx={buttonStyle}>
+              <RestartAltIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip 
+            title="Skip Back 5s (Left Arrow)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onSkipBack} sx={buttonStyle}>
+              <FastRewindIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title={isPlaying ? "Pause (Space)" : "Play (Space)"} 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onPlayPause} sx={buttonStyle}>
+              {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title="Skip Forward 15s (Right Arrow)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onSkipForward} sx={buttonStyle}>
+              <FastForwardIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Right side controls - Audio controls */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+        }}>
+          <Tooltip 
+            title="Toggle Ducking (D)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={onDuckingToggle} 
+              sx={duckingButtonStyle}
+            >
+              <VolumeDownIcon />
+            </IconButton>
+          </Tooltip>
+
           <Tooltip 
             title={isMuted ? 'Unmute (M)' : 'Mute (M)'} 
             placement="top" 
@@ -297,76 +397,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             />
           </Tooltip>
         </Box>
-        
-        <Tooltip 
-          title="Toggle Fullscreen (F)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onFullscreen} sx={buttonStyle}>
-            <FullscreenIcon />
-          </IconButton>
-        </Tooltip>
-        
-        <Tooltip 
-          title="Toggle Picture-in-Picture (P)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
-            {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip 
-          title="Toggle Slide Transitions (T)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton 
-            onClick={onSlideTransitionsToggle} 
-            sx={slideTransitionsButtonStyle}
-          >
-            <SlideshowOutlinedIcon />
-          </IconButton>
-        </Tooltip>
-        
-        <Tooltip 
-          title="Toggle Ducking (D)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton 
-            onClick={onDuckingToggle} 
-            sx={duckingButtonStyle}
-          >
-            <StopIcon />
-          </IconButton>
-        </Tooltip>
       </Box>
 
       {/* Help button - separated with divider and right-aligned */}
