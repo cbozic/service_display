@@ -31,7 +31,18 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   // Check if device is mobile
   useEffect(() => {
     const checkMobileDevice = () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const userAgent = navigator.userAgent.toLowerCase();
+      
+      // Check for specific mobile devices
+      const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      
+      // Check if it's a tablet (iPad or Android tablet)
+      const isTablet = /ipad|tablet|playbook|silk/i.test(userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      
+      // Consider it mobile if it's a mobile UA or a tablet
+      const isMobile = isMobileUA || isTablet;
+      
       setIsMobileDevice(isMobile);
     };
 
