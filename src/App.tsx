@@ -189,7 +189,7 @@ const AppContent: React.FC = () => {
     return process.env.PUBLIC_URL || '';
   };
   
-  const [gifPath, setGifPath] = useState<string>(`${getBasePath()}/default_content/ONLslideloop2025.gif`);
+  const [gifPath, setGifPath] = useState<string>(`${getBasePath()}/default_content/default_slides.gif`);
   
   const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
