@@ -10,6 +10,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import PictureInPictureIcon from '@mui/icons-material/PictureInPicture';
 import PictureInPictureAltIcon from '@mui/icons-material/PictureInPictureAlt';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import { VolumeUp } from '@mui/icons-material';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
@@ -241,7 +242,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </Tooltip>
 
           <Tooltip 
-            title="Toggle Slide Transitions (T)" 
+            title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
             placement="top" 
             arrow
             componentsProps={{
@@ -280,7 +281,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             PopperProps={tooltipPopperProps}
           >
             <IconButton onClick={onRestart} sx={buttonStyle}>
-              <RestartAltIcon />
+              <SkipPreviousIcon />
             </IconButton>
           </Tooltip>
 

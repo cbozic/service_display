@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, List, ListItem, Paper, CircularProgress, Typography, Button, IconButton, Tooltip } from '@mui/material';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import CountdownOverlay from './CountdownOverlay';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
 
 interface GifFrameDisplayProps {
@@ -285,12 +285,12 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                 component="span"
                 sx={buttonStyle}
               >
-                <FileUploadIcon />
+                <FolderOpenIcon />
               </IconButton>
             </label>
           </Tooltip>
           <Tooltip 
-            title={isAnimationEnabled ? "Disable Slide Transitions" : "Enable Slide Transitions"} 
+            title={isAnimationEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
             arrow
             placement="top"
             componentsProps={{
