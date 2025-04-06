@@ -75,7 +75,6 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             onClick={onMuteToggle} 
             size={buttonSize}
             sx={{
-              borderRadius: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)'
               }
@@ -119,7 +118,6 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             onClick={onSkipNext} 
             size={buttonSize}
             sx={{
-              borderRadius: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)'
               }
@@ -143,7 +141,6 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             onClick={onSkipRandom}
             size={buttonSize}
             sx={{
-              borderRadius: 1,
               '&:hover': {
                 backgroundColor: 'rgba(127, 255, 0, 0.12)'
               }

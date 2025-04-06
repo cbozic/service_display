@@ -4,7 +4,6 @@ import { parseGIF, decompressFrames } from 'gifuct-js';
 import CountdownOverlay from './CountdownOverlay';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
-import StopIcon from '@mui/icons-material/Stop';
 
 interface GifFrameDisplayProps {
   gifPath: string;
@@ -305,7 +304,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
               onClick={handleAnimationToggle} 
               sx={slideTransitionsButtonStyle}
             >
-              {isAnimationEnabled ? <StopIcon /> : <SlideshowOutlinedIcon />}
+              <SlideshowOutlinedIcon />
             </IconButton>
           </Tooltip>
         </div>

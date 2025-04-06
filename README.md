@@ -94,11 +94,15 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 
+- Fix audio sync issues
+- Improved mobile experience
+- Use an external URL for slides
 - Fix YouTube video ID settings
 - Get the volume controls on background player to behave like main player
 - Correct the names of the component files to match current state
 - Fix popout fullscreen behavior issues
 - Possible server component to allow centralized configuration
+- Reduce duplicated code by using BackgroundPlayerControls in the BackgroundPlayer
 - In the piano, add startAt setting for each key because not every key starts at the same time
 - Audio nudge improvements
 

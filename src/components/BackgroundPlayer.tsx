@@ -538,7 +538,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               onClick={handleMuteToggle} 
               size="small"
               sx={{
-                borderRadius: 1,
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.1)'
                 }
@@ -602,7 +601,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               onClick={handleSkipNext} 
               size="small"
               sx={{
-                borderRadius: 1,
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.1)'
                 }
@@ -636,7 +634,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               onClick={handleSkipToRandom}
               size="small"
               sx={{
-                borderRadius: 1,
                 '&:hover': {
                   backgroundColor: 'rgba(127, 255, 0, 0.12)'
                 }
