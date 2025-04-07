@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
-import { SkipNext, Shuffle, PlayArrow, Pause } from '@mui/icons-material';
+import { SkipNext, PlayArrow, Pause } from '@mui/icons-material';
 
 interface BackgroundPlayerControlsProps {
   volume: number;
@@ -9,7 +9,6 @@ interface BackgroundPlayerControlsProps {
   onPlayPauseToggle: () => void;
   onVolumeChange: (event: Event, value: number | number[]) => void;
   onSkipNext: () => void;
-  onSkipRandom: () => void;
   size?: 'small' | 'medium';
 }
 
@@ -20,7 +19,6 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
   onPlayPauseToggle,
   onVolumeChange,
   onSkipNext,
-  onSkipRandom,
   size = 'medium'
 }) => {
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
@@ -106,7 +104,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           />
         </Tooltip>
         <Tooltip 
-          title="Skip to next track in playlist" 
+          title="Skip to another track" 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}
@@ -126,29 +124,6 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             }}
           >
             <SkipNext />
-          </IconButton>
-        </Tooltip>
-        <Tooltip 
-          title="Play a random track from playlist" 
-          arrow 
-          placement="top"
-          PopperProps={tooltipPopperProps}
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-        >
-          <IconButton 
-            onClick={onSkipRandom}
-            size={buttonSize}
-            sx={{
-              '&:hover': {
-                backgroundColor: 'rgba(127, 255, 0, 0.12)'
-              }
-            }}
-          >
-            <Shuffle />
           </IconButton>
         </Tooltip>
       </Box>

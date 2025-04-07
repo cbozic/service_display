@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
-import { VolumeUp, VolumeOff, SkipNext, Shuffle, PlayArrow, Pause } from '@mui/icons-material';
+import { VolumeUp, VolumeOff, SkipNext, PlayArrow, Pause } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
@@ -30,6 +30,8 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   const [currentState, setCurrentState] = useState<number | null>(null);
   const effectiveVolumeRef = useRef<number>(backgroundVolume);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [playlist, setPlaylist] = useState<any[]>([]);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   // Custom version of fadeToVolume that updates display volume during transition
   const fadeToVolumeWithDisplay = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
@@ -340,16 +342,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     }
   }, [player, isPlayerReady, isPlaying, isMainPlayerPlaying]);
 
-  const handleSkipNext = useCallback(() => {
-    if (player && isPlayerReady) {
-      try {
-        player.nextVideo();
-      } catch (error) {
-        console.error('Error skipping to next video:', error);
-      }
-    }
-  }, [player, isPlayerReady]);
-
   const handleSkipToRandom = useCallback(() => {
     if (!player || !isPlayerReady) {
       console.log('Player not ready for random skip');
@@ -383,6 +375,17 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       console.error('Error in handleSkipToRandom:', error);
     }
   }, [player, isPlayerReady]);
+
+  const handleSkipNext = useCallback(() => {
+    if (player && isPlayerReady) {
+      try {
+        // Instead of going to the next track, pick a random one
+        handleSkipToRandom();
+      } catch (error) {
+        console.error('Error skipping to next track:', error);
+      }
+    }
+  }, [player, isPlayerReady, handleSkipToRandom]);
 
   const onPlayerReady = useCallback((event: YouTubeEvent) => {
     try {
@@ -490,6 +493,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       // 1: playing, 2: paused
       if (state === 1) {
         setIsPlaying(true);
+        setIsVideoLoaded(true);
         
         // If player started playing, check and update the display volume
         setTimeout(() => {
@@ -500,6 +504,8 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         }, 50);
       } else if (state === 2) {
         setIsPlaying(false);
+      } else if (state === 5) { // Video cued
+        setIsVideoLoaded(true);
       }
       
       // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering, 5: video cued
@@ -538,6 +544,25 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       vq: 'small'
     },
   };
+
+  // Add function to update our playlist state with the YouTube player's playlist
+  useEffect(() => {
+    if (player && isPlayerReady) {
+      try {
+        const ytPlaylist = player.getPlaylist();
+        if (ytPlaylist && ytPlaylist.length > 0) {
+          // Convert to our expected format
+          const formattedPlaylist = ytPlaylist.map((videoId: string, index: number) => ({
+            videoId,
+            title: `Track ${index + 1}` // We don't have titles from the API
+          }));
+          setPlaylist(formattedPlaylist);
+        }
+      } catch (error) {
+        console.error('Error getting playlist:', error);
+      }
+    }
+  }, [player, isPlayerReady]);
 
   if (!isApiReady || !playlistUrl) {
     return null;
@@ -631,7 +656,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
             />
           </Tooltip>
           <Tooltip 
-            title="Skip to next track in playlist" 
+            title="Skip to another track" 
             arrow 
             placement="top"
             PopperProps={{
@@ -661,39 +686,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               }}
             >
               <SkipNext />
-            </IconButton>
-          </Tooltip>
-          <Tooltip 
-            title="Play a random track from playlist" 
-            arrow 
-            placement="top"
-            PopperProps={{
-              sx: {
-                zIndex: 20000, // Higher than the overlay's z-index (9999)
-              }
-            }}
-            componentsProps={{
-              tooltip: {
-                sx: {
-                  fontSize: '0.95rem', // Larger font size
-                  fontWeight: 500,     // Slightly bolder
-                  py: 1,               // More padding
-                  px: 1.5,
-                  backgroundColor: '#333333'  // Lighter background
-                }
-              }
-            }}
-          >
-            <IconButton 
-              onClick={handleSkipToRandom}
-              size="small"
-              sx={{
-                '&:hover': {
-                  backgroundColor: 'rgba(127, 255, 0, 0.12)'
-                }
-              }}
-            >
-              <Shuffle />
             </IconButton>
           </Tooltip>
         </Box>

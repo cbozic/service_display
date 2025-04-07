@@ -222,15 +222,15 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
 
   const handleSkipNext = () => {
     if (backgroundPlayerRef.current) {
-      backgroundPlayerRef.current.nextVideo();
-    }
-  };
-
-  const handleSkipRandom = () => {
-    if (backgroundPlayerRef.current) {
+      // Instead of going to the next track, pick a random track
       const playlist = backgroundPlayerRef.current.getPlaylist();
       if (playlist && playlist.length > 0) {
-        const randomIndex = Math.floor(Math.random() * playlist.length);
+        const currentIndex = backgroundPlayerRef.current.getPlaylistIndex();
+        let randomIndex;
+        do {
+          randomIndex = Math.floor(Math.random() * playlist.length);
+        } while (randomIndex === currentIndex && playlist.length > 1);
+        
         backgroundPlayerRef.current.playVideoAt(randomIndex);
       }
     }
@@ -544,7 +544,6 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                     onPlayPauseToggle={handlePlayPauseToggle}
                     onVolumeChange={handleVolumeChange}
                     onSkipNext={handleSkipNext}
-                    onSkipRandom={handleSkipRandom}
                     size="small"
                   />
                   <Typography 
