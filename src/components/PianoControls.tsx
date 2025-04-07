@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Piano, MidiNumbers } from 'react-piano';
 import 'react-piano/dist/styles.css';
 import HiddenVideoPlayer from './HiddenVideoPlayer';

@@ -4,6 +4,7 @@ import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Box, Typography } from '@mui/material';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
+import { fadeToVolume } from '../utils/audioUtils';
 
 import Overlay from './Overlay';
 import { useYouTube } from '../contexts/YouTubeContext';
@@ -139,111 +140,6 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }
   }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, setIsPlayEnabled]);
 
-  const fadeToVolume = useCallback((targetVolume: number, fadeDurationInSeconds = 0, invokeWhenFinished = () => { }) => {
-    if (!player || !isPlayerReady) {
-      invokeWhenFinished();
-      return;
-    }
-    
-    // Clear any existing fade timeout
-    if (fadeTimeoutRef.current) {
-      clearTimeout(fadeTimeoutRef.current);
-    }
-
-    // For immediate volume changes, just set directly
-    if (fadeDurationInSeconds === 0) {
-      try {
-        if (targetVolume === 0) {
-          player.mute();
-        } else {
-          player.unMute();
-          player.setVolume(targetVolume);
-        }
-      } catch (e) {
-        console.log('Error setting volume directly:', e);
-      }
-      invokeWhenFinished();
-      return;
-    }
-    
-    // For fade effects
-    try {
-      let currentVolume = 0;
-      try {
-        currentVolume = player.getVolume();
-        if (isNaN(currentVolume)) currentVolume = 0;
-      } catch (e) {
-        console.log('Error getting volume:', e);
-      }
-
-      const volumeDifference = targetVolume - currentVolume;
-      const steps = FADE_STEPS;
-      const stepDuration = (fadeDurationInSeconds * 1000) / steps;
-      let currentStep = 0;
-
-      const fadeStep = () => {
-        if (!player || !isPlayerReady) {
-          invokeWhenFinished();
-          return;
-        }
-
-        if (currentStep < steps) {
-          const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
-          try {
-            if (newVolume === 0) {
-              player.mute();
-            } else {
-              player.unMute();
-              player.setVolume(newVolume);
-            }
-            currentStep++;
-            fadeTimeoutRef.current = setTimeout(fadeStep, stepDuration);
-          } catch (e) {
-            console.log('Error in fade step:', e);
-            // Skip to end
-            try {
-              if (targetVolume === 0) {
-                player.mute();
-              } else {
-                player.unMute();
-                player.setVolume(targetVolume);
-              }
-            } catch (e) {
-              console.log('Error setting final volume:', e);
-            }
-            fadeTimeoutRef.current = null;
-            invokeWhenFinished();
-          }
-        } else {
-          try {
-            if (targetVolume === 0) {
-              player.mute();
-            } else {
-              player.unMute();
-              player.setVolume(targetVolume);
-            }
-          } catch (e) {
-            console.log('Error setting final volume:', e);
-          }
-          fadeTimeoutRef.current = null;
-          invokeWhenFinished();
-        }
-      };
-
-      fadeStep();
-    } catch (e) {
-      console.log('Error in fade setup:', e);
-      invokeWhenFinished();
-    }
-
-    return () => {
-      if (fadeTimeoutRef.current) {
-        clearTimeout(fadeTimeoutRef.current);
-        fadeTimeoutRef.current = null;
-      }
-    };
-  }, [player, isPlayerReady]);
-
   useEffect(() => {
     if (player && isPlayerReady) {
       if (isPlaying) {
@@ -251,36 +147,41 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           // Start fading out overlay immediately
           setShowOverlay(false);
           player.unMute();
+          // Use the imported fadeToVolume function instead
+          const cleanup = fadeToVolume(player, volume, fadeDurationInSeconds);
           player.playVideo();
-          // Start the fade in effect for volume
-          fadeToVolume(volume, fadeDurationInSeconds);
+
+          // Store the cleanup function for later use
+          return cleanup;
         } catch (e) {
           console.log('Error starting playback:', e);
         }
       } else {
-        // Show overlay immediately when pausing
-        setShowOverlay(true);
-        // Trigger background player immediately when pausing
-        setIsPlayEnabled(true);
-        fadeToVolume(0, fadeDurationInSeconds, () => {
-          if (player && isPlayerReady) {
-            try {
-              player.pauseVideo();
-            } catch (e) {
-              console.log('Error pausing video:', e);
+        try {
+          // Show overlay immediately when pausing
+          setShowOverlay(true);
+          // Trigger background player immediately when pausing
+          setIsPlayEnabled(true);
+          // Use the imported fadeToVolume function instead
+          const cleanup = fadeToVolume(player, 0, fadeDurationInSeconds, () => {
+            if (player && isPlayerReady) {
+              try {
+                player.pauseVideo();
+              } catch (e) {
+                console.log('Error pausing video:', e);
+              }
             }
-          }
-        });
+          });
+
+          // Store the cleanup function for later use
+          return cleanup;
+        } catch (e) {
+          console.log('Error pausing playback:', e);
+          setIsPlayEnabled(true); // Make sure background can play if there's an error
+        }
       }
     }
-    
-    return () => {
-      if (fadeTimeoutRef.current) {
-        clearTimeout(fadeTimeoutRef.current);
-        fadeTimeoutRef.current = null;
-      }
-    };
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, fadeToVolume, setIsPlayEnabled, volume]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsPlayEnabled]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {

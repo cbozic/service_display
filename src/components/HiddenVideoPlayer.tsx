@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import YouTube, { YouTubeProps } from 'react-youtube';
+import React, { useState, useRef, useEffect } from 'react';
+import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
+import { fadeToVolume } from '../utils/audioUtils';
 
+// Declare global for YouTube API
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
@@ -27,7 +29,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   const [isApiReady, setIsApiReady] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [currentVolume, setCurrentVolume] = useState(volume);
-  const fadeIntervalRef = useRef<number | null>(null);
+  const fadeCleanupRef = useRef<(() => void) | null>(null);
 
   // Add initialization delay
   useEffect(() => {
@@ -41,48 +43,52 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Clean up fade interval on unmount
+  // Clean up fade on unmount
   useEffect(() => {
     return () => {
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
+      if (fadeCleanupRef.current) {
+        fadeCleanupRef.current();
+        fadeCleanupRef.current = null;
       }
     };
   }, []);
 
-  const fadeOut = () => {
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-    }
-
-    let startVolume = currentVolume;
-    const steps = FADE_STEPS;
-    const interval = 3000 / steps; // Total time = 3000ms
-    let currentStep = 0;
-
-    fadeIntervalRef.current = window.setInterval(() => {
-      currentStep++;
-      // Use exponential fade for more natural sound decay
-      const fadeProgress = currentStep / steps;
-      const newVolume = Math.max(0, startVolume * Math.pow(1 - fadeProgress, 1.5));
-      
-      if (player && newVolume > 0) {
-        player.setVolume(newVolume);
-        setCurrentVolume(newVolume);
-      } else {
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
-        if (player) {
-          player.pauseVideo();
+  useEffect(() => {
+    if (isPlayerReady && player) {
+      try {
+        if (isPlaying && !hasStarted) {
+          // Clear any existing fade
+          if (fadeCleanupRef.current) {
+            fadeCleanupRef.current();
+            fadeCleanupRef.current = null;
+          }
           player.seekTo(0);
-          player.mute();
+          player.unMute();
+          player.setVolume(volume);
+          setCurrentVolume(volume);
+          player.playVideo();
+          setHasStarted(true);
+        } else if (!isPlaying && hasStarted) {
+          // Start fade out using the consolidated function
+          const cleanup = fadeToVolume(player, 0, 3, () => {
+            if (player) {
+              player.pauseVideo();
+              player.seekTo(0);
+              player.mute();
+            }
+            setHasStarted(false);
+          });
+          fadeCleanupRef.current = cleanup;
+        } else if (hasStarted) {
+          // Update volume while playing
+          player.setVolume(volume);
+          setCurrentVolume(volume);
         }
-        setHasStarted(false);
+      } catch (error) {
+        console.error('Error controlling video:', error);
       }
-    }, interval);
-  };
+    }
+  }, [isPlaying, isPlayerReady, player, hasStarted, volume]);
 
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     const player = event.target;
@@ -107,35 +113,6 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
   useEffect(() => {
     setCurrentVolume(volume);
   }, [volume]);
-
-  useEffect(() => {
-    if (isPlayerReady && player) {
-      try {
-        if (isPlaying && !hasStarted) {
-          // Clear any existing fade out
-          if (fadeIntervalRef.current) {
-            clearInterval(fadeIntervalRef.current);
-            fadeIntervalRef.current = null;
-          }
-          player.seekTo(0);
-          player.unMute();
-          player.setVolume(volume);
-          setCurrentVolume(volume);
-          player.playVideo();
-          setHasStarted(true);
-        } else if (!isPlaying && hasStarted) {
-          // Start fade out
-          fadeOut();
-        } else if (hasStarted) {
-          // Update volume while playing
-          player.setVolume(volume);
-          setCurrentVolume(volume);
-        }
-      } catch (error) {
-        console.error('Error controlling video:', error);
-      }
-    }
-  }, [isPlaying, isPlayerReady, player, hasStarted, volume, fadeOut]);
 
   const opts: YouTubeProps['opts'] = {
     height: '1',

@@ -5,6 +5,7 @@ import { VolumeUp, VolumeOff, SkipNext, Shuffle } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
+import { fadeToVolume } from '../utils/audioUtils';
 
 interface BackgroundPlayerProps {
   playlistUrl?: string;
@@ -355,70 +356,6 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     }
   }, [player]);
 
-  // Move fadeVolume declaration before it's used
-  const fadeVolume = useCallback((startVolume: number, targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
-    if (fadeTimeoutRef.current) {
-      clearTimeout(fadeTimeoutRef.current);
-    }
-
-    if (!player || !isPlayerReady || typeof player.setVolume !== 'function') {
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const steps = FADE_STEPS;
-    const stepDuration = (durationInSeconds * 1000) / steps;
-    const volumeDifference = targetVolume - startVolume;
-    let currentStep = 0;
-
-    const fadeStep = () => {
-      if (!player || !isPlayerReady || typeof player.setVolume !== 'function') {
-        if (onComplete) onComplete();
-        return;
-      }
-
-      if (currentStep < steps) {
-        const newVolume = startVolume + (volumeDifference * (currentStep / steps));
-        try {
-          if (newVolume === 0) {
-            if (typeof player.mute === 'function') {
-              player.mute();
-            }
-          } else {
-            if (typeof player.unMute === 'function') {
-              player.unMute();
-            }
-            player.setVolume(newVolume);
-          }
-          currentStep++;
-          fadeTimeoutRef.current = window.setTimeout(fadeStep, stepDuration);
-        } catch (e) {
-          console.log('Error in fade step:', e);
-          if (onComplete) onComplete();
-        }
-      } else {
-        try {
-          if (targetVolume === 0) {
-            if (typeof player.mute === 'function') {
-              player.mute();
-            }
-          } else {
-            if (typeof player.unMute === 'function') {
-              player.unMute();
-            }
-            player.setVolume(targetVolume);
-          }
-        } catch (e) {
-          console.log('Error setting final volume:', e);
-        }
-        fadeTimeoutRef.current = null;
-        if (onComplete) onComplete();
-      }
-    };
-
-    fadeStep();
-  }, [player, isPlayerReady]);
-
   // Add effect to handle play state changes
   useEffect(() => {
     console.log('[BackgroundPlayer] Play state effect triggered:', {
@@ -441,13 +378,13 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         if (isPlayEnabled && !isMuted) {
           console.log('[BackgroundPlayer] Starting playback');
           player.playVideo();
-          // Fade in over 1 second
-          fadeVolume(0, backgroundVolume, 1);
+          // Use the consolidated fadeToVolume function
+          fadeToVolume(player, backgroundVolume, 1);
         } else if (!isPlayEnabled) {
           console.log('[BackgroundPlayer] Stopping playback');
           if (player && typeof player.pauseVideo === 'function') {
-            // Fade out over 3 seconds before pausing
-            fadeVolume(backgroundVolume, 0, 3, () => {
+            // Use the consolidated fadeToVolume function
+            fadeToVolume(player, 0, 3, () => {
               if (player && typeof player.pauseVideo === 'function') {
                 player.pauseVideo();
               }
@@ -458,7 +395,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         console.error('[BackgroundPlayer] Error controlling player:', error);
       }
     }
-  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, backgroundVolume, previousVolumeRef, fadeVolume, isManualVolumeChange]);
+  }, [player, isPlayerReady, isPlayEnabled, isMuted, currentState, backgroundVolume, previousVolumeRef, isManualVolumeChange]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
