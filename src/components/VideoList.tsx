@@ -403,23 +403,6 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
       flexDirection: 'column',
       width: '100%'
     }}>
-      <Typography
-        variant="subtitle1"
-        sx={{
-          color: '#fff',
-          padding: '4px',
-          width: '100%',
-          textAlign: 'center',
-          backgroundColor: 'darkred',
-          fontWeight: 500,
-          letterSpacing: '0.5px',
-          fontSize: '0.875rem',
-          marginBottom: '8px'
-        }}
-      >
-        Video List (Experimental)
-      </Typography>
-      
       {/* Hidden player to load playlist data */}
       {playlistUrl && isApiReady && (
         <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', zIndex: -1 }}>

@@ -51,15 +51,12 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
                   component: "slides",
                   enableClose: false,
                 },
-                // Include Video List only if experimental features are enabled
-                ...(showExperimental ? [
-                  {
-                    type: "tab",
-                    name: "Videos",
-                    component: "videoList",
-                    enableClose: false,
-                  }
-                ] : []),
+                {
+                  type: "tab",
+                  name: "Videos",
+                  component: "videoList",
+                  enableClose: false,
+                },
                 {
                   type: "tab",
                   name: "Settings",

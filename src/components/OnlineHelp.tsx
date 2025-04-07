@@ -223,7 +223,15 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Background Music"
-                secondary="A separate audio player for background music that can be controlled independently of the main video. Similar to the Slide Display, this background player will start when the main video player is paused and stop when the main video player is playing. The video from the background music player is not intended to be visble in the main display while the audio is inteneded to provide quiet background music. Features include volume control, track selection, and random playback. The music player can be muted or adjusted without affecting the main video's audio.  When the player starts, there may be some Youtube commercials initially. So, you should set up before your service starts and get those out of the way.  It is recommended to set your TV or PC volume where you normally would for the services main content and adjust the background music slider so it would be soft enough to avoid creating a distraction during prayer or fellowship. Note that the main display content has a separate volume control and will probably be much louder!"
+                secondary="A separate audio player for background music that can be controlled independently of the main video. Similar to the Slide Display, this background player will start when the main video player is paused and stop when the main video player is playing. The video from the background music player is not intended to be visible in the main display while the audio is intended to provide quiet background music. Features include volume control, track selection, and random playback. The music player can be muted or adjusted without affecting the main video's audio. When the player starts, there may be some YouTube commercials initially. So, you should set up before your service starts and get those out of the way. It is recommended to set your TV or PC volume where you normally would for the service's main content and adjust the background music slider so it would be soft enough to avoid creating a distraction during prayer or fellowship. Note that the main display content has a separate volume control and will probably be much louder!"
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Video List"
+                secondary="A component that displays and allows selection from a list of available videos in the current playlist. This provides a visual interface for browsing and selecting videos, which can be more convenient than using keyboard shortcuts or playlist navigation. The list shows thumbnails and titles of available videos."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -280,7 +288,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Experimental Features"
-                secondary="Enables access to experimental components like the video monitor, and video list selection, piano keyboard, and tuner. These features are still in development but can provide additional functionality for specific use cases. Note that enabling this option requires a page refresh to take effect."
+                secondary="Enables access to experimental components like the video monitor, piano keyboard, and tuner. These features are still in development but can provide additional functionality for specific use cases. Note that enabling this option requires a page refresh to take effect."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -351,14 +359,6 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
               <ListItemText
                 primary="Monitor"
                 secondary="A tool that displays the current state of the main video even when it's not hidden behind your slides. This is useful for fast-forwarding or rewinding the video while slides are shownin the main display. It also shows the current time of the video."
-                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
-                secondaryTypographyProps={{ sx: secondaryTextStyle }}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Video List"
-                secondary="A component that displays and allows selection from a list of available videos in the current playlist. This provides a visual interface for browsing and selecting videos, which can be more convenient than using keyboard shortcuts or playlist navigation. The list shows thumbnails and titles of available videos."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
