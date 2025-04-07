@@ -206,7 +206,7 @@ const AppContent: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
-  const { setIsPlayEnabled, isPlayEnabled, backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
+  const { backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
@@ -221,24 +221,10 @@ const AppContent: React.FC = () => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
       setIsPlaying(newPlayState);
-      setIsPlayEnabled(!newPlayState);
-      
-      // Directly control the background player if it exists
-      if (backgroundPlayerRef?.current) {
-        try {
-          if (newPlayState) {
-            // Main video is playing, pause background
-            backgroundPlayerRef.current.pauseVideo();
-          } else {
-            // Main video is paused, play background
-            backgroundPlayerRef.current.playVideo();
-          }
-        } catch (error) {
-          console.error('[App] Error controlling background player:', error);
-        }
-      }
+      // No longer directly control background player here
+      // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying, backgroundPlayerRef, setIsPlayEnabled]);
+  }, [isPlayerReady, isPlaying]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -280,7 +266,8 @@ const AppContent: React.FC = () => {
     const shouldBePlaying = state === 1;
     if (shouldBePlaying !== isPlaying) {
       setIsPlaying(shouldBePlaying);
-      setIsPlayEnabled(!shouldBePlaying);
+      // Background player volume will be controlled by its own component
+      // based on the isMainPlayerPlaying state
     }
     
     // Get the current video URL and extract the video ID
@@ -306,7 +293,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error('[App] Error getting video ID:', error);
     }
-  }, [isPlaying, isPlayerReady, setIsPlayEnabled, player, video]);
+  }, [isPlaying, isPlayerReady, player, video]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -969,7 +956,6 @@ const AppContent: React.FC = () => {
           backgroundPlayerRef.current.pauseVideo();
           backgroundPlayerRef.current.mute();
           setBackgroundMuted(true);
-          setIsPlayEnabled(false);
         }
       } else {
         // Start the service - restart and play the video
@@ -990,7 +976,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
     };
-  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, setIsPlayEnabled, handleRestart]);
+  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, handleRestart]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
@@ -1091,7 +1077,6 @@ const AppContent: React.FC = () => {
             volume={videoVolume}
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
-            isPlayEnabled={isPlayEnabled}
             onFullscreenChange={setIsFullscreen}
           />
           <VideoTimeEvents

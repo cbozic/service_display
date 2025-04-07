@@ -14,6 +14,8 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   const [isMusicEnabled, setIsMusicEnabled] = useState<boolean>(false);
   const [animationPhase, setAnimationPhase] = useState<'hidden' | 'expanding' | 'showing'>('hidden');
   const animationTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [displayVolume, setDisplayVolume] = useState<number>(0);
   const { 
     backgroundPlayerRef, 
     mainPlayersReady, 
@@ -21,7 +23,6 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     backgroundMuted,
     setBackgroundVolume,
     setBackgroundMuted,
-    setIsPlayEnabled,
     setManualVolumeChange
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
@@ -86,11 +87,13 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
           setBackgroundMuted(false);
           // Make sure we keep the current volume
           backgroundPlayerRef.current.setVolume(backgroundVolume);
+          setDisplayVolume(backgroundVolume);
         } else {
           // Decrease background volume by 5% of total (5 out of 100)
           const newVolume = Math.max(0, backgroundVolume - 5);
           console.log('< key pressed in overlay, decreasing background volume from', backgroundVolume, 'to', newVolume);
           setBackgroundVolume(newVolume);
+          setDisplayVolume(newVolume);
           
           // Update the actual player volume
           if (backgroundPlayerRef.current) {
@@ -107,11 +110,13 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
           setBackgroundMuted(false);
           // Make sure we keep the current volume
           backgroundPlayerRef.current.setVolume(backgroundVolume);
+          setDisplayVolume(backgroundVolume);
         } else {
           // Increase background volume by 5% of total (5 out of 100)
           const newVolume = Math.min(100, backgroundVolume + 5);
           console.log('> key pressed in overlay, increasing background volume from', backgroundVolume, 'to', newVolume);
           setBackgroundVolume(newVolume);
+          setDisplayVolume(newVolume);
           
           // Update the actual player volume
           if (backgroundPlayerRef.current) {
@@ -169,10 +174,25 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     if (backgroundPlayerRef.current) {
       if (!backgroundMuted) {
         backgroundPlayerRef.current.mute();
+        setDisplayVolume(0);
       } else {
         backgroundPlayerRef.current.unMute();
+        const volume = backgroundVolume;
+        setDisplayVolume(volume);
       }
       setBackgroundMuted(!backgroundMuted);
+    }
+  };
+
+  const handlePlayPauseToggle = () => {
+    if (backgroundPlayerRef.current) {
+      if (isPlaying) {
+        backgroundPlayerRef.current.pauseVideo();
+        setIsPlaying(false);
+      } else {
+        backgroundPlayerRef.current.playVideo();
+        setIsPlaying(true);
+      }
     }
   };
 
@@ -185,6 +205,18 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
     if (backgroundPlayerRef.current) {
       backgroundPlayerRef.current.setVolume(volumeValue);
       setBackgroundVolume(volumeValue);
+      setDisplayVolume(volumeValue);
+      
+      // If volume is 0, mute the player
+      if (volumeValue === 0) {
+        backgroundPlayerRef.current.mute();
+        setBackgroundMuted(true);
+      } 
+      // If we're adjusting from 0, unmute
+      else if (backgroundMuted) {
+        backgroundPlayerRef.current.unMute();
+        setBackgroundMuted(false);
+      }
     }
   };
 
@@ -228,12 +260,15 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         backgroundPlayerRef.current.unMute();
         backgroundPlayerRef.current.setVolume(backgroundVolume);
         setBackgroundMuted(false);
-        setIsPlayEnabled(true); // Enable background playback
+        setDisplayVolume(backgroundVolume);
         // Skip to a random video and play it
         const playlist = backgroundPlayerRef.current.getPlaylist();
         if (playlist && playlist.length > 0) {
           const randomIndex = Math.floor(Math.random() * playlist.length);
           backgroundPlayerRef.current.playVideoAt(randomIndex);
+          // Start playing and update state
+          backgroundPlayerRef.current.playVideo();
+          setIsPlaying(true);
         }
       }
     } else {
@@ -245,8 +280,9 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         // When disabling music
         backgroundPlayerRef.current.mute(); // Mute the player when disabling music
         setBackgroundMuted(true); // Update the muted state in context
-        setIsPlayEnabled(false); // Disable background playback
+        setDisplayVolume(0);
         backgroundPlayerRef.current.pauseVideo();
+        setIsPlaying(false);
       }
     }
   };
@@ -502,9 +538,10 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
                   }}
                 >
                   <BackgroundPlayerControls
-                    isMuted={backgroundMuted}
+                    displayVolume={displayVolume}
                     volume={backgroundVolume}
-                    onMuteToggle={handleMuteToggle}
+                    isPlaying={isPlaying}
+                    onPlayPauseToggle={handlePlayPauseToggle}
                     onVolumeChange={handleVolumeChange}
                     onSkipNext={handleSkipNext}
                     onSkipRandom={handleSkipRandom}

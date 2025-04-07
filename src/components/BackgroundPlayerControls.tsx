@@ -1,11 +1,12 @@
 import React from 'react';
 import { Box, IconButton, Tooltip, Slider } from '@mui/material';
-import { VolumeUp, VolumeOff, SkipNext, Shuffle } from '@mui/icons-material';
+import { SkipNext, Shuffle, PlayArrow, Pause } from '@mui/icons-material';
 
 interface BackgroundPlayerControlsProps {
-  isMuted: boolean;
   volume: number;
-  onMuteToggle: () => void;
+  displayVolume: number;
+  isPlaying: boolean;
+  onPlayPauseToggle: () => void;
   onVolumeChange: (event: Event, value: number | number[]) => void;
   onSkipNext: () => void;
   onSkipRandom: () => void;
@@ -13,9 +14,10 @@ interface BackgroundPlayerControlsProps {
 }
 
 const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
-  isMuted,
   volume,
-  onMuteToggle,
+  displayVolume,
+  isPlaying,
+  onPlayPauseToggle,
   onVolumeChange,
   onSkipNext,
   onSkipRandom,
@@ -61,7 +63,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
         justifyContent: 'center'
       }}>
         <Tooltip 
-          title={isMuted ? "Unmute background music" : "Mute background music"} 
+          title={isPlaying ? "Pause background music" : "Play background music"} 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}
@@ -72,7 +74,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           }}
         >
           <IconButton 
-            onClick={onMuteToggle} 
+            onClick={onPlayPauseToggle} 
             size={buttonSize}
             sx={{
               '&:hover': {
@@ -80,7 +82,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
               }
             }}
           >
-            {isMuted || volume === 0 ? <VolumeOff /> : <VolumeUp />}
+            {isPlaying ? <Pause /> : <PlayArrow />}
           </IconButton>
         </Tooltip>
         <Tooltip 
@@ -95,7 +97,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           }}
         >
           <Slider
-            value={isMuted ? 0 : volume}
+            value={displayVolume}
             onChange={handleVolumeChange}
             min={0}
             max={100}
@@ -127,7 +129,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           </IconButton>
         </Tooltip>
         <Tooltip 
-          title="Skip to a random track from playlist" 
+          title="Play a random track from playlist" 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}

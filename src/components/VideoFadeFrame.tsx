@@ -26,7 +26,6 @@ interface VideoFadeFrameProps {
   volume?: number;
   playlistUrl?: string;
   usePlaylistMode?: boolean;
-  isPlayEnabled?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
@@ -47,7 +46,6 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   volume = 100,
   playlistUrl,
   usePlaylistMode = false,
-  isPlayEnabled = true,
   onFullscreenChange
 }) => {
   const [player, setPlayer] = useState<any>(null);
@@ -59,7 +57,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userExitedFullscreenRef = useRef<boolean>(false);
-  const { setMainPlayersReady, setIsMainPlayerPlaying, setIsPlayEnabled } = useYouTube();
+  const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
 
   const handleClick = () => {
     if (player && isPlayerReady) {
@@ -108,9 +106,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       try {
         playerInstance.seekTo(startSeconds);
         playerInstance.mute();
-        if (isPlayEnabled) {
-          playerInstance.pauseVideo();
-        }
+        playerInstance.pauseVideo();
         setPlayer(playerInstance);
         setIsPlayerReady(true);
         onPlayerReady?.(playerInstance);
@@ -119,7 +115,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         console.log('Error initializing player:', e);
       }
     }, 100);
-  }, [startSeconds, onPlayerReady, setMainPlayersReady, isPlayEnabled]);
+  }, [startSeconds, onPlayerReady, setMainPlayersReady]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady) return;
@@ -131,14 +127,12 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       player.seekTo(startSeconds);
       onStateChange?.(0);
       setIsMainPlayerPlaying(false);
-      setIsPlayEnabled(true); // Main video ended, background should play
     } else {
       onStateChange?.(event.data);
       const isPlaying = event.data === 1;
       setIsMainPlayerPlaying(isPlaying);
-      setIsPlayEnabled(!isPlaying); // Background should play when main video is paused
     }
-  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, setIsPlayEnabled]);
+  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying]);
 
   useEffect(() => {
     if (player && isPlayerReady) {
@@ -150,6 +144,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, volume, fadeDurationInSeconds);
           player.playVideo();
+          setIsMainPlayerPlaying(true);
 
           // Store the cleanup function for later use
           return cleanup;
@@ -160,8 +155,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         try {
           // Show overlay immediately when pausing
           setShowOverlay(true);
-          // Trigger background player immediately when pausing
-          setIsPlayEnabled(true);
+          setIsMainPlayerPlaying(false);
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, 0, fadeDurationInSeconds, () => {
             if (player && isPlayerReady) {
@@ -177,11 +171,11 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
           return cleanup;
         } catch (e) {
           console.log('Error pausing playback:', e);
-          setIsPlayEnabled(true); // Make sure background can play if there's an error
+          setIsMainPlayerPlaying(false);
         }
       }
     }
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsPlayEnabled]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
