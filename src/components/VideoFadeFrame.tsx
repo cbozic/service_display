@@ -53,11 +53,62 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
+  const [currentVideoId, setCurrentVideoId] = useState<string>(video);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userExitedFullscreenRef = useRef<boolean>(false);
+  const playlistUrlRef = useRef<string | undefined>(playlistUrl);
+  const initializedRef = useRef<boolean>(false);
   const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
+
+  // Define getPlaylistId function before using it in hooks
+  const getPlaylistId = useCallback((url: string) => {
+    const regex = /[&?]list=([^&]+)/;
+    const match = url?.match(regex);
+    return match ? match[1] : '';
+  }, []);
+
+  // Track changes to the video ID prop
+  useEffect(() => {
+    setCurrentVideoId(video);
+  }, [video]);
+
+  // Reinitialize player when video ID changes
+  useEffect(() => {
+    // Only reinitialize if player is ready and the ID has actually changed
+    if (player && isPlayerReady && currentVideoId !== video) {
+      console.log(`[VideoFadeFrame] Video ID changed to ${video}, reinitializing player`);
+      // We'll handle this through the YouTube component's videoId prop
+      setCurrentVideoId(video);
+    }
+  }, [player, isPlayerReady, video, currentVideoId]);
+
+  // Reinitialize player when playlist URL changes
+  useEffect(() => {
+    if (player && isPlayerReady && playlistUrl !== playlistUrlRef.current) {
+      console.log(`[VideoFadeFrame] Playlist URL changed, reinitializing player with playlist: ${playlistUrl}`);
+      playlistUrlRef.current = playlistUrl;
+      
+      // Load the playlist if in playlist mode
+      if (usePlaylistMode && playlistUrl) {
+        const playlistId = getPlaylistId(playlistUrl);
+        if (playlistId) {
+          try {
+            console.log(`[VideoFadeFrame] Loading playlist: ${playlistId}`);
+            player.loadPlaylist({
+              list: playlistId,
+              listType: 'playlist',
+              index: 0,
+              startSeconds: startSeconds
+            });
+          } catch (e) {
+            console.error('[VideoFadeFrame] Error loading playlist:', e);
+          }
+        }
+      }
+    }
+  }, [player, isPlayerReady, playlistUrl, usePlaylistMode, getPlaylistId, startSeconds]);
 
   const handleClick = () => {
     if (player && isPlayerReady) {
@@ -111,28 +162,174 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         setIsPlayerReady(true);
         onPlayerReady?.(playerInstance);
         setMainPlayersReady(true);
+        
+        // Always try to load the first video from the playlist after initialization
+        if (!initializedRef.current && playlistUrl) {
+          console.log('[VideoFadeFrame] Initial load, attempting to load first video from playlist');
+          
+          // First, initialize with the default video ID
+          try {
+            playerInstance.cueVideoById({
+              videoId: video,
+              startSeconds: startSeconds
+            });
+          } catch (e) {
+            console.error('[VideoFadeFrame] Error cueing default video:', e);
+          }
+          
+          // Then, try to get the playlist ID and load the first video from it
+          const playlistId = getPlaylistId(playlistUrl);
+          if (playlistId) {
+            try {
+              // Use setTimeout to ensure this happens after the default video is loaded
+              setTimeout(() => {
+                console.log(`[VideoFadeFrame] Loading first video from playlist: ${playlistId}`);
+                
+                // If in playlist mode, load the entire playlist
+                if (usePlaylistMode) {
+                  playerInstance.loadPlaylist({
+                    list: playlistId,
+                    listType: 'playlist',
+                    index: 0,
+                    startSeconds: startSeconds
+                  });
+                } else {
+                  // Otherwise, just load the first video from the playlist
+                  playerInstance.cuePlaylist({
+                    list: playlistId,
+                    listType: 'playlist',
+                    index: 0
+                  });
+                  
+                  // Set a flag to handle the first cued event
+                  const firstCueHandledRef = {current: false};
+                  
+                  // Set up a timer to check and handle the first cued video
+                  const checkFirstVideoInterval = setInterval(() => {
+                    try {
+                      // Check if a video is cued (state 5)
+                      const playerState = playerInstance.getPlayerState();
+                      
+                      if (playerState === 5 && !firstCueHandledRef.current) {
+                        firstCueHandledRef.current = true;
+                        
+                        // Get the current video URL and extract ID
+                        const videoUrl = playerInstance.getVideoUrl();
+                        let videoId = '';
+                        
+                        if (videoUrl.includes('youtube.com/watch')) {
+                          const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
+                          videoId = urlParams.get('v') || '';
+                        } else if (videoUrl.includes('youtu.be/')) {
+                          videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+                        }
+                        
+                        if (videoId) {
+                          console.log(`[VideoFadeFrame] First video from playlist has ID: ${videoId}`);
+                          setCurrentVideoId(videoId);
+                          
+                          // Notify parent to update VideoConfigurationForm
+                          if (onStateChange) {
+                            const customEvent = {
+                              data: playerState,
+                              videoId: videoId
+                            };
+                            // @ts-ignore - We're extending the event data
+                            onStateChange(customEvent);
+                          }
+                        }
+                        
+                        // Clear the interval once we've handled the first video
+                        clearInterval(checkFirstVideoInterval);
+                      }
+                    } catch (err) {
+                      console.error('[VideoFadeFrame] Error checking for first video:', err);
+                      clearInterval(checkFirstVideoInterval);
+                    }
+                  }, 500); // Check every 500ms
+                  
+                  // Set a timeout to clear the interval if it takes too long
+                  setTimeout(() => {
+                    clearInterval(checkFirstVideoInterval);
+                  }, 10000); // 10 seconds max
+                }
+              }, 200);
+            } catch (e) {
+              console.error('[VideoFadeFrame] Error loading first video from playlist:', e);
+            }
+          }
+          initializedRef.current = true;
+        }
       } catch (e) {
         console.log('Error initializing player:', e);
       }
     }, 100);
-  }, [startSeconds, onPlayerReady, setMainPlayersReady]);
+  }, [startSeconds, onPlayerReady, setMainPlayersReady, usePlaylistMode, playlistUrl, getPlaylistId, video, onStateChange]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady) return;
 
     console.log('Player State Changed: ' + event.data);
-    if (event.data === 0) {
-      // Video has reached the end so reset the player
-      setShowOverlay(true);
-      player.seekTo(startSeconds);
-      onStateChange?.(0);
-      setIsMainPlayerPlaying(false);
-    } else {
-      onStateChange?.(event.data);
-      const isPlaying = event.data === 1;
-      setIsMainPlayerPlaying(isPlaying);
+    
+    // Parse the video ID from the current video URL
+    try {
+      const videoUrl = event.target.getVideoUrl();
+      let videoId = '';
+      
+      // Parse the URL to get the video ID
+      if (videoUrl.includes('youtube.com/watch')) {
+        // Format: https://www.youtube.com/watch?v=VIDEO_ID
+        const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
+        videoId = urlParams.get('v') || '';
+      } else if (videoUrl.includes('youtu.be/')) {
+        // Format: https://youtu.be/VIDEO_ID
+        videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+      }
+      
+      // If we got a valid video ID and it's different from current, update VideoConfigurationForm
+      if (videoId && videoId !== currentVideoId) {
+        console.log(`[VideoFadeFrame] Detected video ID change from ${currentVideoId} to ${videoId}`);
+        setCurrentVideoId(videoId);
+        // Notify parent to update VideoConfigurationForm
+        if (onStateChange) {
+          // Use a custom event data to pass both the state change and the new video ID
+          const customEvent = {
+            data: event.data,
+            videoId: videoId
+          };
+          // @ts-ignore - We're extending the event data
+          onStateChange(customEvent);
+        }
+      } else {
+        // Normal state change handling
+        if (event.data === 0) {
+          // Video has reached the end so reset the player
+          setShowOverlay(true);
+          player.seekTo(startSeconds);
+          onStateChange?.(0);
+          setIsMainPlayerPlaying(false);
+        } else {
+          onStateChange?.(event.data);
+          const isPlaying = event.data === 1;
+          setIsMainPlayerPlaying(isPlaying);
+        }
+      }
+    } catch (e) {
+      console.error('[VideoFadeFrame] Error parsing video ID from URL:', e);
+      // Fall back to normal state change handling
+      if (event.data === 0) {
+        // Video has reached the end so reset the player
+        setShowOverlay(true);
+        player.seekTo(startSeconds);
+        onStateChange?.(0);
+        setIsMainPlayerPlaying(false);
+      } else {
+        onStateChange?.(event.data);
+        const isPlaying = event.data === 1;
+        setIsMainPlayerPlaying(isPlaying);
+      }
     }
-  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying]);
+  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, currentVideoId]);
 
   useEffect(() => {
     if (player && isPlayerReady) {
@@ -327,30 +524,6 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     }
   };
 
-  const getPlaylistId = useCallback((url: string) => {
-    const regex = /[&?]list=([^&]+)/;
-    const match = url?.match(regex);
-    return match ? match[1] : '';
-  }, []);
-
-  const opts: YouTubeProps['opts'] = {
-    width: '100%',
-    height: '100%',
-    playerVars: {
-      // https://developers.google.com/youtube/player_parameters
-      playsinline: 1,
-      controls: 0,
-      disablekb: 1,
-      iv_load_policy: 3,
-      fs: 0,
-      modestbranding: 1,
-      ...(usePlaylistMode && playlistUrl && {
-        listType: 'playlist',
-        list: getPlaylistId(playlistUrl)
-      })
-    },
-  };
-
   // Add CSS transition for overlay opacity
   const overlayStyle = {
     transition: `opacity ${fadeDurationInSeconds}s ease-in-out`
@@ -484,6 +657,24 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     visibility: showInstructions ? 'visible' : 'hidden',
   };
 
+  const opts: YouTubeProps['opts'] = {
+    width: '100%',
+    height: '100%',
+    playerVars: {
+      // https://developers.google.com/youtube/player_parameters
+      playsinline: 1,
+      controls: 0,
+      disablekb: 1,
+      iv_load_policy: 3,
+      fs: 0,
+      modestbranding: 1,
+      ...(usePlaylistMode && playlistUrl && {
+        listType: 'playlist',
+        list: getPlaylistId(playlistUrl)
+      })
+    },
+  };
+
   return (
     <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
       {isPipMode && overlaySlide && (
@@ -502,7 +693,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
             className="VideoFadeFrame" 
             iframeClassName="VideoFadeFrame" 
             opts={opts}
-            videoId={video} 
+            videoId={currentVideoId} 
             onReady={onPlayerReadyHandler} 
             onStateChange={onStateChangeHandler} 
           />

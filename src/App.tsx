@@ -259,41 +259,37 @@ const AppContent: React.FC = () => {
     setIsPlayerReady(true);
   }, []);
 
-  const handleStateChange = useCallback((state: number) => {
+  const handleStateChange = useCallback((state: number | { data: number, videoId: string }) => {
     if (!isPlayerReady) return;
     
-    // Only update playing state if it's different from current state
-    const shouldBePlaying = state === 1;
-    if (shouldBePlaying !== isPlaying) {
-      setIsPlaying(shouldBePlaying);
-      // Background player volume will be controlled by its own component
-      // based on the isMainPlayerPlaying state
-    }
-    
-    // Get the current video URL and extract the video ID
-    try {
-      const videoUrl = player.getVideoUrl();
-      let videoId = '';
-      
-      // Parse the URL to get the video ID
-      if (videoUrl.includes('youtube.com/watch')) {
-        // Format: https://www.youtube.com/watch?v=VIDEO_ID
-        const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
-        videoId = urlParams.get('v') || '';
-      } else if (videoUrl.includes('youtu.be/')) {
-        // Format: https://youtu.be/VIDEO_ID
-        videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+    // Check if we received a custom event with videoId
+    if (typeof state === 'object' && 'videoId' in state) {
+      // Direct update of video ID from the player
+      const newVideoId = state.videoId;
+      if (newVideoId !== video) {
+        console.log(`[App] Updating video ID from player event: ${newVideoId}`);
+        setVideo(newVideoId);
       }
       
-      // If we got a valid video ID and it's different from current, update it
-      if (videoId && videoId !== video) {
-        console.log(`[App] Video ID changed from ${video} to ${videoId}`);
-        setVideo(videoId);
+      // Continue with regular state handling using the data property
+      const stateNumber = state.data;
+      
+      // Only update playing state if it's different from current state
+      const shouldBePlaying = stateNumber === 1;
+      if (shouldBePlaying !== isPlaying) {
+        setIsPlaying(shouldBePlaying);
       }
-    } catch (error) {
-      console.error('[App] Error getting video ID:', error);
+    } else {
+      // Handle the numeric state
+      const stateNumber = state;
+      
+      // Only update playing state if it's different from current state
+      const shouldBePlaying = stateNumber === 1;
+      if (shouldBePlaying !== isPlaying) {
+        setIsPlaying(shouldBePlaying);
+      }
     }
-  }, [isPlaying, isPlayerReady, player, video]);
+  }, [isPlaying, isPlayerReady, video]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
