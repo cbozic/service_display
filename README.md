@@ -94,10 +94,8 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 
-- Fix audio sync issues
 - Improved mobile experience
 - Use an external URL for slides
-- Fix YouTube video ID settings
 - Get the volume controls on background player to behave like main player
 - Correct the names of the component files to match current state
 - Fix popout fullscreen behavior issues

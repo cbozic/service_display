@@ -279,7 +279,31 @@ const AppContent: React.FC = () => {
       setIsPlaying(shouldBePlaying);
       setIsPlayEnabled(!shouldBePlaying);
     }
-  }, [isPlaying, isPlayerReady, setIsPlayEnabled]);
+    
+    // Get the current video URL and extract the video ID
+    try {
+      const videoUrl = player.getVideoUrl();
+      let videoId = '';
+      
+      // Parse the URL to get the video ID
+      if (videoUrl.includes('youtube.com/watch')) {
+        // Format: https://www.youtube.com/watch?v=VIDEO_ID
+        const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
+        videoId = urlParams.get('v') || '';
+      } else if (videoUrl.includes('youtu.be/')) {
+        // Format: https://youtu.be/VIDEO_ID
+        videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+      }
+      
+      // If we got a valid video ID and it's different from current, update it
+      if (videoId && videoId !== video) {
+        console.log(`[App] Video ID changed from ${video} to ${videoId}`);
+        setVideo(videoId);
+      }
+    } catch (error) {
+      console.error('[App] Error getting video ID:', error);
+    }
+  }, [isPlaying, isPlayerReady, setIsPlayEnabled, player, video]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -544,6 +568,119 @@ const AppContent: React.FC = () => {
     setIsHelpOpen(prev => !prev);
   }, []);
 
+  // Add these methods after other handler functions like handleToggleHelp, etc.
+  
+  const handleQuickSeekResync = useCallback(() => {
+    if (player && isPlayerReady) {
+      console.log('[App] Attempting Quick Seek Resync (Option 1)');
+      try {
+        const currentTime = player.getCurrentTime();
+        player.seekTo(currentTime);
+        
+        // Also sync the monitor player if it exists
+        if (videoMonitorPlayer) {
+          videoMonitorPlayer.seekTo(currentTime);
+        }
+      } catch (error) {
+        console.error('[App] Error during Quick Seek Resync:', error);
+      }
+    }
+  }, [player, isPlayerReady, videoMonitorPlayer]);
+
+  const handleRapidPausePlay = useCallback(() => {
+    if (player && isPlayerReady) {
+      console.log('[App] Attempting Rapid Pause/Play Resync (Option 2)');
+      try {
+        // Store current play state
+        const wasPlaying = isPlaying;
+        
+        // Force pause
+        player.pauseVideo();
+        
+        // Resume after a brief delay (50ms)
+        setTimeout(() => {
+          if (wasPlaying) {
+            player.playVideo();
+          }
+        }, 50);
+        
+        // Do the same for monitor player if it exists
+        if (videoMonitorPlayer) {
+          videoMonitorPlayer.pauseVideo();
+          if (wasPlaying) {
+            setTimeout(() => videoMonitorPlayer.playVideo(), 50);
+          }
+        }
+      } catch (error) {
+        console.error('[App] Error during Rapid Pause/Play Resync:', error);
+      }
+    }
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer]);
+
+  const handleQualityToggleResync = useCallback(() => {
+    if (player && isPlayerReady) {
+      console.log('[App] Attempting Quality Toggle Resync (Option 3)');
+      try {
+        // Get current quality
+        const currentQuality = player.getPlaybackQuality();
+        console.log(`[App] Current playback quality: ${currentQuality}`);
+        
+        // Force to a lower quality (small)
+        player.setPlaybackQuality('small');
+        
+        // Return to original quality after a short delay
+        setTimeout(() => {
+          if (currentQuality !== 'small') {
+            player.setPlaybackQuality(currentQuality);
+          } else {
+            // If it was already small, try to set it to a higher quality
+            player.setPlaybackQuality('hd720');
+          }
+        }, 10000); // 10 seconds
+      } catch (error) {
+        console.error('[App] Error during Quality Toggle Resync:', error);
+      }
+    }
+  }, [player, isPlayerReady]);
+
+  const handlePlayerReload = useCallback(() => {
+    if (player && isPlayerReady) {
+      console.log('[App] Attempting Player Reload Resync (Option 4)');
+      try {
+        // Store current state
+        const currentTime = player.getCurrentTime() - 2; // Subtract 2 seconds to account for the fade delay
+        const wasPlaying = player.getPlayerState() === 1; // 1 is YT.PlayerState.PLAYING
+        
+        // Stop and reload the video
+        player.stopVideo();
+        
+        // Reload the same video and restore position
+        setTimeout(() => {
+          player.cueVideoById({
+            videoId: video,
+            startSeconds: currentTime
+          });
+          
+          // Also handle the monitor player if it exists
+          if (videoMonitorPlayer) {
+            videoMonitorPlayer.stopVideo();
+            videoMonitorPlayer.cueVideoById({
+              videoId: video, 
+              startSeconds: currentTime
+            });
+          }
+
+          // Resume playback if it was playing
+          if (wasPlaying) {
+            setTimeout(() => player.playVideo(), 1000);
+          }
+        }, 200);
+      } catch (error) {
+        console.error('[App] Error during Player Reload Resync:', error);
+      }
+    }
+  }, [player, isPlayerReady, video, videoMonitorPlayer]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -659,6 +796,24 @@ const AppContent: React.FC = () => {
           setBackgroundVolume(newVolume);
         }
       }
+      
+      // Add these new key handlers for sync recovery options
+      else if (event.code === 'Digit1' && !event.repeat && isPlayerReady) {
+        event.preventDefault();
+        handleQualityToggleResync();
+      }
+      else if (event.code === 'Digit2' && !event.repeat && isPlayerReady) {
+        event.preventDefault();
+        handleQuickSeekResync();
+      }
+      else if (event.code === 'Digit3' && !event.repeat && isPlayerReady) {
+        event.preventDefault();
+        handleRapidPausePlay();
+      }
+      else if (event.code === 'Digit4' && !event.repeat && isPlayerReady) {
+        event.preventDefault();
+        handlePlayerReload();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -668,7 +823,10 @@ const AppContent: React.FC = () => {
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
       handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, 
       handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
-      setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp]);
+      setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
+      // Add these new dependencies:
+      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload
+  ]);
 
   // Handle fullscreen changes from external sources
   useEffect(() => {
