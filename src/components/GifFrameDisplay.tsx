@@ -415,7 +415,7 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
                     {currentFrameIndex === index && (
                       <CountdownOverlay 
                         isVisible={isAnimationEnabled}
-                        intervalDuration={15000}
+                        intervalDuration={10000}
                       />
                     )}
                   </Box>
