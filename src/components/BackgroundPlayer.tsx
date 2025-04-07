@@ -4,6 +4,7 @@ import { Box, IconButton, Tooltip, Slider } from '@mui/material';
 import { VolumeUp, VolumeOff, SkipNext, Shuffle } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import { FADE_STEPS } from '../App';
 
 interface BackgroundPlayerProps {
   playlistUrl?: string;
@@ -365,7 +366,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       return;
     }
 
-    const steps = 25;
+    const steps = FADE_STEPS;
     const stepDuration = (durationInSeconds * 1000) / steps;
     const volumeDifference = targetVolume - startVolume;
     let currentStep = 0;

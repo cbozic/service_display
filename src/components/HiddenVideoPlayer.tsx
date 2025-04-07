@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import { FADE_STEPS } from '../App';
 
 declare global {
   interface Window {
@@ -55,7 +56,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     }
 
     let startVolume = currentVolume;
-    const steps = 30; // More steps for smoother fade
+    const steps = FADE_STEPS;
     const interval = 3000 / steps; // Total time = 3000ms
     let currentStep = 0;
 

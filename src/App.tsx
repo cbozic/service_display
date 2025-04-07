@@ -21,6 +21,9 @@ import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import OnlineHelp from './components/OnlineHelp';
 
+// System-wide constants
+export const FADE_STEPS = 30; // Default fade steps for volume transitions
+
 // Create a function to generate the flexlayout json based on experimental features flag
 const createLayoutJson = (showExperimental: boolean): IJsonModel => {
   return {
@@ -490,7 +493,7 @@ const AppContent: React.FC = () => {
       // Fade back to original volume over 3 seconds
       const startVolume = videoVolume;
       const targetVolume = preDuckVolume.current;
-      const steps = 25;
+      const steps = FADE_STEPS;
       const stepDuration = 3000 / steps;
       let currentStep = 0;
 
@@ -527,7 +530,7 @@ const AppContent: React.FC = () => {
       // Fade back to original volume over 3 seconds
       const startVolume = videoVolume;
       const targetVolume = preDuckVolume.current;
-      const steps = 25;
+      const steps = FADE_STEPS;
       const stepDuration = 3000 / steps;
       let currentStep = 0;
 

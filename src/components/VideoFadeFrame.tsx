@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './VideoFadeFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
+import { Box, Typography } from '@mui/material';
+import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import { FADE_STEPS } from '../App';
 
 import Overlay from './Overlay';
 import { useYouTube } from '../contexts/YouTubeContext';
@@ -174,7 +177,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
       }
 
       const volumeDifference = targetVolume - currentVolume;
-      const steps = 25;
+      const steps = FADE_STEPS;
       const stepDuration = (fadeDurationInSeconds * 1000) / steps;
       let currentStep = 0;
 

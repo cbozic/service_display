@@ -5,6 +5,7 @@ import HiddenVideoPlayer from './HiddenVideoPlayer';
 import { Box, IconButton, Tooltip, Slider, Typography } from '@mui/material';
 import { VolumeUp, VolumeOff } from '@mui/icons-material';
 import { useYouTube } from '../contexts/YouTubeContext';
+import { FADE_STEPS } from '../App';
 
 // Constants for piano configuration
 const FIRST_NOTE = MidiNumbers.fromNote('c3');
@@ -201,7 +202,7 @@ const PianoControls: React.FC<PianoControlsProps> = ({
       clearInterval(fadeIntervalRef.current);
     }
 
-    const steps = 30; // More steps for smoother fade
+    const steps = FADE_STEPS;
     const interval = 3000 / steps; // Total time = 3000ms
     let currentStep = 0;
 
