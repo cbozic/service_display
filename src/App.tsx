@@ -72,8 +72,8 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
               children: [
                 {
                   type: "tab",
-                  name: "Music",
-                  component: "background",
+                  name: "Background Video",
+                  component: "backgroundVideo",
                   enableClose: false,
                 },
                 // Include experimental Keys and Tuner only if enabled
@@ -1091,7 +1091,7 @@ const AppContent: React.FC = () => {
           )}
         </div>
       );
-    } else if (component === "background") {
+    } else if (component === "backgroundVideo") {
       return (
         <BackgroundVideoPlayer
           playlistUrl={backgroundPlaylistUrl}
