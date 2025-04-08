@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
-import { Box, IconButton, Tooltip, Slider } from '@mui/material';
-import { VolumeUp, VolumeOff, SkipNext, PlayArrow, Pause } from '@mui/icons-material';
+import { Box } from '@mui/material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
 import { fadeToVolume } from '../utils/audioUtils';
+import BackgroundPlayerControls from './BackgroundPlayerControls';
 
 interface BackgroundPlayerProps {
   playlistUrl?: string;
@@ -585,110 +585,14 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         gap: 2,
         alignItems: 'center'    // Center controls horizontally
       }}>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 2, 
-          p: 1,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <Tooltip 
-            title={isPlaying ? "Pause background music" : "Play background music"} 
-            arrow 
-            placement="top"
-            PopperProps={{
-              sx: {
-                zIndex: 20000,
-              }
-            }}
-            componentsProps={{
-              tooltip: {
-                sx: {
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  py: 1,
-                  px: 1.5,
-                  backgroundColor: '#333333'
-                }
-              }
-            }}
-          >
-            <IconButton 
-              onClick={handlePlayPauseToggle} 
-              size="small"
-              sx={{
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                }
-              }}
-            >
-              {isPlaying ? <Pause /> : <PlayArrow />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip 
-            title="Adjust background music volume (< and > keys adjust by 5%)" 
-            arrow 
-            placement="top"
-            PopperProps={{
-              sx: {
-                zIndex: 20000, // Higher than the overlay's z-index (9999)
-              }
-            }}
-            componentsProps={{
-              tooltip: {
-                sx: {
-                  fontSize: '0.95rem', // Larger font size
-                  fontWeight: 500,     // Slightly bolder
-                  py: 1,               // More padding
-                  px: 1.5,
-                  backgroundColor: '#333333'  // Lighter background
-                }
-              }
-            }}
-          >
-            <Slider
-              value={displayVolume}
-              onChange={handleVolumeChange}
-              min={0}
-              max={100}
-              aria-label="Volume"
-              sx={{ width: 100 }}
-            />
-          </Tooltip>
-          <Tooltip 
-            title="Skip to another track" 
-            arrow 
-            placement="top"
-            PopperProps={{
-              sx: {
-                zIndex: 20000, // Higher than the overlay's z-index (9999)
-              }
-            }}
-            componentsProps={{
-              tooltip: {
-                sx: {
-                  fontSize: '0.95rem', // Larger font size
-                  fontWeight: 500,     // Slightly bolder
-                  py: 1,               // More padding
-                  px: 1.5,
-                  backgroundColor: '#333333'  // Lighter background
-                }
-              }
-            }}
-          >
-            <IconButton 
-              onClick={handleSkipNext} 
-              size="small"
-              sx={{
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                }
-              }}
-            >
-              <SkipNext />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        <BackgroundPlayerControls 
+          volume={backgroundVolume}
+          displayVolume={displayVolume}
+          isPlaying={isPlaying}
+          onPlayPauseToggle={handlePlayPauseToggle}
+          onVolumeChange={handleVolumeChange}
+          onSkipNext={handleSkipNext}
+        />
         <Box sx={{ 
           position: 'relative',
           width: '100%',        // Take full width of parent
@@ -709,4 +613,4 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   );
 };
 
-export default BackgroundPlayer; 
+export default BackgroundPlayer;
