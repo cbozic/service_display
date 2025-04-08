@@ -100,7 +100,6 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 - Correct the names of the component files to match current state
 - Fix popout fullscreen behavior issues
 - Possible server component to allow centralized configuration
-- Reduce duplicated code by using BackgroundPlayerControls in the BackgroundPlayer
 - In the piano, add startAt setting for each key because not every key starts at the same time
 - Audio nudge improvements
 

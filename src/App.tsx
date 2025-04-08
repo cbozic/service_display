@@ -12,7 +12,7 @@ import { Layout, Model, TabNode, IJsonModel } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
-import BackgroundPlayer from './components/BackgroundPlayer';
+import BackgroundVideoPlayer from './components/BackgroundVideoPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
 import ReactDOM from 'react-dom';
 import ServiceStartOverlay from './components/ServiceStartOverlay';
@@ -1093,7 +1093,7 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "background") {
       return (
-        <BackgroundPlayer
+        <BackgroundVideoPlayer
           playlistUrl={backgroundPlaylistUrl}
         />
       );

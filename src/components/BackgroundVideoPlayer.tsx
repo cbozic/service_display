@@ -12,7 +12,7 @@ interface BackgroundPlayerProps {
   volume?: number;
 }
 
-const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
+const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   playlistUrl = '',
   volume: propVolume
 }): JSX.Element | null => {
@@ -99,7 +99,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     // Only set the initial volume if it hasn't been set before
     if (!initialVolumeSetRef.current && player && isPlayerReady) {
       const initialVolume = propVolume !== undefined ? propVolume : backgroundVolume;
-      console.log('[BackgroundPlayer] Setting initial volume:', initialVolume);
+      console.log('[BackgroundVideoPlayer] Setting initial volume:', initialVolume);
       
       try {
         player.setVolume(initialVolume);
@@ -112,17 +112,17 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
         effectiveVolumeRef.current = initialVolume;
         initialVolumeSetRef.current = true;
       } catch (error) {
-        console.error('[BackgroundPlayer] Error setting initial volume:', error);
+        console.error('[BackgroundVideoPlayer] Error setting initial volume:', error);
       }
     }
   }, [player, isPlayerReady, propVolume, backgroundVolume, setBackgroundVolume]);
 
   // Add effect to handle backgroundVolume changes from context
   useEffect(() => {
-    console.log('[BackgroundPlayer] Context volume changed:', backgroundVolume, 'Player ready:', isPlayerReady, 'Player exists:', !!player);
+    console.log('[BackgroundVideoPlayer] Context volume changed:', backgroundVolume, 'Player ready:', isPlayerReady, 'Player exists:', !!player);
     if (player && isPlayerReady && typeof player.setVolume === 'function') {
       try {
-        console.log('[BackgroundPlayer] Actually setting player volume to:', backgroundVolume);
+        console.log('[BackgroundVideoPlayer] Actually setting player volume to:', backgroundVolume);
         
         // Only directly set volume if we're not in a fade transition
         if (!fadeIntervalRef.current) {
@@ -134,15 +134,15 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           setTimeout(() => {
             try {
               const currentVolume = player.getVolume();
-              console.log('[BackgroundPlayer] Volume verification - requested:', backgroundVolume, 'actual:', currentVolume);
+              console.log('[BackgroundVideoPlayer] Volume verification - requested:', backgroundVolume, 'actual:', currentVolume);
               setDisplayVolume(currentVolume);
             } catch (error) {
-              console.error('[BackgroundPlayer] Error getting volume for verification:', error);
+              console.error('[BackgroundVideoPlayer] Error getting volume for verification:', error);
             }
           }, 100);
         }
       } catch (error) {
-        console.error('[BackgroundPlayer] Error setting volume from context:', error);
+        console.error('[BackgroundVideoPlayer] Error setting volume from context:', error);
       }
     }
   }, [backgroundVolume, player, isPlayerReady]);
@@ -151,7 +151,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   useEffect(() => {
     if (player && isPlayerReady) {
       try {
-        console.log('[BackgroundPlayer] Context muted state changed:', backgroundMuted);
+        console.log('[BackgroundVideoPlayer] Context muted state changed:', backgroundMuted);
         if (backgroundMuted) {
           player.mute();
           setDisplayVolume(0);
@@ -163,21 +163,21 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
               const currentVolume = player.getVolume();
               setDisplayVolume(currentVolume);
             } catch (error) {
-              console.error('[BackgroundPlayer] Error getting volume after unmute:', error);
+              console.error('[BackgroundVideoPlayer] Error getting volume after unmute:', error);
             }
           }, 50);
         }
         setIsMuted(backgroundMuted);
       } catch (error) {
-        console.error('[BackgroundPlayer] Error setting mute state from context:', error);
+        console.error('[BackgroundVideoPlayer] Error setting mute state from context:', error);
       }
     }
   }, [backgroundMuted, player, isPlayerReady]);
 
   // Initialize YouTube API
   useEffect(() => {
-    console.log('[BackgroundPlayer] Checking YouTube API readiness');
-    console.log('[BackgroundPlayer] Current window.YT state:', {
+    console.log('[BackgroundVideoPlayer] Checking YouTube API readiness');
+    console.log('[BackgroundVideoPlayer] Current window.YT state:', {
       hasYT: !!window.YT,
       hasPlayer: !!(window.YT && window.YT.Player),
       YTType: typeof window.YT
@@ -185,26 +185,26 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
 
     // Don't initialize if already ready
     if (window.YT && window.YT.Player) {
-      console.log('[BackgroundPlayer] YouTube API already ready');
+      console.log('[BackgroundVideoPlayer] YouTube API already ready');
       setIsApiReady(true);
       return;
     }
 
     // Load the YouTube API
-    console.log('[BackgroundPlayer] Loading YouTube API...');
+    console.log('[BackgroundVideoPlayer] Loading YouTube API...');
     loadYouTubeAPI()
       .then(() => {
-        console.log('[BackgroundPlayer] YouTube API loaded successfully');
+        console.log('[BackgroundVideoPlayer] YouTube API loaded successfully');
         setIsApiReady(true);
       })
       .catch(error => {
-        console.error('[BackgroundPlayer] Error loading YouTube API:', error);
+        console.error('[BackgroundVideoPlayer] Error loading YouTube API:', error);
       });
   }, []);
 
   // Log when player state changes
   useEffect(() => {
-    console.log('[BackgroundPlayer] Player state updated:', {
+    console.log('[BackgroundVideoPlayer] Player state updated:', {
       hasPlayer: !!player,
       isPlayerReady,
       isApiReady,
@@ -221,7 +221,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   useEffect(() => {
     if (!player || !isPlayerReady || !isPlaying) return;
     
-    console.log('[BackgroundPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
+    console.log('[BackgroundVideoPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
     
     // Skip fade if this is a manual volume change from the slider
     if (isManualVolumeChange.current) {
@@ -232,15 +232,15 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
     try {
       if (isMainPlayerPlaying) {
         // Main video is playing, fade out background music
-        console.log('[BackgroundPlayer] Main video is playing, fading out background to 0');
+        console.log('[BackgroundVideoPlayer] Main video is playing, fading out background to 0');
         fadeToVolumeWithDisplay(0, 2);
       } else {
         // Main video is paused, fade in background music
-        console.log('[BackgroundPlayer] Main video is paused, fading in background to', backgroundVolume);
+        console.log('[BackgroundVideoPlayer] Main video is paused, fading in background to', backgroundVolume);
         fadeToVolumeWithDisplay(backgroundVolume, 1);
       }
     } catch (error) {
-      console.error('[BackgroundPlayer] Error in main player state effect:', error);
+      console.error('[BackgroundVideoPlayer] Error in main player state effect:', error);
     }
   }, [isMainPlayerPlaying, player, isPlayerReady, backgroundVolume, isPlaying, isManualVolumeChange, fadeToVolumeWithDisplay]);
 
@@ -260,7 +260,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           }
         }
       } catch (error) {
-        console.error('[BackgroundPlayer] Error in volume update interval:', error);
+        console.error('[BackgroundVideoPlayer] Error in volume update interval:', error);
       }
     }, 1000); // Check once per second
     
@@ -389,11 +389,11 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
 
   const onPlayerReady = useCallback((event: YouTubeEvent) => {
     try {
-      console.log('[BackgroundPlayer] Player ready event triggered');
+      console.log('[BackgroundVideoPlayer] Player ready event triggered');
       const playerInstance = event.target;
       
       // Basic player setup
-      console.log('[BackgroundPlayer] Setting up player instance');
+      console.log('[BackgroundVideoPlayer] Setting up player instance');
       playerInstance.mute(); // Start muted by default
       // Use the volume from context
       const volumeToUse = previousVolumeRef.current || backgroundVolume;
@@ -408,7 +408,7 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       
       // Store player reference in context
       if (backgroundPlayerRef) {
-        console.log('[BackgroundPlayer] Storing player reference in context');
+        console.log('[BackgroundVideoPlayer] Storing player reference in context');
         backgroundPlayerRef.current = playerInstance;
       }
       
@@ -416,26 +416,26 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
       const startPlayback = () => {
         try {
           if (!playerInstance) {
-            console.log('[BackgroundPlayer] No player instance available');
+            console.log('[BackgroundVideoPlayer] No player instance available');
             return;
           }
           
-          console.log('[BackgroundPlayer] Starting initial playback');
+          console.log('[BackgroundVideoPlayer] Starting initial playback');
           
           // Check if playlist is loaded
           const checkPlaylist = () => {
             try {
               const playlist = playerInstance.getPlaylist();
-              console.log('[BackgroundPlayer] Checking playlist:', playlist);
+              console.log('[BackgroundVideoPlayer] Checking playlist:', playlist);
               
               if (playlist && playlist.length > 0) {
-                console.log('[BackgroundPlayer] Playlist loaded, length:', playlist.length);
+                console.log('[BackgroundVideoPlayer] Playlist loaded, length:', playlist.length);
                 if (!hasInitialized) {
                   setHasInitialized(true);
                   // Wait a bit before attempting random skip
                   setTimeout(() => {
                     try {
-                      console.log('[BackgroundPlayer] Attempting random skip');
+                      console.log('[BackgroundVideoPlayer] Attempting random skip');
                       // Don't unmute automatically
                       if (!backgroundMuted) {
                         playerInstance.unMute();
@@ -452,20 +452,20 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
                       playerInstance.setVolume(volumeToUse);
                       handleSkipToRandom();
                       // Always play initially since it's more expected behavior
-                      console.log('[BackgroundPlayer] Playing after skip');
+                      console.log('[BackgroundVideoPlayer] Playing after skip');
                       playerInstance.playVideo();
                       setIsPlaying(true);
                     } catch (e) {
-                      console.error('[BackgroundPlayer] Error during delayed skip:', e);
+                      console.error('[BackgroundVideoPlayer] Error during delayed skip:', e);
                     }
                   }, 2000);
                 }
               } else {
-                console.log('[BackgroundPlayer] Playlist not ready, retrying...');
+                console.log('[BackgroundVideoPlayer] Playlist not ready, retrying...');
                 setTimeout(checkPlaylist, 1000);
               }
             } catch (e) {
-              console.error('[BackgroundPlayer] Error in checkPlaylist:', e);
+              console.error('[BackgroundVideoPlayer] Error in checkPlaylist:', e);
               setTimeout(checkPlaylist, 1000);
             }
           };
@@ -473,14 +473,14 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
           // Start checking for playlist
           checkPlaylist();
         } catch (e) {
-          console.error('[BackgroundPlayer] Error in startPlayback:', e);
+          console.error('[BackgroundVideoPlayer] Error in startPlayback:', e);
         }
       };
 
       // Start the playback process
       startPlayback();
     } catch (error) {
-      console.error('[BackgroundPlayer] Error in onPlayerReady:', error);
+      console.error('[BackgroundVideoPlayer] Error in onPlayerReady:', error);
     }
   }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted]);
 
@@ -613,4 +613,4 @@ const BackgroundPlayer: React.FC<BackgroundPlayerProps> = ({
   );
 };
 
-export default BackgroundPlayer;
+export default BackgroundVideoPlayer;
