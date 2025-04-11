@@ -429,4 +429,4 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   );
 };
 
-export default GifFrameDisplay; 
+export default GifFrameDisplay;
