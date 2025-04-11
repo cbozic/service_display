@@ -386,6 +386,72 @@ const AppContent: React.FC = () => {
           console.log('[App] Skipping ducking enable event registration (current time > 3s)');
         }
 
+        // Register background players pause event at 10 seconds
+        if (currentTime < 10) {
+          console.log('[App] Registering background players pause event for 10s');
+          timeEventsRef.current.registerEvent(10, () => {
+            console.log('[App] Pausing background players at 10s');
+            
+            // Pause background video player
+            if (backgroundPlayerRef?.current) {
+              try {
+                console.log('[App] Pausing background video player');
+                backgroundPlayerRef.current.pauseVideo();
+              } catch (error) {
+                console.error('[App] Error pausing background video player:', error);
+              }
+            }
+            
+            // Pause background music player (audio elements)
+            try {
+              const audioElements = document.getElementsByTagName('audio');
+              console.log('[App] Found', audioElements.length, 'audio elements to pause');
+              for (let i = 0; i < audioElements.length; i++) {
+                console.log('[App] Pausing audio element', i);
+                audioElements[i].pause();
+              }
+            } catch (error) {
+              console.error('[App] Error pausing audio elements:', error);
+            }
+          });
+        }
+        
+        // Register background players unpause event at 20 seconds
+        if (currentTime < 20) {
+          console.log('[App] Registering background players unpause event for 20s');
+          timeEventsRef.current.registerEvent(20, () => {
+            console.log('[App] Unpausing background players at 20s');
+            
+            // Unpause background video player
+            if (backgroundPlayerRef?.current) {
+              try {
+                console.log('[App] Unpausing background video player');
+                backgroundPlayerRef.current.playVideo();
+              } catch (error) {
+                console.error('[App] Error unpausing background video player:', error);
+              }
+            }
+            
+            // Unpause background music player (audio elements)
+            try {
+              const audioElements = document.getElementsByTagName('audio');
+              console.log('[App] Found', audioElements.length, 'audio elements to unpause');
+              for (let i = 0; i < audioElements.length; i++) {
+                console.log('[App] Playing audio element', i);
+                // Use promise to handle autoplay restrictions
+                const playPromise = audioElements[i].play();
+                if (playPromise !== undefined) {
+                  playPromise.catch(error => {
+                    console.error('[App] Error playing audio (autoplay restrictions?):', error);
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('[App] Error unpausing audio elements:', error);
+            }
+          });
+        }
+
         // Check if current time is eligible for PiP events
         // Saturday is day 6, Sunday is day 0
         const now = new Date();
@@ -440,7 +506,7 @@ const AppContent: React.FC = () => {
     } else {
       console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
     }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen]);
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
