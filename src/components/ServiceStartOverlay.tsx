@@ -261,14 +261,43 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
         backgroundPlayerRef.current.setVolume(backgroundVolume);
         setBackgroundMuted(false);
         setDisplayVolume(backgroundVolume);
+        
+        console.log('[ServiceStartOverlay] Starting background music playback');
+        
         // Skip to a random video and play it
-        const playlist = backgroundPlayerRef.current.getPlaylist();
-        if (playlist && playlist.length > 0) {
-          const randomIndex = Math.floor(Math.random() * playlist.length);
-          backgroundPlayerRef.current.playVideoAt(randomIndex);
-          // Start playing and update state
-          backgroundPlayerRef.current.playVideo();
-          setIsPlaying(true);
+        try {
+          const playlist = backgroundPlayerRef.current.getPlaylist();
+          if (playlist && playlist.length > 0) {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            console.log(`[ServiceStartOverlay] Playing random track at index ${randomIndex} from playlist of ${playlist.length} tracks`);
+            backgroundPlayerRef.current.playVideoAt(randomIndex);
+            
+            // Explicitly force playback with small delay to ensure YouTube API responds
+            setTimeout(() => {
+              if (backgroundPlayerRef.current) {
+                backgroundPlayerRef.current.playVideo();
+                console.log('[ServiceStartOverlay] Explicit playVideo() called with delay');
+              }
+            }, 500);
+            
+            // Start playing and update state immediately as well
+            backgroundPlayerRef.current.playVideo();
+            setIsPlaying(true);
+          } else {
+            console.warn('[ServiceStartOverlay] No playlist available or playlist empty');
+            // Try to play current video if playlist is empty
+            backgroundPlayerRef.current.playVideo();
+            setIsPlaying(true);
+          }
+        } catch (error) {
+          console.error('[ServiceStartOverlay] Error starting background music:', error);
+          // Try simple playVideo as fallback
+          try {
+            backgroundPlayerRef.current.playVideo();
+            setIsPlaying(true);
+          } catch (innerError) {
+            console.error('[ServiceStartOverlay] Fallback playVideo also failed:', innerError);
+          }
         }
       }
     } else {
@@ -605,4 +634,4 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   );
 };
 
-export default ServiceStartOverlay; 
+export default ServiceStartOverlay;
