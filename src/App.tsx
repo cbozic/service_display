@@ -867,7 +867,7 @@ const AppContent: React.FC = () => {
           setOverlaySlide(framesRef.current[nextIndex]);
           return nextIndex;
         });
-      }, 15000);
+      }, 10000);
     }
 
     return () => {
