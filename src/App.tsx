@@ -13,6 +13,7 @@ import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundVideoPlayer from './components/BackgroundVideoPlayer';
+import BackgroundMusicPlayer from './components/BackgroundMusicPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
 import ReactDOM from 'react-dom';
 import ServiceStartOverlay from './components/ServiceStartOverlay';
@@ -70,6 +71,12 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
               weight: 35,
               enableClose: false,
               children: [
+                {
+                  type: "tab",
+                  name: "Background Music",
+                  component: "backgroundMusic",
+                  enableClose: false,
+                },
                 {
                   type: "tab",
                   name: "Background Video",
@@ -1090,6 +1097,10 @@ const AppContent: React.FC = () => {
             }}></div>
           )}
         </div>
+      );
+    } else if (component === "backgroundMusic") {
+      return (
+        <BackgroundMusicPlayer />
       );
     } else if (component === "backgroundVideo") {
       return (
