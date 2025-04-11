@@ -386,11 +386,11 @@ const AppContent: React.FC = () => {
           console.log('[App] Skipping ducking enable event registration (current time > 3s)');
         }
 
-        // Register background players pause event at 10 seconds
-        if (currentTime < 10) {
-          console.log('[App] Registering background players pause event for 10s');
-          timeEventsRef.current.registerEvent(10, () => {
-            console.log('[App] Pausing background players at 10s');
+        // Register background players pause event at 15 minutes (900 seconds)
+        if (currentTime < 900) {
+          console.log('[App] Registering background players pause event for 15 minutes');
+          timeEventsRef.current.registerEvent(900, () => {
+            console.log('[App] Pausing background players at 15 minutes');
             
             // Pause background video player
             if (backgroundPlayerRef?.current) {
@@ -416,11 +416,11 @@ const AppContent: React.FC = () => {
           });
         }
         
-        // Register background players unpause event at 20 seconds
-        if (currentTime < 20) {
-          console.log('[App] Registering background players unpause event for 20s');
-          timeEventsRef.current.registerEvent(20, () => {
-            console.log('[App] Unpausing background players at 20s');
+        // Register background players unpause event at 65 minutes (3900 seconds)
+        if (currentTime < 3900) {
+          console.log('[App] Registering background players unpause event for 65 minutes');
+          timeEventsRef.current.registerEvent(3900, () => {
+            console.log('[App] Unpausing background players at 65 minutes');
             
             // Unpause background video player
             if (backgroundPlayerRef?.current) {
