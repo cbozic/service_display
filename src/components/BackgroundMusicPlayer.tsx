@@ -7,6 +7,7 @@ import * as mm from 'music-metadata';
 
 interface BackgroundMusicPlayerProps {
   volume?: number;
+  initialPaused?: boolean;
 }
 
 interface Track {
@@ -18,7 +19,8 @@ interface Track {
 }
 
 const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
-  volume: propVolume
+  volume: propVolume,
+  initialPaused = false
 }): JSX.Element | null => {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -461,12 +463,12 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     loadTrackMetadata();
   }, [currentTrack, audioElement, isPlaying]);
 
-  // Auto-play first track when component loads
+  // Auto-play first track when component loads (unless initialPaused is true)
   useEffect(() => {
     const autoPlayFirstTrack = async () => {
       if (audioElement && isPlayerReady && tracks.length > 0 && !hasInitialized) {
         try {
-          console.log('[BackgroundMusicPlayer] Auto-playing first track');
+          console.log('[BackgroundMusicPlayer] Initializing first track (initialPaused:', initialPaused, ')');
           setHasInitialized(true);
           
           // Initialize with the first track
@@ -488,20 +490,25 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           // Set display volume
           setDisplayVolume(volumeToUse);
           
-          // Start playback
-          try {
-            await audioElement.play();
-            console.log('[BackgroundMusicPlayer] Auto-play successful');
-            setIsPlaying(true);
-            
-            // Apply context mute setting after playback has started
-            if (backgroundMuted) {
-              audioElement.muted = true;
-              setIsMuted(true);
-              setDisplayVolume(0);
+          // Start playback only if initialPaused is false
+          if (!initialPaused) {
+            try {
+              await audioElement.play();
+              console.log('[BackgroundMusicPlayer] Auto-play successful');
+              setIsPlaying(true);
+              
+              // Apply context mute setting after playback has started
+              if (backgroundMuted) {
+                audioElement.muted = true;
+                setIsMuted(true);
+                setDisplayVolume(0);
+              }
+            } catch (error) {
+              console.error('[BackgroundMusicPlayer] Error starting auto-play (user may need to interact first):', error);
             }
-          } catch (error) {
-            console.error('[BackgroundMusicPlayer] Error starting auto-play (user may need to interact first):', error);
+          } else {
+            console.log('[BackgroundMusicPlayer] Not auto-playing because initialPaused is true');
+            setIsPlaying(false);
           }
         } catch (error) {
           console.error('[BackgroundMusicPlayer] Error in autoPlayFirstTrack:', error);
@@ -510,7 +517,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     };
     
     autoPlayFirstTrack();
-  }, [audioElement, isPlayerReady, tracks, hasInitialized, backgroundVolume, backgroundMuted]);
+  }, [audioElement, isPlayerReady, tracks, hasInitialized, backgroundVolume, backgroundMuted, initialPaused]);
 
   // Define the wave animation for the visualizer with even shorter bars
   const waveAnimation = useCallback((index: number) => {

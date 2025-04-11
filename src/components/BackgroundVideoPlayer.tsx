@@ -10,11 +10,13 @@ import BackgroundPlayerControls from './BackgroundPlayerControls';
 interface BackgroundPlayerProps {
   playlistUrl?: string;
   volume?: number;
+  initialPaused?: boolean;
 }
 
 const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   playlistUrl = '',
-  volume: propVolume
+  volume: propVolume,
+  initialPaused = false
 }): JSX.Element | null => {
   const [player, setPlayer] = useState<any>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -393,7 +395,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       const playerInstance = event.target;
       
       // Basic player setup
-      console.log('[BackgroundVideoPlayer] Setting up player instance');
+      console.log('[BackgroundVideoPlayer] Setting up player instance (initialPaused:', initialPaused, ')');
       playerInstance.mute(); // Start muted by default
       // Use the volume from context
       const volumeToUse = previousVolumeRef.current || backgroundVolume;
@@ -451,10 +453,17 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
                       // Use the synced volume
                       playerInstance.setVolume(volumeToUse);
                       handleSkipToRandom();
-                      // Always play initially since it's more expected behavior
-                      console.log('[BackgroundVideoPlayer] Playing after skip');
-                      playerInstance.playVideo();
-                      setIsPlaying(true);
+                      
+                      // Handle initial playback state based on initialPaused prop
+                      if (initialPaused) {
+                        console.log('[BackgroundVideoPlayer] Pausing after skip due to initialPaused=true');
+                        playerInstance.pauseVideo();
+                        setIsPlaying(false);
+                      } else {
+                        console.log('[BackgroundVideoPlayer] Playing after skip');
+                        playerInstance.playVideo();
+                        setIsPlaying(true);
+                      }
                     } catch (e) {
                       console.error('[BackgroundVideoPlayer] Error during delayed skip:', e);
                     }
@@ -482,7 +491,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('[BackgroundVideoPlayer] Error in onPlayerReady:', error);
     }
-  }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted]);
+  }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted, initialPaused]);
 
   const onStateChange = useCallback((event: YouTubeEvent) => {
     try {

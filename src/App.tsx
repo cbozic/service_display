@@ -8,7 +8,7 @@ import PianoControls from './components/PianoControls';
 import GifFrameDisplay from './components/GifFrameDisplay';
 import ChromaticTuner from './components/ChromaticTuner';
 import VideoMonitor from './components/VideoMonitor';
-import { Layout, Model, TabNode, IJsonModel } from 'flexlayout-react';
+import { Layout, Model, TabNode, IJsonModel, Actions } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
 import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
@@ -26,7 +26,7 @@ import OnlineHelp from './components/OnlineHelp';
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
 
 // Create a function to generate the flexlayout json based on experimental features flag
-const createLayoutJson = (showExperimental: boolean): IJsonModel => {
+const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean = false): IJsonModel => {
   return {
     global: {
       tabEnableClose: false,
@@ -73,14 +73,8 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
               children: [
                 {
                   type: "tab",
-                  name: "Background Music",
-                  component: "backgroundMusic",
-                  enableClose: false,
-                },
-                {
-                  type: "tab",
-                  name: "Background Video",
-                  component: "backgroundVideo",
+                  name: useBackgroundVideo ? "Background Video" : "Background Music",
+                  component: useBackgroundVideo ? "backgroundVideo" : "backgroundMusic",
                   enableClose: false,
                 },
                 // Include experimental Keys and Tuner only if enabled
@@ -153,6 +147,9 @@ const createLayoutJson = (showExperimental: boolean): IJsonModel => {
 const getInitialLayoutModel = () => {
   const storedExperimental = localStorage.getItem('experimentalFeaturesEnabled');
   const showExperimental = storedExperimental ? JSON.parse(storedExperimental) : false;
+  
+  // We no longer need different layouts for music vs video
+  // We'll handle the toggle with conditional rendering instead
   return Model.fromJson(createLayoutJson(showExperimental));
 };
 
@@ -212,6 +209,7 @@ const AppContent: React.FC = () => {
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
   const { backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
+  const [useBackgroundVideo, setUseBackgroundVideo] = useState<boolean>(false);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
   const slidesInitializedRef = useRef<boolean>(false);
@@ -347,6 +345,7 @@ const AppContent: React.FC = () => {
     if (isPlayerReady && player && timeEventsRef.current) {
       console.log('[App] Resetting time events');
       // Clear existing events
+
       timeEventsRef.current.clearEvents();
 
       // Only register events if automatic events are enabled
@@ -1034,6 +1033,72 @@ const AppContent: React.FC = () => {
     };
   }, [player, isPlayerReady]);
 
+  // Update the layout when background player type changes
+  useEffect(() => {
+    // Save the preference to localStorage
+    localStorage.setItem('useBackgroundVideo', JSON.stringify(useBackgroundVideo));
+    
+    // Get the current experimental features setting
+    const storedExperimental = localStorage.getItem('experimentalFeaturesEnabled');
+    const showExperimental = storedExperimental ? JSON.parse(storedExperimental) : false;
+    
+    // Create a completely new model with the updated configuration
+    // This ensures a clean state each time we toggle
+    const newModel = Model.fromJson(createLayoutJson(showExperimental, useBackgroundVideo));
+    
+    // Copy the model to the existing model
+    if (model) {
+      // First, get the ID of the background player tabset
+      let backgroundTabsetId: string | null = null;
+      model.visitNodes((node: any) => {
+        if (node.getType() === "tabset") {
+          const tabs = node.getChildren();
+          const hasBackgroundTab = tabs.some((tab: any) => 
+            tab.getComponent() === "backgroundMusic" || 
+            tab.getComponent() === "backgroundVideo"
+          );
+          
+          if (hasBackgroundTab) {
+            backgroundTabsetId = node.getId();
+          }
+        }
+      });
+
+      if (backgroundTabsetId) {
+        try {
+          // Use doAction to explicitly select the background tab
+          // which ensures it's visible after the toggle
+          const newTabset = newModel.getNodeById(backgroundTabsetId);
+          if (newTabset) {
+            // Find the background player tab in the new model
+            const tabs = newTabset.getChildren();
+            for (const tab of tabs) {
+              // Cast tab to any to access the getComponent method
+              const tabNode = tab as any;
+              if (tabNode.getComponent() === "backgroundMusic" || tabNode.getComponent() === "backgroundVideo") {
+                // Select this tab
+                model.doAction(Actions.selectTab(tabNode.getId()));
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[App] Error selecting background tab:', error);
+        }
+      }
+      
+      // Use updateModelAttributes to update the global model configuration
+      // This is more reliable than trying to update individual nodes
+      model.doAction(Actions.updateModelAttributes({
+        // Copy global attributes from new model to ensure consistency
+        ...newModel.toJson().global,
+      }));
+      
+      // Force a re-render of the layout
+      window.dispatchEvent(new Event('resize'));
+    }
+  }, [useBackgroundVideo, model]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -1059,6 +1124,8 @@ const AppContent: React.FC = () => {
               }
             }
           }}
+          useBackgroundVideo={useBackgroundVideo}
+          onBackgroundTypeToggle={setUseBackgroundVideo}
         />
       );
     } else if (component === "video") {
@@ -1098,14 +1165,19 @@ const AppContent: React.FC = () => {
           )}
         </div>
       );
-    } else if (component === "backgroundMusic") {
-      return (
-        <BackgroundMusicPlayer />
-      );
-    } else if (component === "backgroundVideo") {
-      return (
-        <BackgroundVideoPlayer
-          playlistUrl={backgroundPlaylistUrl}
+    } else if (component === "backgroundMusic" || component === "backgroundVideo") {
+      // Render either the music or video player based on useBackgroundVideo state
+      // regardless of what the tab component is set to
+      return useBackgroundVideo ? (
+        <BackgroundVideoPlayer 
+          playlistUrl={backgroundPlaylistUrl} 
+          // Set an initialPaused prop to ensure the player starts paused on toggle
+          initialPaused={true} 
+        />
+      ) : (
+        <BackgroundMusicPlayer 
+          // Set an initialPaused prop to ensure the player starts paused on toggle
+          initialPaused={true} 
         />
       );
     } else if (component === "videoList") {
