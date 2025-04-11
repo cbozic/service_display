@@ -178,7 +178,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
           </Box>
           
           <TextField
-            label={useBackgroundVideo ? "Background Video Playlist URL" : "Background Music Playlist URL"}
+            label={"Background Video Playlist URL"}
             value={backgroundPlaylistUrl}
             onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
             fullWidth
