@@ -70,11 +70,23 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         
         // Log the full paths to verify they're correct
         console.log('[BackgroundMusicPlayer] Track paths:', tracksList.map(t => t.path));
+        console.log('[BackgroundMusicPlayer] Creating playlist with', tracksList.length, 'tracks');
         
-        setTracks(tracksList);
+        // Shuffle the tracks to create a varied playlist experience
+        const shuffledTracks = [...tracksList].sort(() => Math.random() - 0.5);
+        setTracks(shuffledTracks);
         
-        if (tracksList.length > 0) {
-          setCurrentTrack(tracksList[0]);
+        if (shuffledTracks.length > 0) {
+          // Select first track from shuffled list
+          setCurrentTrack(shuffledTracks[0]);
+          setCurrentTrackIndex(0);
+          console.log('[BackgroundMusicPlayer] Initial track set to:', shuffledTracks[0].filename);
+          
+          // Also update track info in backgroundPlayerRef right away for immediate access
+          if (backgroundPlayerRef && backgroundPlayerRef.current) {
+            backgroundPlayerRef.current._internalTracks = shuffledTracks;
+            console.log('[BackgroundMusicPlayer] Updated internal tracks reference in player');
+          }
         }
       } catch (error) {
         console.error('[BackgroundMusicPlayer] Error loading tracks:', error);
@@ -82,7 +94,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     };
     
     loadTracks();
-  }, []);
+  }, [backgroundPlayerRef]);
 
   // Custom version of fadeToVolume that updates display volume during transition
   const fadeToVolumeWithDisplay = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
@@ -99,7 +111,11 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       const startVolume = audioElement.volume * 100;
       setDisplayVolume(startVolume);
       
-      if (startVolume === targetVolume) {
+      // Ensure target volume is at least 0.1
+      const minVolume = 0.1;
+      const safeTargetVolume = Math.max(targetVolume, minVolume);
+      
+      if (startVolume === safeTargetVolume) {
         if (onComplete) onComplete();
         return () => {};
       }
@@ -116,7 +132,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         
         currentStep++;
         const progress = currentStep / steps;
-        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
+        const newVolume = Math.round(startVolume + (safeTargetVolume - startVolume) * progress);
         
         try {
           audioElement.volume = newVolume / 100;
@@ -294,18 +310,98 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     }
   }, [audioElement, isPlaying, isMainPlayerPlaying]);
 
-  const handleSkipNext = useCallback(() => {
-    if (tracks.length === 0) return;
+  const handleSkipNext = useCallback((useSequential = false) => {
+    if (tracks.length === 0) {
+      console.log('[BackgroundMusicPlayer] No tracks available to skip to');
+      return;
+    }
     
-    // Generate random index excluding current track
-    let randomIndex;
-    do {
-      randomIndex = Math.floor(Math.random() * tracks.length);
-    } while (randomIndex === currentTrackIndex && tracks.length > 1);
+    // Determine the next track index based on playback mode
+    let nextIndex;
+    if (useSequential) {
+      // Sequential playback - go to next track in order
+      nextIndex = (currentTrackIndex + 1) % tracks.length;
+      console.log('[BackgroundMusicPlayer] Sequential playback - going to next track in order');
+    } else {
+      // Random playback - pick a random track excluding the current one
+      do {
+        nextIndex = Math.floor(Math.random() * tracks.length);
+      } while (nextIndex === currentTrackIndex && tracks.length > 1);
+      console.log('[BackgroundMusicPlayer] Random playback - selecting random track');
+    }
     
-    setCurrentTrackIndex(randomIndex);
-    setCurrentTrack(tracks[randomIndex]);
-  }, [tracks, currentTrackIndex]);
+    console.log('[BackgroundMusicPlayer] Skipping to new track - current:', currentTrackIndex, 'new:', nextIndex, 'track:', tracks[nextIndex]?.filename);
+    
+    // Get the next track
+    const nextTrack = tracks[nextIndex];
+    
+    // Update the state
+    setCurrentTrackIndex(nextIndex);
+    setCurrentTrack(nextTrack);
+    
+    // Directly update the audio element for immediate effect
+    if (audioElement && nextTrack) {
+      try {
+        // Save the current playing state
+        const wasPlaying = !audioElement.paused;
+        
+        // Set the new source
+        audioElement.src = nextTrack.path;
+        console.log('[BackgroundMusicPlayer] Set new audio source:', nextTrack.path);
+        
+        // Load the new track
+        audioElement.load();
+        console.log('[BackgroundMusicPlayer] Loading new track');
+        
+        // Reset metadata while loading
+        setTrackMetadata({
+          title: nextTrack.filename.replace(/-mono\.m4a$/, ''),
+          artist: 'Loading...',
+          album: 'Loading...'
+        });
+        
+        // If we were playing before, play the new track
+        if (wasPlaying) {
+          console.log('[BackgroundMusicPlayer] Auto-playing new track');
+          
+          // Use a promise to handle playback
+          const playPromise = audioElement.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log('[BackgroundMusicPlayer] New track playback started successfully');
+                setIsPlaying(true);
+                
+                // Apply volume settings based on main player state
+                if (isMainPlayerPlaying) {
+                  audioElement.volume = 0;
+                  setDisplayVolume(0);
+                } else {
+                  const volume = effectiveVolumeRef.current;
+                  audioElement.volume = volume / 100;
+                  setDisplayVolume(volume);
+                }
+                
+                // Apply mute setting
+                audioElement.muted = backgroundMuted;
+              })
+              .catch(error => {
+                console.error('[BackgroundMusicPlayer] Error playing new track:', error);
+              });
+          }
+        }
+      } catch (error) {
+        console.error('[BackgroundMusicPlayer] Error in direct track change:', error);
+      }
+    }
+  }, [
+    tracks, 
+    currentTrackIndex, 
+    audioElement, 
+    isMainPlayerPlaying, 
+    effectiveVolumeRef, 
+    backgroundMuted
+  ]);
 
   // Initialize audio element
   useEffect(() => {
@@ -363,6 +459,9 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       // Store player reference in context for external control
       if (backgroundPlayerRef) {
         backgroundPlayerRef.current = {
+          // Store a default track list to use if tracks state is empty
+          _internalTracks: [],
+          
           playVideo: () => {
             console.log('[BackgroundMusicPlayer] External play requested');
             return audio.play().catch(error => {
@@ -388,15 +487,331 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           getVolume: () => Math.round(audio.volume * 100),
           nextVideo: () => {
             console.log('[BackgroundMusicPlayer] External next track requested');
-            handleSkipNext();
+            
+            // Store and use a persistent track index
+            let persistentCurrentIndex = 0;
+            try {
+              // Try to get the persisted index from backgroundPlayerRef
+              if (backgroundPlayerRef?.current?._currentTrackIndex !== undefined) {
+                persistentCurrentIndex = backgroundPlayerRef.current._currentTrackIndex;
+              } else if (currentTrackIndex >= 0) {
+                persistentCurrentIndex = currentTrackIndex;
+              }
+              console.log('[BackgroundMusicPlayer] Retrieved persistent track index:', persistentCurrentIndex);
+            } catch (error) {
+              console.error('[BackgroundMusicPlayer] Error retrieving persistent index:', error);
+            }
+            
+            // Check if we have tracks available
+            if (tracks.length === 0) {
+              console.log('[BackgroundMusicPlayer] No tracks in state, checking internal backup tracks');
+              
+              // Check if we have internal tracks
+              const internalTracks = backgroundPlayerRef.current._internalTracks;
+              if (internalTracks && internalTracks.length > 0) {
+                console.log('[BackgroundMusicPlayer] Using internal tracks list with', internalTracks.length, 'tracks');
+                
+                // Set tracks from internal backup if they're missing
+                setTracks(internalTracks);
+                
+                // Determine next track index - FIXED: using modulo to properly cycle through tracks
+                // Get the current index and make sure it's valid
+                const validCurrentIndex = (persistentCurrentIndex >= 0 && persistentCurrentIndex < internalTracks.length) 
+                  ? persistentCurrentIndex 
+                  : 0;
+                  
+                // Always move to the next track in sequence, with wraparound using modulo
+                const nextIndex = (validCurrentIndex + 1) % internalTracks.length;
+                
+                console.log(`[BackgroundMusicPlayer] Current track index: ${validCurrentIndex}, Next track index: ${nextIndex}, Total tracks: ${internalTracks.length}`);
+                
+                // Store the next index in a persistent place
+                backgroundPlayerRef.current._currentTrackIndex = nextIndex;
+                
+                // Load the new track
+                const nextTrack = internalTracks[nextIndex];
+                console.log('[BackgroundMusicPlayer] Skipping to track:', nextTrack.filename);
+                
+                // Update state
+                setCurrentTrackIndex(nextIndex);
+                setCurrentTrack(nextTrack);
+                
+                // Directly update the audio element for immediate effect
+                if (audio && nextTrack) {
+                  try {
+                    // Remember if we were playing before
+                    const wasPlaying = !audio.paused;
+                    console.log('[BackgroundMusicPlayer] Audio was playing before skip:', wasPlaying);
+                    
+                    // Track if we're within a user gesture context
+                    // We need to determine if this call is happening in response to a user interaction
+                    const isUserGesture = (function() {
+                      try {
+                        // Check for user gesture using alternative methods
+                        // @ts-ignore - Feature detection, not all browsers have this property
+                        const hasViewTransition = 'startViewTransition' in document;
+                        
+                        // Additional check - in most browsers, MediaElement.play() will only work in response to user gestures
+                        const now = Date.now();
+                        // @ts-ignore - This is a custom property we may add to track user interaction
+                        const lastInteractionTime = window.lastUserInteractionTime || 0;
+                        const timeSinceInteraction = now - lastInteractionTime;
+                        
+                        // If we've had user interaction in the last 3 seconds, consider it a user gesture context
+                        return hasViewTransition || timeSinceInteraction < 3000;
+                      } catch (_) {
+                        // Fallback detection - most skip operations will happen from UI events
+                        return true;
+                      }
+                    })();
+                    
+                    console.log('[BackgroundMusicPlayer] Are we within user gesture context:', isUserGesture);
+                    
+                    // Set the new source
+                    audio.src = nextTrack.path;
+                    console.log('[BackgroundMusicPlayer] Set new audio source:', nextTrack.path);
+                    
+                    // Load the new track
+                    audio.load();
+                    console.log('[BackgroundMusicPlayer] Loading new track');
+                    
+                    // Reset metadata while loading
+                    setTrackMetadata({
+                      title: nextTrack.filename.replace(/-mono\.m4a$/, ''),
+                      artist: 'Loading...',
+                      album: 'Loading...'
+                    });
+                    
+                    // Critical fix: Only try to play the track if it was already playing
+                    // and we're in a user gesture context to avoid autoplay restrictions
+                    if (wasPlaying || isUserGesture) {
+                      // Special handling for Safari which is stricter about autoplay
+                      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                      
+                      if (isSafari) {
+                        // For Safari, we need to be more careful
+                        console.log('[BackgroundMusicPlayer] Safari detected, using special playback handling');
+                        
+                        // Set volume to 0 initially to prevent audible glitches
+                        const originalVolume = audio.volume;
+                        audio.volume = 0;
+                        
+                        // Unmute first if needed
+                        const wasMuted = audio.muted;
+                        if (wasMuted) {
+                          audio.muted = false;
+                        }
+                        
+                        // First try immediate play
+                        audio.play()
+                          .then(() => {
+                            console.log('[BackgroundMusicPlayer] Safari: Play succeeded immediately');
+                            // Restore volume gradually
+                            setTimeout(() => {
+                              audio.volume = originalVolume;
+                              if (wasMuted) {
+                                audio.muted = true;
+                              }
+                              setIsPlaying(true);
+                            }, 50);
+                          })
+                          .catch(error => {
+                            console.warn('[BackgroundMusicPlayer] Safari: Play failed, trying with user event:', error);
+                            
+                            // Create and dispatch a synthetic click event to help with autoplay restrictions
+                            try {
+                              const simulatedEvent = new MouseEvent('click', {
+                                view: window,
+                                bubbles: true,
+                                cancelable: true
+                              });
+                              document.body.dispatchEvent(simulatedEvent);
+                              
+                              // Try playing again after the synthetic event
+                              setTimeout(() => {
+                                audio.play()
+                                  .then(() => {
+                                    console.log('[BackgroundMusicPlayer] Safari: Play succeeded after synthetic event');
+                                    // Restore volume gradually
+                                    setTimeout(() => {
+                                      audio.volume = originalVolume;
+                                      if (wasMuted) {
+                                        audio.muted = true;
+                                      }
+                                      setIsPlaying(true);
+                                    }, 50);
+                                  })
+                                  .catch(innerError => {
+                                    console.error('[BackgroundMusicPlayer] Safari: Final play attempt failed:', innerError);
+                                    // Handle the case where we simply cannot autoplay
+                                    setIsPlaying(false);
+                                  });
+                              }, 50);
+                            } catch (eventError) {
+                              console.error('[BackgroundMusicPlayer] Error creating synthetic event:', eventError);
+                            }
+                          });
+                      } else {
+                        // For other browsers, use a more straightforward approach
+                        console.log('[BackgroundMusicPlayer] Attempting to play new track');
+                        
+                        // Keep track of whether we're in play context to avoid multiple attempts
+                        let playAttempted = false;
+                        
+                        // First try a simple play
+                        const playPromise = audio.play();
+                        playAttempted = true;
+                        
+                        if (playPromise !== undefined) {
+                          playPromise
+                            .then(() => {
+                              console.log('[BackgroundMusicPlayer] New track playback started successfully');
+                              setIsPlaying(true);
+                              
+                              // Apply volume settings 
+                              if (isMainPlayerPlaying) {
+                                audio.volume = 0;
+                                setDisplayVolume(0);
+                              } else {
+                                const volume = effectiveVolumeRef.current / 100;
+                                audio.volume = volume;
+                                setDisplayVolume(effectiveVolumeRef.current);
+                              }
+                              
+                              // Apply mute setting if needed
+                              audio.muted = backgroundMuted;
+                            })
+                            .catch(error => {
+                              console.error('[BackgroundMusicPlayer] Error playing new track:', error);
+                              
+                              // If autoplay was blocked, try one more time with a synthetic event
+                              if (!playAttempted && error.name === 'NotAllowedError') {
+                                playAttempted = true;
+                                
+                                try {
+                                  // Create and dispatch a synthetic click event
+                                  const simulatedEvent = new MouseEvent('click', {
+                                    view: window,
+                                    bubbles: true,
+                                    cancelable: true
+                                  });
+                                  document.body.dispatchEvent(simulatedEvent);
+                                  
+                                  // Try playing again after synthetic event
+                                  setTimeout(() => {
+                                    audio.play()
+                                      .then(() => {
+                                        console.log('[BackgroundMusicPlayer] New track playback started after synthetic event');
+                                        setIsPlaying(true);
+                                      })
+                                      .catch(finalError => {
+                                        console.error('[BackgroundMusicPlayer] Final play attempt failed:', finalError);
+                                        setIsPlaying(false);
+                                      });
+                                  }, 50);
+                                } catch (eventError) {
+                                  console.error('[BackgroundMusicPlayer] Error creating synthetic event:', eventError);
+                                }
+                              }
+                            });
+                        }
+                      }
+                    } else {
+                      console.log('[BackgroundMusicPlayer] Not attempting to play because audio was paused or not in user gesture context');
+                      // Update isPlaying state to match current state
+                      setIsPlaying(false);
+                    }
+                  } catch (error) {
+                    console.error('[BackgroundMusicPlayer] Error in direct track change:', error);
+                  }
+                }
+                return;
+              } else {
+                // No tracks anywhere, show error
+                console.error('[BackgroundMusicPlayer] No tracks available in state or internal reference');
+              }
+            }
+            
+            // Use normal handler if we have tracks
+            if (tracks.length > 0) {
+              const validCurrentIndex = (persistentCurrentIndex >= 0 && persistentCurrentIndex < tracks.length) 
+                ? persistentCurrentIndex 
+                : 0;
+                
+              // Calculate next index
+              const nextIndex = (validCurrentIndex + 1) % tracks.length;
+              console.log(`[BackgroundMusicPlayer] Using normal handler - Current index: ${validCurrentIndex}, Next index: ${nextIndex}, Total tracks: ${tracks.length}`);
+              
+              // Remember the next index
+              backgroundPlayerRef.current._currentTrackIndex = nextIndex;
+              
+              // Use sequential playback
+              handleSkipNext(true);
+            } else {
+              console.error('[BackgroundMusicPlayer] No tracks available in state or internal tracks');
+              handleSkipNext(true);
+            }
           },
-          getPlaylist: () => tracks,
+          getPlaylist: () => {
+            // First try to return tracks from state
+            if (tracks.length > 0) {
+              return tracks;
+            }
+            
+            // Fall back to internal tracks if state is empty
+            if (backgroundPlayerRef.current._internalTracks?.length > 0) {
+              return backgroundPlayerRef.current._internalTracks;
+            }
+            
+            // Last resort: create default tracks
+            const defaultTracks = [
+              '01-APromiseRevealed-mono.m4a',
+              '02-StillSmallVoice-mono.m4a',
+              '03-TheMirror-mono.m4a',
+              '04-VoiceInTheWilderness-mono.m4a',
+              '05-EvenIf-mono.m4a',
+              '06-HopeDeferred-mono.m4a',
+              '07-APromiseFulfilled-mono.m4a'
+            ].map(filename => ({
+              path: `${process.env.PUBLIC_URL || ''}/default_content/music/instrumental/${filename}`,
+              filename
+            }));
+            
+            // Save these for future use
+            backgroundPlayerRef.current._internalTracks = defaultTracks;
+            
+            return defaultTracks;
+          },
           getPlaylistIndex: () => currentTrackIndex,
           playVideoAt: (index: number) => {
-            if (index >= 0 && index < tracks.length) {
+            // Get the playlist - this handles the case when tracks might be empty
+            const playlist = backgroundPlayerRef.current.getPlaylist();
+            
+            if (playlist && index >= 0 && index < playlist.length) {
               console.log('[BackgroundMusicPlayer] External track selection requested:', index);
+              const trackToPlay = playlist[index];
+              
+              // Update state
               setCurrentTrackIndex(index);
-              setCurrentTrack(tracks[index]);
+              setCurrentTrack(trackToPlay);
+              
+              // If the tracks state is empty, make sure to update it
+              if (tracks.length === 0) {
+                setTracks(playlist);
+              }
+              
+              // Load the track
+              if (audio && trackToPlay) {
+                audio.src = trackToPlay.path;
+                audio.load();
+                
+                // Try to play if audio was already playing
+                if (!audio.paused) {
+                  audio.play().catch(err => {
+                    console.error('[BackgroundMusicPlayer] Error playing selected track:', err);
+                  });
+                }
+              }
             }
           }
         };

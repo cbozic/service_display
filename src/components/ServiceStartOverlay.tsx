@@ -222,17 +222,43 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
 
   const handleSkipNext = () => {
     if (backgroundPlayerRef.current) {
-      // Instead of going to the next track, pick a random track
-      const playlist = backgroundPlayerRef.current.getPlaylist();
-      if (playlist && playlist.length > 0) {
-        const currentIndex = backgroundPlayerRef.current.getPlaylistIndex();
-        let randomIndex;
-        do {
-          randomIndex = Math.floor(Math.random() * playlist.length);
-        } while (randomIndex === currentIndex && playlist.length > 1);
+      console.log('[ServiceStartOverlay] Skip button clicked, attempting to skip track');
+      try {
+        // Since both player types now implement nextVideo() properly,
+        // we can simply call it directly without all the type checking
+        backgroundPlayerRef.current.nextVideo();
+        console.log('[ServiceStartOverlay] Track skip requested successfully');
         
-        backgroundPlayerRef.current.playVideoAt(randomIndex);
+        // Additional fallbacks in case the nextVideo method doesn't work
+        if (typeof backgroundPlayerRef.current.skipToNextTrack === 'function') {
+          console.log('[ServiceStartOverlay] Using fallback skipToNextTrack method');
+          backgroundPlayerRef.current.skipToNextTrack();
+        }
+      } catch (error) {
+        console.error('[ServiceStartOverlay] Error skipping track:', error);
+        
+        // Last resort fallback - try playVideoAt with random index if getPlaylist exists
+        try {
+          if (typeof backgroundPlayerRef.current.getPlaylist === 'function' &&
+              typeof backgroundPlayerRef.current.playVideoAt === 'function') {
+            const playlist = backgroundPlayerRef.current.getPlaylist();
+            if (playlist && playlist.length > 0) {
+              const currentIndex = backgroundPlayerRef.current.getPlaylistIndex?.() || 0;
+              let randomIndex;
+              do {
+                randomIndex = Math.floor(Math.random() * playlist.length);
+              } while (randomIndex === currentIndex && playlist.length > 1);
+              
+              console.log(`[ServiceStartOverlay] Fallback: Playing track at index ${randomIndex}`);
+              backgroundPlayerRef.current.playVideoAt(randomIndex);
+            }
+          }
+        } catch (fallbackError) {
+          console.error('[ServiceStartOverlay] Fallback error:', fallbackError);
+        }
       }
+    } else {
+      console.log('[ServiceStartOverlay] Background player reference is not available');
     }
   };
 

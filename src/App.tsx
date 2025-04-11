@@ -422,33 +422,139 @@ const AppContent: React.FC = () => {
           timeEventsRef.current.registerEvent(3900, () => {
             console.log('[App] Unpausing background players at 65 minutes');
             
-            // Unpause background video player
-            if (backgroundPlayerRef?.current) {
-              try {
-                console.log('[App] Unpausing background video player');
-                backgroundPlayerRef.current.playVideo();
-              } catch (error) {
-                console.error('[App] Error unpausing background video player:', error);
+            // Create a retry mechanism for background video player unpause
+            const attemptBackgroundVideoUnpause = (attempts = 0, maxAttempts = 3) => {
+              if (attempts >= maxAttempts) {
+                console.error('[App] Failed to unpause background video player after', maxAttempts, 'attempts');
+                return;
               }
-            }
-            
-            // Unpause background music player (audio elements)
-            try {
-              const audioElements = document.getElementsByTagName('audio');
-              console.log('[App] Found', audioElements.length, 'audio elements to unpause');
-              for (let i = 0; i < audioElements.length; i++) {
-                console.log('[App] Playing audio element', i);
-                // Use promise to handle autoplay restrictions
-                const playPromise = audioElements[i].play();
-                if (playPromise !== undefined) {
-                  playPromise.catch(error => {
-                    console.error('[App] Error playing audio (autoplay restrictions?):', error);
-                  });
+              
+              if (backgroundPlayerRef?.current) {
+                try {
+                  console.log(`[App] Attempting to unpause background video player (attempt ${attempts + 1})`);
+                  
+                  // First check if player is still accessible and in a valid state
+                  try {
+                    const playerState = backgroundPlayerRef.current.getPlayerState?.();
+                    console.log('[App] Background player state before unpause:', playerState);
+                    
+                    // Make sure player is ready for playing
+                    if (playerState === -1) { // unstarted
+                      console.log('[App] Player unstarted, attempting to load video first');
+                      backgroundPlayerRef.current.loadVideoById?.(backgroundPlayerRef.current.getVideoData?.().video_id);
+                      setTimeout(() => attemptBackgroundVideoUnpause(attempts + 1, maxAttempts), 1000);
+                      return;
+                    }
+                  } catch (stateError) {
+                    console.warn('[App] Could not check player state:', stateError);
+                  }
+                  
+                  // First ensure player is unmuted and volume is set
+                  backgroundPlayerRef.current.unMute?.();
+                  
+                  // Then attempt to play video
+                  backgroundPlayerRef.current.playVideo();
+                  console.log('[App] Background video player unpause command sent');
+                  
+                  // Verify playback actually started
+                  setTimeout(() => {
+                    try {
+                      const newState = backgroundPlayerRef.current.getPlayerState?.();
+                      console.log('[App] Background player state after unpause attempt:', newState);
+                      if (newState !== 1) { // not playing
+                        console.log('[App] Player not playing after unpause attempt, retrying...');
+                        attemptBackgroundVideoUnpause(attempts + 1, maxAttempts);
+                      } else {
+                        console.log('[App] Background video player successfully unpaused');
+                      }
+                    } catch (verifyError) {
+                      console.error('[App] Error verifying video playback state:', verifyError);
+                      attemptBackgroundVideoUnpause(attempts + 1, maxAttempts);
+                    }
+                  }, 1000);
+                } catch (error) {
+                  console.error(`[App] Error unpausing background video player (attempt ${attempts + 1}):`, error);
+                  setTimeout(() => attemptBackgroundVideoUnpause(attempts + 1, maxAttempts), 1000);
                 }
               }
+            };
+            
+            // Create a retry mechanism for background audio elements
+            const attemptBackgroundAudioUnpause = (attempts = 0, maxAttempts = 3) => {
+              try {
+                const audioElements = document.getElementsByTagName('audio');
+                console.log(`[App] Found ${audioElements.length} audio elements to unpause (attempt ${attempts + 1})`);
+                
+                if (audioElements.length === 0) {
+                  console.log('[App] No audio elements found, skipping audio unpause');
+                  return;
+                }
+                
+                let successCount = 0;
+                let failCount = 0;
+                
+                // Try to unpause each audio element
+                for (let i = 0; i < audioElements.length; i++) {
+                  try {
+                    console.log(`[App] Prepping audio element ${i} for playback`);
+                    
+                    // First set volume and unmute to ensure it can play
+                    audioElements[i].volume = 0.5; // Set to a reasonable volume
+                    audioElements[i].muted = false;
+                    
+                    // Then attempt to play with promise handling
+                    const playPromise = audioElements[i].play();
+                    
+                    if (playPromise !== undefined) {
+                      playPromise.then(() => {
+                        console.log(`[App] Successfully unpaused audio element ${i}`);
+                        successCount++;
+                      }).catch(error => {
+                        console.error(`[App] Error playing audio element ${i}:`, error);
+                        failCount++;
+                        
+                        // If all elements failed, retry the whole batch
+                        if (failCount === audioElements.length && attempts < maxAttempts) {
+                          console.log('[App] All audio elements failed to play, retrying...');
+                          setTimeout(() => attemptBackgroundAudioUnpause(attempts + 1, maxAttempts), 1000);
+                        }
+                      });
+                    }
+                  } catch (elementError) {
+                    console.error(`[App] Error preparing audio element ${i}:`, elementError);
+                    failCount++;
+                  }
+                }
+                
+                // If we couldn't get the audio to play and have attempts left, try again
+                if (successCount === 0 && attempts < maxAttempts) {
+                  console.log('[App] No audio elements successfully played, retrying...');
+                  setTimeout(() => attemptBackgroundAudioUnpause(attempts + 1, maxAttempts), 1000);
+                }
+              } catch (error) {
+                console.error(`[App] Error in audio unpause attempt ${attempts + 1}:`, error);
+                if (attempts < maxAttempts) {
+                  setTimeout(() => attemptBackgroundAudioUnpause(attempts + 1, maxAttempts), 1000);
+                }
+              }
+            };
+            
+            // Dispatch a synthetic user interaction event to help with autoplay restrictions
+            try {
+              const userInteractionEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+              });
+              document.dispatchEvent(userInteractionEvent);
+              console.log('[App] Dispatched synthetic user interaction event to help with autoplay');
             } catch (error) {
-              console.error('[App] Error unpausing audio elements:', error);
+              console.error('[App] Error creating synthetic event:', error);
             }
+            
+            // Start both retry mechanisms
+            attemptBackgroundVideoUnpause();
+            attemptBackgroundAudioUnpause();
           });
         }
 

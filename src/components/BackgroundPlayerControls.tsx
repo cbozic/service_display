@@ -22,7 +22,17 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
   size = 'medium'
 }) => {
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
-    onVolumeChange(_event, newValue);
+    // Ensure volume never goes below 0.1
+    const minVolume = 0.1;
+    let adjustedValue = newValue;
+    
+    if (Array.isArray(newValue)) {
+      adjustedValue = newValue.map(v => Math.max(v, minVolume));
+    } else {
+      adjustedValue = Math.max(newValue, minVolume);
+    }
+    
+    onVolumeChange(_event, adjustedValue);
   };
 
   const buttonSize = size === 'small' ? 'small' : 'medium';
@@ -43,6 +53,10 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
     px: 1.5,
     backgroundColor: '#333333'  // Lighter background
   };
+
+  // Calculate the adjusted display volume
+  // This ensures the Slider shows 0 when at the minimum volume of 0.1
+  const adjustedDisplayVolume = Math.max(displayVolume, 0.1);
 
   return (
     <Box sx={{ 
@@ -84,7 +98,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           </IconButton>
         </Tooltip>
         <Tooltip 
-          title="Adjust background music volume (< and > keys adjust by 5%)" 
+          title="Adjust background music volume (< and > keys adjust by 5%, minimum 0.1%)" 
           arrow 
           placement="top"
           PopperProps={tooltipPopperProps}
@@ -95,9 +109,9 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           }}
         >
           <Slider
-            value={displayVolume}
+            value={adjustedDisplayVolume}
             onChange={handleVolumeChange}
-            min={0}
+            min={0.1}
             max={100}
             aria-label="Volume"
             sx={{ width: sliderWidth }}
@@ -115,7 +129,14 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           }}
         >
           <IconButton 
-            onClick={onSkipNext} 
+            onClick={(e) => {
+              console.log('Skip button clicked');
+              // Prevent event bubbling
+              e.preventDefault();
+              e.stopPropagation();
+              // Call the skip function
+              onSkipNext();
+            }} 
             size={buttonSize}
             sx={{
               '&:hover': {
@@ -131,4 +152,4 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
   );
 };
 
-export default BackgroundPlayerControls; 
+export default BackgroundPlayerControls;

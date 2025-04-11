@@ -50,7 +50,11 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       const startVolume = player.getVolume();
       setDisplayVolume(startVolume);
       
-      if (startVolume === targetVolume) {
+      // Ensure target volume is at least 0.1
+      const minVolume = 0.1;
+      const safeTargetVolume = Math.max(targetVolume, minVolume);
+      
+      if (startVolume === safeTargetVolume) {
         if (onComplete) onComplete();
         return () => {};
       }
@@ -67,7 +71,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         
         currentStep++;
         const progress = currentStep / steps;
-        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
+        const newVolume = Math.round(startVolume + (safeTargetVolume - startVolume) * progress);
         
         try {
           player.setVolume(newVolume);
@@ -519,14 +523,15 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       
       // -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering, 5: video cued
       if (state === 0 && player) { // Video ended
-        console.log('Video ended, restarting playlist');
-        player.playVideoAt(0);
+        console.log('Video ended, playing a random track from playlist');
+        // Instead of restarting the playlist, go to a random track
+        handleSkipToRandom();
       }
       setCurrentState(state);
     } catch (error) {
       console.error('Error in onStateChange:', error);
     }
-  }, [player, isMuted]);
+  }, [player, isMuted, handleSkipToRandom]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
