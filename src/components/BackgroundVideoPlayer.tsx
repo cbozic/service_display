@@ -225,7 +225,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   // Effect to handle main video playing/paused state changes 
   // This controls background volume fading but not play state
   useEffect(() => {
-    if (!player || !isPlayerReady || !isPlaying) return;
+    if (!player || !isPlayerReady) return;
     
     console.log('[BackgroundVideoPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
     
@@ -242,7 +242,38 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         fadeToVolumeWithDisplay(0, 2);
       } else {
         // Main video is paused, fade in background music
-        console.log('[BackgroundVideoPlayer] Main video is paused, fading in background to', backgroundVolume);
+        console.log('[BackgroundVideoPlayer] Main video is paused, checking background player state');
+        
+        // Check if the background player should be playing (according to React state)
+        // but isn't actually playing (according to YouTube player state)
+        if (isPlaying) {
+          try {
+            const actualPlayerState = player.getPlayerState();
+            // YouTube API: 1 = playing, 2 = paused, other values = not actively playing
+            const isActuallyPlaying = actualPlayerState === 1;
+            
+            if (!isActuallyPlaying) {
+              console.log('[BackgroundVideoPlayer] State mismatch detected - React state shows playing but actual player is not playing');
+              console.log('[BackgroundVideoPlayer] Current player state:', actualPlayerState);
+              console.log('[BackgroundVideoPlayer] Ensuring background music is playing before fade in');
+              
+              // Start playing the video before fading in
+              player.playVideo();
+              
+              // Short delay to allow player to start before beginning fade
+              setTimeout(() => {
+                console.log('[BackgroundVideoPlayer] Now fading in background to', backgroundVolume);
+                fadeToVolumeWithDisplay(backgroundVolume, 1);
+              }, 100);
+              return; // Exit early since we're handling the fade in the timeout
+            }
+          } catch (stateError) {
+            console.error('[BackgroundVideoPlayer] Error checking player state:', stateError);
+          }
+        }
+        
+        // If no state mismatch or we couldn't check, proceed with normal fade in
+        console.log('[BackgroundVideoPlayer] Fading in background to', backgroundVolume);
         fadeToVolumeWithDisplay(backgroundVolume, 1);
       }
     } catch (error) {

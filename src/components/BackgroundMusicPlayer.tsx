@@ -26,6 +26,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isUserPaused, setIsUserPaused] = useState(initialPaused); // Track if user manually paused playback
   const [displayVolume, setDisplayVolume] = useState<number>(0);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
@@ -221,9 +222,20 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     }
   }, [backgroundMuted, audioElement, isPlayerReady, backgroundVolume]);
 
+  // Track if a song is auto-transitioning from one to the next
+  const autoTransitionRef = useRef<boolean>(false);
+  // Ref to track if audio is currently in a continuous playback state
+  const continuousPlaybackRef = useRef<boolean>(false);
+  // Ref to store timeout for next track switch
+  const trackSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Track if pause was manually triggered by user vs system
+  const isManualPauseRef = useRef<boolean>(false);
+  // Track monitoring interval
+  const trackMonitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Effect to handle main video playing/paused state changes
   useEffect(() => {
-    if (!audioElement || !isPlayerReady || !isPlaying) return;
+    if (!audioElement || !isPlayerReady) return;
     
     console.log('[BackgroundMusicPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
     
@@ -240,7 +252,48 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         fadeToVolumeWithDisplay(0, 2);
       } else {
         // Main video is paused, fade in background music
-        console.log('[BackgroundMusicPlayer] Main video is paused, fading in background to', backgroundVolume);
+        console.log('[BackgroundMusicPlayer] Main video is paused, checking audio player state');
+        
+        // Check if the background player should be playing (according to React state)
+        // but isn't actually playing (the audio element is paused)
+        if (isPlaying) {
+          try {
+            // Check if the audio is actually playing
+            const isActuallyPlaying = !audioElement.paused;
+            
+            if (!isActuallyPlaying) {
+              console.log('[BackgroundMusicPlayer] State mismatch detected - React state shows playing but audio element is paused');
+              console.log('[BackgroundMusicPlayer] Ensuring background music is playing before fade in');
+              
+              // Start playing the audio before fading in
+              const playPromise = audioElement.play();
+              
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log('[BackgroundMusicPlayer] Successfully resumed audio playback');
+                    
+                    // Short delay to allow audio to start before beginning fade
+                    setTimeout(() => {
+                      console.log('[BackgroundMusicPlayer] Now fading in background to', backgroundVolume);
+                      fadeToVolumeWithDisplay(backgroundVolume, 1);
+                    }, 100);
+                  })
+                  .catch(error => {
+                    console.error('[BackgroundMusicPlayer] Error resuming audio playback:', error);
+                    // Still attempt to fade in even if play failed
+                    fadeToVolumeWithDisplay(backgroundVolume, 1);
+                  });
+                return; // Exit early since we're handling the fade in the promise
+              }
+            }
+          } catch (stateError) {
+            console.error('[BackgroundMusicPlayer] Error checking audio element state:', stateError);
+          }
+        }
+        
+        // If no state mismatch or we couldn't check, proceed with normal fade in
+        console.log('[BackgroundMusicPlayer] Fading in background to', backgroundVolume);
         fadeToVolumeWithDisplay(backgroundVolume, 1);
       }
     } catch (error) {
@@ -285,9 +338,15 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     if (audioElement) {
       try {
         if (isPlaying) {
+          // User manually paused - set the flag
+          isManualPauseRef.current = true;
+          setIsUserPaused(true);
           audioElement.pause();
           setIsPlaying(false);
         } else {
+          // User manually played - clear the flag
+          isManualPauseRef.current = false;
+          setIsUserPaused(false);
           audioElement.play().catch(error => {
             console.error('[BackgroundMusicPlayer] Error playing audio:', error);
           });
@@ -338,6 +397,11 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     // Update the state
     setCurrentTrackIndex(nextIndex);
     setCurrentTrack(nextTrack);
+    
+    // Store the index in backgroundPlayerRef for persistence across component re-renders
+    if (backgroundPlayerRef && backgroundPlayerRef.current) {
+      backgroundPlayerRef.current._currentTrackIndex = nextIndex;
+    }
     
     // Directly update the audio element for immediate effect
     if (audioElement && nextTrack) {
@@ -431,6 +495,40 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       audio.addEventListener('canplaythrough', () => {
         console.log('[BackgroundMusicPlayer] Audio canplaythrough - ready to play');
         setIsPlayerReady(true);
+        
+        // Check if the audio should automatically play (either from auto-transition or not user-paused)
+        if (!isUserPaused || autoTransitionRef.current) {
+          console.log('[BackgroundMusicPlayer] Auto-play condition met: isUserPaused=', isUserPaused, 'autoTransition=', autoTransitionRef.current);
+          
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log('[BackgroundMusicPlayer] Auto-play successful in canplaythrough handler');
+                setIsPlaying(true);
+                autoTransitionRef.current = false; // Reset the auto-transition flag
+              })
+              .catch(error => {
+                console.error('[BackgroundMusicPlayer] Auto-play failed in canplaythrough handler:', error);
+                
+                // Try once more with a short delay
+                setTimeout(() => {
+                  console.log('[BackgroundMusicPlayer] Retry auto-play with delay');
+                  audio.play()
+                    .then(() => {
+                      console.log('[BackgroundMusicPlayer] Delayed auto-play successful');
+                      setIsPlaying(true);
+                    })
+                    .catch(retryError => {
+                      console.error('[BackgroundMusicPlayer] Retry auto-play failed:', retryError);
+                      autoTransitionRef.current = false; // Reset flag even if playback fails
+                    });
+                }, 200);
+              });
+          }
+        } else {
+          console.log('[BackgroundMusicPlayer] Not auto-playing: user has manually paused playback');
+        }
       });
       
       audio.addEventListener('playing', () => {
@@ -438,8 +536,34 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       });
       
       audio.addEventListener('ended', () => {
-        console.log('[BackgroundMusicPlayer] Track ended');
-        handleSkipNext(); // Auto play next track
+        console.log('[BackgroundMusicPlayer] Track ended, implementing continuous playback');
+        
+        // Set our transition flag
+        autoTransitionRef.current = true;
+        
+        // Cancel any existing timeout to avoid multiple calls
+        if (trackSwitchTimeoutRef.current) {
+          clearTimeout(trackSwitchTimeoutRef.current);
+          trackSwitchTimeoutRef.current = null;
+        }
+
+        // Loop the current track once more to maintain audio context
+        audio.currentTime = 0;
+        
+        // Ensure we're playing to keep audio context active
+        if (audio.paused) {
+          const playPromise = audio.play().catch(err => {
+            console.error('[BackgroundMusicPlayer] Error continuing playback:', err);
+          });
+        }
+        
+        // Then switch to the next track after a short delay
+        // This keeps the audio context active while changing tracks
+        trackSwitchTimeoutRef.current = setTimeout(() => {
+          console.log('[BackgroundMusicPlayer] Switching to next track after delay');
+          handleSkipNext();
+          trackSwitchTimeoutRef.current = null;
+        }, 500);
       });
       
       audio.addEventListener('play', () => {
@@ -951,6 +1075,48 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       borderRadius: '2px'
     };
   }, [isPlaying]);
+
+  // Effect to set up track monitoring for continuous playback
+  useEffect(() => {
+    // Clear any existing interval
+    if (trackMonitorIntervalRef.current) {
+      clearInterval(trackMonitorIntervalRef.current);
+      trackMonitorIntervalRef.current = null;
+    }
+    
+    if (audioElement && isPlaying) {
+      console.log('[BackgroundMusicPlayer] Setting up track monitoring for continuous playback');
+      
+      // Set up an interval to monitor track progress
+      trackMonitorIntervalRef.current = setInterval(() => {
+        try {
+          // Check if the audio element exists and has valid duration
+          if (audioElement && !isNaN(audioElement.duration)) {
+            const timeRemaining = audioElement.duration - audioElement.currentTime;
+            
+            // If near the end of the track (within 0.5 seconds), prepare for next track
+            if (timeRemaining < 0.5 && timeRemaining > 0) {
+              console.log(`[BackgroundMusicPlayer] Track nearly complete (${timeRemaining.toFixed(2)}s remaining), preparing next track`);
+              
+              // Set flag to indicate this is an automatic transition
+              isManualPauseRef.current = false;
+              autoTransitionRef.current = true;
+            }
+          }
+        } catch (error) {
+          console.error('[BackgroundMusicPlayer] Error in track monitoring:', error);
+        }
+      }, 250); // Check every 250ms
+      
+      // Clean up interval on unmount
+      return () => {
+        if (trackMonitorIntervalRef.current) {
+          clearInterval(trackMonitorIntervalRef.current);
+          trackMonitorIntervalRef.current = null;
+        }
+      };
+    }
+  }, [audioElement, isPlaying]);
 
   return (
     <Box sx={{ 
