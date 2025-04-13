@@ -97,7 +97,6 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 - Create a timeline component with more space given to the first 15 seconds
     - Add markers for the timed events to the time line
     - Add a control to video controls that enables/disables timed events (remove config form toggle)
-- Make tabs more visible and distinguishable
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track
 - Fix weird youtube volume transition issues with external audio (AirPlay or HDMI)
