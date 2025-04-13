@@ -93,15 +93,19 @@ npm test
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
 
 ## To Do
-
+- Create a skip next minute button Create a skip back 20 seconds button (maybe using a modifier hotkey)
+- Create a timeline component with more space given to the first 15 seconds
+    - Add markers for the timed events to the time line
+    - Add a control to video controls that enables/disables timed events (remove config form toggle)
+- Make tabs more visible and distinguishable
+- Stop earlier timed events from removing themselves (they should be either all on or all off)
+- Fix background music player not moving to next track at end of current track
+- Fix weird youtube volume transition issues with external audio (AirPlay or HDMI)
+- Rename the component files to match current state of codebase
+- Fix popout fullscreen behavior issues
 - Improved mobile experience
 - Use an external URL for slides
-- Get the volume controls on background player to behave like main player
-- Correct the names of the component files to match current state
-- Fix popout fullscreen behavior issues
-- Possible server component to allow centralized configuration
 - In the piano, add startAt setting for each key because not every key starts at the same time
-- Audio nudge improvements
 
 ## Learn More
 
