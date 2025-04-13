@@ -102,7 +102,7 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
           children: [
             {
               type: "tabset",
-              weight: 85,
+              weight: 75,
               enableClose: false,
               children: [
                 {
@@ -125,7 +125,7 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
             },
             {
               type: "tabset",
-              weight: 15,
+              weight: 25,
               enableClose: false,
               children: [
                 {
@@ -218,6 +218,7 @@ const AppContent: React.FC = () => {
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -259,39 +260,63 @@ const AppContent: React.FC = () => {
   const handlePlayerReady = useCallback((playerInstance: any) => {
     setPlayer(playerInstance);
     setIsPlayerReady(true);
+    
+    // Get initial duration immediately
+    try {
+      const duration = playerInstance.getDuration();
+      if (duration && duration > 0) {
+        setVideoDuration(duration);
+        console.log('[App] Initial video duration:', duration);
+      }
+    } catch (error) {
+      console.error('[App] Error getting initial video duration:', error);
+    }
   }, []);
 
   const handleStateChange = useCallback((state: number | { data: number, videoId: string }) => {
     if (!isPlayerReady) return;
     
+    // Extract state data
+    let stateNumber: number;
+    let videoId: string | undefined;
+    
     // Check if we received a custom event with videoId
     if (typeof state === 'object' && 'videoId' in state) {
       // Direct update of video ID from the player
-      const newVideoId = state.videoId;
-      if (newVideoId !== video) {
-        console.log(`[App] Updating video ID from player event: ${newVideoId}`);
-        setVideo(newVideoId);
+      videoId = state.videoId;
+      if (videoId !== video) {
+        console.log(`[App] Updating video ID from player event: ${videoId}`);
+        setVideo(videoId);
       }
       
       // Continue with regular state handling using the data property
-      const stateNumber = state.data;
-      
-      // Only update playing state if it's different from current state
-      const shouldBePlaying = stateNumber === 1;
-      if (shouldBePlaying !== isPlaying) {
-        setIsPlaying(shouldBePlaying);
-      }
+      stateNumber = state.data;
     } else {
       // Handle the numeric state
-      const stateNumber = state;
-      
-      // Only update playing state if it's different from current state
-      const shouldBePlaying = stateNumber === 1;
-      if (shouldBePlaying !== isPlaying) {
-        setIsPlaying(shouldBePlaying);
+      stateNumber = state;
+    }
+    
+    // Update duration when video is cued or begins playing
+    if (stateNumber === 1 || stateNumber === 5) {
+      try {
+        if (player) {
+          const duration = player.getDuration();
+          if (duration && duration > 0) {
+            setVideoDuration(duration);
+            console.log('[App] Updated video duration:', duration);
+          }
+        }
+      } catch (error) {
+        console.error('[App] Error getting video duration:', error);
       }
     }
-  }, [isPlaying, isPlayerReady, video]);
+    
+    // Only update playing state if it's different from current state
+    const shouldBePlaying = stateNumber === 1;
+    if (shouldBePlaying !== isPlaying) {
+      setIsPlaying(shouldBePlaying);
+    }
+  }, [isPlaying, isPlayerReady, video, player]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -842,6 +867,16 @@ const AppContent: React.FC = () => {
     }
   }, [player, isPlayerReady, video, videoMonitorPlayer]);
 
+  const handleTimeChange = useCallback((newTime: number) => {
+    if (player && isPlayerReady) {
+      player.seekTo(newTime, true);
+      
+      if (videoMonitorPlayer) {
+        videoMonitorPlayer.seekTo(newTime, true);
+      }
+    }
+  }, [player, isPlayerReady, videoMonitorPlayer]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1187,13 +1222,30 @@ const AppContent: React.FC = () => {
         window.clearInterval(videoTimeUpdateIntervalRef.current);
       }
       
-      // Set up interval to update current time
+      // Get initial duration
+      try {
+        const duration = player.getDuration();
+        if (duration && duration > 0) {
+          setVideoDuration(duration);
+        }
+      } catch (error) {
+        console.error('Error getting video duration:', error);
+      }
+      
+      // Set up interval to update current time and check duration
       videoTimeUpdateIntervalRef.current = window.setInterval(() => {
         try {
           const time = player.getCurrentTime();
           setCurrentVideoTime(time);
+          
+          // Also check for duration updates
+          const currentDuration = player.getDuration();
+          if (currentDuration && currentDuration > 0 && currentDuration !== videoDuration) {
+            setVideoDuration(currentDuration);
+            console.log('[App] Updated video duration:', currentDuration);
+          }
         } catch (error) {
-          console.error('Error getting current time:', error);
+          console.error('Error getting current time or duration:', error);
         }
       }, 1000);
     }
@@ -1203,7 +1255,7 @@ const AppContent: React.FC = () => {
         window.clearInterval(videoTimeUpdateIntervalRef.current);
       }
     };
-  }, [player, isPlayerReady]);
+  }, [player, isPlayerReady, videoDuration]);
 
   // Update the layout when background player type changes
   useEffect(() => {
@@ -1363,7 +1415,14 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "controls") {
       return (
-        <Box sx={{ p: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box sx={{ 
+          p: 1, 
+          height: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'visible' // Ensure content isn't clipped
+        }}>
           <VideoControls
             onPlayPause={handlePlayPause}
             onSkipForward={handleSkipForward}
@@ -1380,6 +1439,7 @@ const AppContent: React.FC = () => {
             onDisableDucking={handleDisableDucking}
             onToggleMute={handleToggleMute}
             onHelpClick={handleToggleHelp}
+            onTimeChange={handleTimeChange}
             isPlaying={isPlaying}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             isPipMode={isPipMode}
@@ -1387,6 +1447,7 @@ const AppContent: React.FC = () => {
             isDucking={isDucking}
             isMuted={isMuted}
             currentTime={currentVideoTime}
+            duration={videoDuration}
           />
         </Box>
       );

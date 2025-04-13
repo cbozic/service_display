@@ -16,6 +16,7 @@ import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import VideoTimeDisplay from './VideoTimeDisplay';
+import VideoTimeline from './VideoTimeline';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -33,6 +34,7 @@ interface VideoControlsProps {
   onDisableDucking: () => void;
   onToggleMute: () => void;
   onHelpClick?: () => void;
+  onTimeChange?: (newTime: number) => void;
   isPlaying: boolean;
   isSlideTransitionsEnabled: boolean;
   isPipMode: boolean;
@@ -40,6 +42,7 @@ interface VideoControlsProps {
   isDucking: boolean;
   isMuted: boolean;
   currentTime?: number;
+  duration?: number;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -58,6 +61,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onDisableDucking,
   onToggleMute,
   onHelpClick,
+  onTimeChange,
   isPlaying,
   isSlideTransitionsEnabled,
   isPipMode,
@@ -65,6 +69,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isDucking,
   isMuted,
   currentTime = 0,
+  duration = 0,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -87,6 +92,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onVolumeChange(volumeValue);
   };
 
+  const handleTimeChange = (newTime: number) => {
+    if (onTimeChange) {
+      onTimeChange(newTime);
+    }
+  };
+
   // Custom tooltip styling
   const tooltipSx = {
     fontSize: '0.95rem', // Larger font size
@@ -106,13 +117,16 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '10px',
-    padding: '10px',
+    padding: '8px',
     display: 'flex',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 1,
+    gap: 0.5,
     transition: 'all 0.3s ease',
+    width: '100%',
+    maxWidth: '100%',
+    height: 'auto',
   };
 
   const buttonStyle = {
@@ -175,6 +189,23 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <Box ref={containerRef} sx={containerStyle}>
+      {/* Debug info for timeline */}
+      {(() => {
+        console.log('[VideoControls] Timeline render conditions:', { duration, hasTimeChange: !!onTimeChange });
+        return null;
+      })()}
+
+      {/* Timeline */}
+      {duration > 0 && onTimeChange && (
+        <Box sx={{ width: '100%', mb: 0.5 }}>
+          <VideoTimeline 
+            currentTime={currentTime} 
+            duration={duration} 
+            onTimeChange={handleTimeChange} 
+          />
+        </Box>
+      )}
+      
       {/* Main controls container */}
       <Box sx={{ 
         display: 'flex', 
@@ -182,7 +213,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         justifyContent: 'center',
         flexGrow: 1,
         flexWrap: 'wrap',
-        gap: 1,
+        gap: 0.5,
+        width: '100%',
       }}>
         {/* Time Display */}
         {currentTime !== undefined && (
@@ -398,34 +430,34 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             />
           </Tooltip>
         </Box>
-      </Box>
-
-      {/* Help button - separated with divider and right-aligned */}
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        marginLeft: 2,
-        borderLeft: '1px solid rgba(255, 255, 255, 0.3)',
-        paddingLeft: 2,
-      }}>
-        <Tooltip 
-          title="Help (?)" 
-          placement="top" 
-          arrow
-          componentsProps={{
-            tooltip: {
-              sx: tooltipSx
-            }
-          }}
-          PopperProps={tooltipPopperProps}
-        >
-          <IconButton 
-            onClick={onHelpClick} 
-            sx={buttonStyle}
+        
+        {/* Help button - separated with divider */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          marginLeft: 'auto', // Push to the right
+          borderLeft: '1px solid rgba(255, 255, 255, 0.3)',
+          paddingLeft: 1,
+        }}>
+          <Tooltip 
+            title="Help (?)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
           >
-            <HelpOutlinedIcon />
-          </IconButton>
-        </Tooltip>
+            <IconButton 
+              onClick={onHelpClick} 
+              sx={buttonStyle}
+            >
+              <HelpOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );
