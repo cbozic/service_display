@@ -89,6 +89,19 @@
   background-color: var(--dark-bg) !important;
 }
 
+/* Additional tab styling for better visibility */
+.flexlayout__tabset_tabbar_outer {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.flexlayout__tab_button {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.flexlayout__tab_button--selected {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
