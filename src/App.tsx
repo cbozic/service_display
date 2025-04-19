@@ -596,7 +596,8 @@ const AppContent: React.FC = () => {
           (day === 0 && (hours < 23 || (hours === 23 && minutes < 45)))
         );
 
-        if (isPipTimeAllowed) {
+        // Only register PiP events if video duration is over 65 minutes
+        if (isPipTimeAllowed && videoDuration > 3900) {
           // Only register enable event if we're before 5 seconds
           if (currentTime < 5) {
             console.log('[App] Re-registering PiP enable event for 5s');
@@ -629,7 +630,11 @@ const AppContent: React.FC = () => {
             console.log('[App] Skipping PiP disable event registration (current time > 6.5 minutes)');
           }
         } else {
-          console.log('[App] PiP events not re-registered - not within allowed time window (Sat after 2pm or Sun before 11:45pm)');
+          if (!isPipTimeAllowed) {
+            console.log('[App] PiP events not re-registered - not within allowed time window (Sat after 2pm or Sun before 11:45pm)');
+          } else {
+            console.log('[App] PiP events not re-registered - video duration is not over 65 minutes');
+          }
         }
       } else {
         console.log('[App] Automatic events are disabled, not re-registering events');
@@ -637,7 +642,7 @@ const AppContent: React.FC = () => {
     } else {
       console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
     }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef]);
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef, videoDuration]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
