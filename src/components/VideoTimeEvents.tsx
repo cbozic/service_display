@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useEffect, useRef } from 'react';
+import { useTimeEvents, TimeEvent } from '../contexts/TimeEventsContext';
 
-interface TimeEvent {
-  time: number;
+interface TimeEventWithCallback extends Omit<TimeEvent, 'triggered'> {
   callback: () => void;
   triggered: boolean;
 }
@@ -13,17 +13,62 @@ interface VideoTimeEventsProps {
 }
 
 const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, isPlaying }, ref) => {
-  const eventsRef = useRef<TimeEvent[]>([]);
+  const eventsRef = useRef<TimeEventWithCallback[]>([]);
   const intervalRef = useRef<number | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
+  const { events, addEvent, clearEvents: clearContextEvents, updateTriggered } = useTimeEvents();
 
   // Function to register a new time event
-  const registerEvent = (time: number, callback: () => void) => {
+  const registerEvent = (time: number, callback: () => void, eventInfo?: Omit<TimeEvent, 'time' | 'triggered'>) => {
     console.log(`[VideoTimeEvents] Registering new event for time ${time}`);
+    
+    // Determine event type and action type from callback function string representation
+    const callbackStr = callback.toString().toLowerCase();
+    
+    // Default values
+    let eventType: TimeEvent['eventType'] = 'other';
+    let actionType: TimeEvent['actionType'] = 'one-time';
+    
+    // Try to determine event type
+    if (callbackStr.includes('fullscreen')) {
+      eventType = 'fullscreen';
+    } else if (callbackStr.includes('pip')) {
+      eventType = 'pip';
+    } else if (callbackStr.includes('duck')) {
+      eventType = 'ducking';
+    } else if (callbackStr.includes('paus')) {
+      eventType = 'pause';
+    } else if (callbackStr.includes('unpaus')) {
+      eventType = 'unpause';
+    }
+    
+    // Try to determine action type
+    if (callbackStr.includes('enable') || callbackStr.includes('auto-enabling')) {
+      actionType = 'enable';
+    } else if (callbackStr.includes('disable') || callbackStr.includes('auto-disabling')) {
+      actionType = 'disable';
+    }
+    
+    // Override with provided values if any
+    if (eventInfo) {
+      if (eventInfo.eventType) eventType = eventInfo.eventType;
+      if (eventInfo.actionType) actionType = eventInfo.actionType;
+    }
+
+    // Add to internal event registry
     eventsRef.current.push({
       time,
       callback,
+      eventType,
+      actionType,
       triggered: false
+    });
+    
+    // Add to context for sharing with other components
+    addEvent({
+      time,
+      eventType,
+      actionType
     });
   };
 
@@ -31,6 +76,7 @@ const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, i
   const clearEvents = () => {
     console.log('[VideoTimeEvents] Clearing all events');
     eventsRef.current = [];
+    clearContextEvents();
   };
 
   // Function to check and trigger events
@@ -51,6 +97,7 @@ const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, i
           if (event.triggered && currentTime < event.time) {
             console.log(`[VideoTimeEvents] Re-enabling event for time ${event.time}s`);
             event.triggered = false;
+            updateTriggered(event.time, false);
           }
         });
       }
@@ -64,6 +111,7 @@ const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, i
           console.log(`[VideoTimeEvents] Triggering event for time ${event.time}s at current time ${currentTime.toFixed(2)}s`);
           event.callback();
           event.triggered = true;
+          updateTriggered(event.time, true);
         }
       });
 

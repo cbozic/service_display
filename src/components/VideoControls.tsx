@@ -117,12 +117,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '10px',
-    padding: '8px',
+    padding: '12px 8px', // Increased vertical padding
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 0.5,
+    gap: 1, // Increased gap for more spacing
     transition: 'all 0.3s ease',
     width: '100%',
     maxWidth: '100%',
@@ -197,7 +197,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
       {/* Timeline */}
       {duration > 0 && onTimeChange && (
-        <Box sx={{ width: '100%', mb: 0.5 }}>
+        <Box sx={{ width: '100%', mb: 1.5, mt: 0.5 }}> {/* Adjusted margins */}
           <VideoTimeline 
             currentTime={currentTime} 
             duration={duration} 

@@ -21,6 +21,7 @@ import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, Skip
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import OnlineHelp from './components/OnlineHelp';
+import { TimeEventsProvider } from './contexts/TimeEventsContext';
 
 // System-wide constants
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
@@ -102,7 +103,7 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
           children: [
             {
               type: "tabset",
-              weight: 75,
+              weight: 65,
               enableClose: false,
               children: [
                 {
@@ -125,7 +126,7 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
             },
             {
               type: "tabset",
-              weight: 25,
+              weight: 35,
               enableClose: false,
               children: [
                 {
@@ -1531,7 +1532,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <YouTubeProvider>
-      <AppContent />
+      <TimeEventsProvider>
+        <AppContent />
+      </TimeEventsProvider>
     </YouTubeProvider>
   );
 };
