@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Slider, Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
@@ -50,8 +50,34 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   duration,
   onTimeChange,
 }) => {
+  // State to track if the slider is being interacted with
+  const [isInteracting, setIsInteracting] = useState(false);
+  // State to track the current hover position
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
+  // Ref to store the slider value during dragging
+  const sliderValueRef = useRef<number | null>(null);
+  // Ref to store the last committed value
+  const lastCommittedValueRef = useRef<number | null>(null);
+  // State to track if we're in the transition period after releasing
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  // Ref to track the previous currentTime value
+  const prevCurrentTimeRef = useRef<number>(0);
+  
   // Log render info
   console.log('[VideoTimeline] Rendering with:', { currentTime, duration });
+
+  // Effect to detect when currentTime changes after a commit
+  useEffect(() => {
+    // If we're transitioning and currentTime has changed from the previous value
+    if (isTransitioning && currentTime !== prevCurrentTimeRef.current) {
+      // We can now safely clear the transitioning state
+      setIsTransitioning(false);
+      sliderValueRef.current = null;
+    }
+    
+    // Update the previous currentTime ref
+    prevCurrentTimeRef.current = currentTime;
+  }, [currentTime, isTransitioning]);
 
   // Create marks for 5-minute intervals
   const marks = React.useMemo(() => {
@@ -90,30 +116,88 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   };
 
   const handleChange = (_event: Event, newValue: number | number[]) => {
+    // Update the hover position during dragging
     const value = Array.isArray(newValue) ? newValue[0] : newValue;
+    setHoverPosition(value);
+    setIsInteracting(true);
+    // Store the current slider value
+    sliderValueRef.current = value;
+  };
+
+  const handleChangeCommitted = (_event: Event | React.SyntheticEvent, newValue: number | number[]) => {
+    // This will be called when the user releases the mouse button
+    const value = Array.isArray(newValue) ? newValue[0] : newValue;
+    
+    // Store the last committed value
+    lastCommittedValueRef.current = value;
+    
+    // Set transitioning state to true
+    setIsTransitioning(true);
+    
+    // Update the video time to the new position
     onTimeChange(inverseTransform(value));
+    
+    // Clear interaction state but keep the slider at the released position
+    setHoverPosition(null);
+    setIsInteracting(false);
+  };
+
+  // Format time for display
+  const formatTime = (value: number) => {
+    const time = inverseTransform(value);
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   // Protect against invalid duration values
   const safeDuration = duration > 0 ? duration : 1;
 
+  // Determine the current slider value
+  // If we're interacting or transitioning, use the stored value, otherwise use the video's current time
+  const currentSliderValue = (isInteracting || isTransitioning) && sliderValueRef.current !== null
+    ? sliderValueRef.current
+    : valueTransform(Math.min(currentTime, safeDuration));
+
   return (
     <Box sx={{ width: '100%', px: 1, py: 1 }}>
-      <CustomSlider
-        value={valueTransform(Math.min(currentTime, safeDuration))}
-        min={0}
-        max={valueTransform(safeDuration)}
-        onChange={handleChange}
-        marks={marks.length > 8 ? marks.filter((_, i) => i % 2 === 0) : marks} // Reduce density if too many marks
-        aria-label="Video timeline"
-        valueLabelDisplay="auto"
-        valueLabelFormat={(value) => {
-          const time = inverseTransform(value);
-          const minutes = Math.floor(time / 60);
-          const seconds = Math.floor(time % 60);
-          return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }}
-      />
+      <Box sx={{ position: 'relative' }}>
+        <CustomSlider
+          value={currentSliderValue}
+          min={0}
+          max={valueTransform(safeDuration)}
+          onChange={handleChange}
+          onChangeCommitted={handleChangeCommitted}
+          marks={marks.length > 8 ? marks.filter((_, i) => i % 2 === 0) : marks} // Reduce density if too many marks
+          aria-label="Video timeline"
+          valueLabelDisplay="off" // Disable the built-in tooltip
+        />
+        
+        {/* Simple fixed-position tooltip below the slider */}
+        {isInteracting && hoverPosition !== null && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: -30,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              zIndex: 99999,
+              pointerEvents: 'none',
+              textAlign: 'center',
+              width: 'auto',
+              minWidth: '60px',
+            }}
+          >
+            {formatTime(hoverPosition)}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };
