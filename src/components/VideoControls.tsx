@@ -15,6 +15,7 @@ import { VolumeUp } from '@mui/icons-material';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
+import TimerIcon from '@mui/icons-material/Timer';
 import VideoTimeDisplay from './VideoTimeDisplay';
 import VideoTimeline from './VideoTimeline';
 
@@ -35,12 +36,14 @@ interface VideoControlsProps {
   onToggleMute: () => void;
   onHelpClick?: () => void;
   onTimeChange?: (newTime: number) => void;
+  onTimedEventsToggle?: () => void;
   isPlaying: boolean;
   isSlideTransitionsEnabled: boolean;
   isPipMode: boolean;
   volume: number;
   isDucking: boolean;
   isMuted: boolean;
+  isTimedEventsEnabled?: boolean;
   currentTime?: number;
   duration?: number;
 }
@@ -62,12 +65,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onToggleMute,
   onHelpClick,
   onTimeChange,
+  onTimedEventsToggle,
   isPlaying,
   isSlideTransitionsEnabled,
   isPipMode,
   volume,
   isDucking,
   isMuted,
+  isTimedEventsEnabled = false,
   currentTime = 0,
   duration = 0,
 }) => {
@@ -187,6 +192,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     }
   };
 
+  const timedEventsButtonStyle = {
+    ...buttonStyle,
+    ...(isTimedEventsEnabled && {
+      color: 'rgba(127, 255, 0, 0.8)',
+      backgroundColor: 'rgba(127, 255, 0, 0.1)'
+    })
+  };
+
   return (
     <Box ref={containerRef} sx={containerStyle}>
       {/* Debug info for timeline */}
@@ -289,6 +302,26 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               sx={slideTransitionsButtonStyle}
             >
               <SlideshowOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title={isTimedEventsEnabled ? "Disable Timed Events" : "Enable Timed Events"} 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={onTimedEventsToggle} 
+              sx={timedEventsButtonStyle}
+              disabled={!onTimedEventsToggle}
+            >
+              <TimerIcon />
             </IconButton>
           </Tooltip>
         </Box>

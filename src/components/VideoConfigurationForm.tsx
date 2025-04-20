@@ -13,8 +13,6 @@ interface VideoConfigurationFormProps {
   setPlaylistUrl: (value: string) => void;
   backgroundPlaylistUrl: string;
   setBackgroundPlaylistUrl: (value: string) => void;
-  isAutomaticEventsEnabled: boolean;
-  onAutomaticEventsToggle: (enabled: boolean) => void;
   isExperimentalFeaturesEnabled?: boolean;
   onExperimentalFeaturesToggle?: (enabled: boolean) => void;
   useBackgroundVideo?: boolean;
@@ -30,8 +28,6 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   setPlaylistUrl,
   backgroundPlaylistUrl,
   setBackgroundPlaylistUrl,
-  isAutomaticEventsEnabled,
-  onAutomaticEventsToggle,
   isExperimentalFeaturesEnabled = false,
   onExperimentalFeaturesToggle = () => {},
   useBackgroundVideo = false,
@@ -184,34 +180,7 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
             fullWidth
             sx={textFieldStyles}
           />
-          
-          <Divider sx={dividerStyle} />
-          
-          <FormControlLabel
-            control={
-              <Switch
-                checked={isAutomaticEventsEnabled}
-                onChange={(e) => onAutomaticEventsToggle(e.target.checked)}
-                color="primary"
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: 'var(--accent-color)',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: 'var(--accent-color)',
-                  },
-                }}
-              />
-            }
-            label="Automatic Events"
-            sx={labelStyle}
-          />
-          <Typography variant="caption" sx={{ color: 'var(--dark-text-secondary)', mt: -1 }}>
-            Automatically trigger events at specific times (e.g., PiP mode at 5s, disable at 20s)
-          </Typography>
-          
-          <Divider sx={dividerStyle} />
-          
+        
           <FormControlLabel
             control={
               <Switch

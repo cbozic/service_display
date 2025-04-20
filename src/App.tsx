@@ -883,6 +883,11 @@ const AppContent: React.FC = () => {
     }
   }, [player, isPlayerReady, videoMonitorPlayer]);
 
+  const handleTimedEventsToggle = useCallback(() => {
+    setIsAutomaticEventsEnabled(prev => !prev);
+    console.log('[App] Timed events toggled:', !isAutomaticEventsEnabled);
+  }, [isAutomaticEventsEnabled]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1016,6 +1021,10 @@ const AppContent: React.FC = () => {
         event.preventDefault();
         handlePlayerReload();
       }
+      else if (event.code === 'KeyE' && !event.repeat) {
+        event.preventDefault();
+        handleTimedEventsToggle();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1027,7 +1036,7 @@ const AppContent: React.FC = () => {
       handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
       setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
       // Add these new dependencies:
-      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload
+      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle
   ]);
 
   // Handle fullscreen changes from external sources
@@ -1342,8 +1351,6 @@ const AppContent: React.FC = () => {
           setPlaylistUrl={setPlaylistUrl}
           backgroundPlaylistUrl={backgroundPlaylistUrl}
           setBackgroundPlaylistUrl={setBackgroundPlaylistUrl}
-          isAutomaticEventsEnabled={isAutomaticEventsEnabled}
-          onAutomaticEventsToggle={setIsAutomaticEventsEnabled}
           isExperimentalFeaturesEnabled={isExperimentalFeaturesEnabled}
           onExperimentalFeaturesToggle={(enabled) => {
             setIsExperimentalFeaturesEnabled(enabled);
@@ -1444,14 +1451,16 @@ const AppContent: React.FC = () => {
             onEnableDucking={handleEnableDucking}
             onDisableDucking={handleDisableDucking}
             onToggleMute={handleToggleMute}
-            onHelpClick={handleToggleHelp}
+            onHelpClick={() => setIsHelpOpen(true)}
             onTimeChange={handleTimeChange}
+            onTimedEventsToggle={handleTimedEventsToggle}
             isPlaying={isPlaying}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             isPipMode={isPipMode}
             volume={videoVolume}
             isDucking={isDucking}
             isMuted={isMuted}
+            isTimedEventsEnabled={isAutomaticEventsEnabled}
             currentTime={currentVideoTime}
             duration={videoDuration}
           />
@@ -1531,11 +1540,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <YouTubeProvider>
-      <TimeEventsProvider>
+    <TimeEventsProvider>
+      <YouTubeProvider>
         <AppContent />
-      </TimeEventsProvider>
-    </YouTubeProvider>
+      </YouTubeProvider>
+    </TimeEventsProvider>
   );
 };
 
