@@ -23,6 +23,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
       { key: 'KeyP', description: 'Toggle Picture-in-Picture' },
       { key: 'KeyM', description: 'Toggle mute' },
       { key: 'KeyT', description: 'Toggle slide transitions' },
+      { key: 'KeyE', description: 'Toggle timed events' },
       { key: 'ArrowLeft', description: 'Rewind video by 5 seconds' },
       { key: 'ArrowRight', description: 'Fast forward video by 15 seconds' },
       { key: 'BracketLeft', description: 'Decrease volume by 5%' },
@@ -215,7 +216,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Video Controls"
-                secondary="A comprehensive control panel for managing video playback, volume, and display modes. Includes buttons for play/pause, seeking, volume adjustment, and display mode toggles. All controls have corresponding keyboard shortcuts for quick access.  Many of these controls have side effect behaviors that are not immediately obvious but are designed to provide an easier user experience. For example, when the video player is paused, the slide display will fade in until it is visible.  Conversely, when the video player is playing, the slide display will fade away. There are similar behaviors with the background music player."
+                secondary="A comprehensive control panel for managing video playback, volume, and display modes. Features include play/pause, seeking, volume, and various display toggles. The panel includes a video timeline with interactive markers that show where timed events will occur during playback. The timed events toggle (timer icon) enables or disables automatic control changes at pre-programmed times. All controls have corresponding keyboard shortcuts. When the video player is paused, the slide display will fade in until visible. Conversely, when playing, the slide display will fade away. Similar behaviors occur with the background player."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -223,7 +224,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Background Music"
-                secondary="A separate audio player for background music that can be controlled independently of the main video. Similar to the Slide Display, this background player will start when the main video player is paused and stop when the main video player is playing. The video from the background music player is not intended to be visible in the main display while the audio is intended to provide quiet background music. Features include volume control, track selection, and random playback. The music player can be muted or adjusted without affecting the main video's audio. When the player starts, there may be some YouTube commercials initially. So, you should set up before your service starts and get those out of the way. It is recommended to set your TV or PC volume where you normally would for the service's main content and adjust the background music slider so it would be soft enough to avoid creating a distraction during prayer or fellowship. Note that the main display content has a separate volume control and will probably be much louder!"
+                secondary="A separate player for background content that can be controlled independently of the main video. This player will start when the main video player is paused and stop when the main video player is playing. Features include volume control, track selection, and random playback. You can switch between Music and Video modes using the Background Player Type toggle in Settings. The background player can be muted or adjusted without affecting the main video's audio. When the player starts, there may be some YouTube commercials initially, so set up before your service starts. It's recommended to set your system volume for the service's main content and adjust the background slider to be soft enough to avoid creating a distraction during prayer or fellowship."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -264,15 +265,23 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Videos Playlist URL"
-                secondary="A YouTube playlist URL containing multiple videos that can be played in sequence. The first video from this list will be selected to be played in the main display. Even though this is a playlist, it's not intented to play more than one video from this list. Using a playlist that is regularly updated by its channel owner will allow you to always display the most recent video content in your main display."
+                secondary="A YouTube playlist URL containing multiple videos that can be played in sequence. The first video from this list will be selected to be played in the main display. Even though this is a playlist, it's not intended to play more than one video from this list. Using a playlist that is regularly updated by its channel owner will allow you to always display the most recent video content in your main display."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
             </ListItem>
             <ListItem>
               <ListItemText
-                primary="Background Music Playlist URL"
-                secondary="A YouTube playlist URL for background music tracks. This playlist will play in the background music component as described above. In that component, you can control the volume independently of the main video and skip tracks as needed. The component supports random video selection too."
+                primary="Background Player Type"
+                secondary="Toggle between Music and Video modes for the background player. In Music mode, only the audio from the background playlist will play with the video hidden. In Video mode, both audio and video will be visible, which can be used for ambient visuals rather than content requiring attention. This setting affects how the background content is displayed and interacted with."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Background Playlist URL"
+                secondary="A YouTube playlist URL for background content. This playlist will play in the background component based on the selected Background Player Type (music or video). You can control the volume independently of the main video and skip tracks as needed. The component supports random track selection and volume adjustment using keyboard shortcuts."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -280,7 +289,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Automatic Events"
-                secondary="This is intended to be the 'easy button' that allows you to just start the service when you want without having to worry about all the controls. When enabled, it automatically triggers controls like Picture-in-Picture and audio ducking at pre-programmed times during video playback. When disabled, the vido will play regularly without automatically triggering these controls.  Users can still manually trigger the playback controls at any time whether this setting is enabled or disabled."
+                secondary="The 'easy button' feature that works with the Timed Events toggle in the Controls panel. When timed events are enabled, this setting automatically triggers controls like Picture-in-Picture and audio ducking at pre-programmed times during video playback. The video timeline shows markers where these events will occur. When disabled, the video will play regularly without automatically triggering these controls. Users can still manually activate any control at any time regardless of this setting."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
