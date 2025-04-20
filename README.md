@@ -94,8 +94,9 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 - Create a skip next minute button Create a skip back 20 seconds button (maybe using a modifier hotkey)
-- Create a timeline component with more space given to the first 15 seconds
+- Create a timeline component with more space given to the first 5 seconds
     - Add markers for the timed events to the time line
+    - Make sure marker placement on timeline accounts for non-linear timeline scale
     - Add a control to video controls that enables/disables timed events (remove config form toggle)
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track

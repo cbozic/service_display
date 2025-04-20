@@ -128,8 +128,13 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   // Ref for the slider container to calculate marker positions
   const sliderContainerRef = useRef<HTMLDivElement>(null);
   
-  // Log render info
-  console.log('[VideoTimeline] Rendering with:', { currentTime, duration, events: events.length });
+  // Log render info with useful debugging
+  console.log('[VideoTimeline] Rendering with:', { 
+    currentTime, 
+    duration, 
+    eventCount: events.length,
+    containerWidth: sliderContainerRef.current?.clientWidth
+  });
 
   // Effect to detect when currentTime changes after a commit
   useEffect(() => {
@@ -143,6 +148,16 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     // Update the previous currentTime ref
     prevCurrentTimeRef.current = currentTime;
   }, [currentTime, isTransitioning]);
+
+  // More debugging for the container size
+  useEffect(() => {
+    if (sliderContainerRef.current) {
+      console.log('[VideoTimeline] Container size:', {
+        width: sliderContainerRef.current.clientWidth,
+        height: sliderContainerRef.current.clientHeight
+      });
+    }
+  }, []);
 
   // Use a non-linear scale that emphasizes the first 5 seconds
   const valueTransform = (value: number) => {
@@ -227,9 +242,14 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     
   // Calculate the percentage position for each event marker
   const getEventMarkerPosition = (time: number) => {
-    const transformedTime = valueTransform(time);
+    // We need to use the same transformation as the slider
+    const transformedTime = valueTransform(Math.min(time, safeDuration));
     const maxValue = valueTransform(safeDuration);
-    return `${(transformedTime / maxValue) * 100}%`;
+    const percentPosition = (transformedTime / maxValue) * 100;
+    
+    console.log(`[Timeline Debug] Event at ${time}s: transformed=${transformedTime}, maxValue=${maxValue}, position=${percentPosition}%`);
+    
+    return `${percentPosition}%`;
   };
   
   // Helper function to get the appropriate icon based on event type and action
@@ -274,24 +294,37 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     <Box sx={{ width: '100%', px: 1, py: 1, mt: 1, position: 'relative' }} ref={sliderContainerRef}>
       {/* Event markers positioned above the slider */}
       <MarkerContainer>
-        {events
-          .filter(event => event.time <= duration) // Only show events within duration
-          .map((event, index) => (
-            <Tooltip
-              key={`${event.time}-${event.eventType}-${index}`}
-              title={getEventTooltipText(event.eventType, event.actionType, event.time)}
-              placement="top"
-              arrow
-            >
-              <EventMarker
-                left={getEventMarkerPosition(event.time)}
-                actionType={event.actionType}
-                onClick={() => onTimeChange(event.time)}
-              >
-                {getEventIcon(event.eventType, event.actionType)}
-              </EventMarker>
-            </Tooltip>
-          ))}
+        {(() => {
+          console.log('[VideoTimeline] Rendering markers for events:', events.length, 'duration:', duration);
+          return events
+            .filter(event => {
+              // Only show events within duration and log the ones we're filtering out
+              const inRange = event.time <= duration;
+              if (!inRange) {
+                console.log(`[VideoTimeline] Filtering out event at ${event.time}s as it exceeds duration ${duration}s`);
+              }
+              return inRange;
+            })
+            .map((event, index) => {
+              const position = getEventMarkerPosition(event.time);
+              return (
+                <Tooltip
+                  key={`${event.time}-${event.eventType}-${index}`}
+                  title={getEventTooltipText(event.eventType, event.actionType, event.time)}
+                  placement="top"
+                  arrow
+                >
+                  <EventMarker
+                    left={position}
+                    actionType={event.actionType}
+                    onClick={() => onTimeChange(event.time)}
+                  >
+                    {getEventIcon(event.eventType, event.actionType)}
+                  </EventMarker>
+                </Tooltip>
+              );
+            });
+        })()}
       </MarkerContainer>
       
       <Box sx={{ position: 'relative' }}>
