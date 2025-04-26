@@ -396,22 +396,6 @@ const AppContent: React.FC = () => {
           console.log('[App] Skipping fullscreen enable event registration (current time > 1s)');
         }
 
-        // Register ducking enable event at 3 seconds
-        if (currentTime < 3) {
-          console.log('[App] Re-registering ducking enable event for 3s');
-          timeEventsRef.current.registerEvent(3, () => {
-            console.log(`[App] Checking ducking enable event at 3s (current ducking state: ${isDucking})`);
-            if (!isDucking && !isMuted) {
-              console.log('[App] Auto-enabling ducking at 3s');
-              handleEnableDucking();
-            } else {
-              console.log('[App] Ducking already enabled or audio is muted, skipping enable event');
-            }
-          });
-        } else {
-          console.log('[App] Skipping ducking enable event registration (current time > 3s)');
-        }
-
         // Register background players pause event at 15 minutes (900 seconds)
         if (currentTime < 900) {
           console.log('[App] Registering background players pause event for 15 minutes');
