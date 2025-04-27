@@ -68,7 +68,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
   const secondaryTextStyle = {
     fontSize: '1rem',
     lineHeight: 1.5,
-    color: 'var(--dark-text-secondary)'
+    color: '#d0d0e0'
   };
 
   return (
@@ -282,6 +282,14 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
               <ListItemText
                 primary="Background Playlist URL"
                 secondary="A YouTube playlist URL for background content. This playlist will play in the background component based on the selected Background Player Type (music or video). You can control the volume independently of the main video and skip tracks as needed. The component supports random track selection and volume adjustment using keyboard shortcuts."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Audio Ducking Percentage"
+                secondary="Sets the volume percentage to use when audio ducking is enabled. When you press the ducking button (D key), the main video volume will reduce to this percentage of its original volume. This is useful during music playing to temporarily reduce the volume without fully muting it. A lower percentage creates a more dramatic volume reduction."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />

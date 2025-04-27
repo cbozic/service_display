@@ -205,6 +205,7 @@ const AppContent: React.FC = () => {
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
+  const [audioDuckingPercentage, setAudioDuckingPercentage] = useState<number>(66);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
@@ -658,9 +659,9 @@ const AppContent: React.FC = () => {
 
   const handleDuckingToggle = useCallback(() => {
     if (!isDucking) {
-      // Instant duck down to 66%
+      // Instant duck down to the specified percentage
       preDuckVolume.current = videoVolume;
-      setVideoVolume(Math.round(videoVolume * 0.66));
+      setVideoVolume(Math.round(videoVolume * (audioDuckingPercentage / 100)));
       setIsDucking(true);
     } else {
       // Fade back to original volume over 3 seconds
@@ -682,20 +683,20 @@ const AppContent: React.FC = () => {
         }
       }, stepDuration);
     }
-  }, [isDucking, videoVolume]);
+  }, [isDucking, videoVolume, audioDuckingPercentage]);
 
   const handleEnableDucking = useCallback(() => {
     if (!isDucking && !isMuted) {
       console.log('[App] Enabling audio ducking (current state:', isDucking, ')');
-      // Instant duck down to 66%
+      // Instant duck down to the specified percentage
       preDuckVolume.current = videoVolume;
-      setVideoVolume(Math.round(videoVolume * 0.66));
+      setVideoVolume(Math.round(videoVolume * (audioDuckingPercentage / 100)));
       setIsDucking(true);
       console.log('[App] Audio ducking state after enable:', true);
     } else {
       console.log('[App] Audio ducking already enabled or audio is muted, skipping enable');
     }
-  }, [isDucking, isMuted, videoVolume]);
+  }, [isDucking, isMuted, videoVolume, audioDuckingPercentage]);
 
   const handleDisableDucking = useCallback(() => {
     if (isDucking) {
@@ -1347,6 +1348,8 @@ const AppContent: React.FC = () => {
           }}
           useBackgroundVideo={useBackgroundVideo}
           onBackgroundTypeToggle={setUseBackgroundVideo}
+          audioDuckingPercentage={audioDuckingPercentage}
+          setAudioDuckingPercentage={setAudioDuckingPercentage}
         />
       );
     } else if (component === "video") {

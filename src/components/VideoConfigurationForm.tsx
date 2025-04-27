@@ -17,6 +17,8 @@ interface VideoConfigurationFormProps {
   onExperimentalFeaturesToggle?: (enabled: boolean) => void;
   useBackgroundVideo?: boolean;
   onBackgroundTypeToggle?: (useVideo: boolean) => void;
+  audioDuckingPercentage?: number;
+  setAudioDuckingPercentage?: (value: number) => void;
 }
 
 const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
@@ -31,7 +33,9 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   isExperimentalFeaturesEnabled = false,
   onExperimentalFeaturesToggle = () => {},
   useBackgroundVideo = false,
-  onBackgroundTypeToggle = () => {}
+  onBackgroundTypeToggle = () => {},
+  audioDuckingPercentage = 66,
+  setAudioDuckingPercentage = () => {}
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +96,9 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
     '& .MuiInputLabel-root.Mui-focused': {
       color: 'var(--accent-color)',
     },
+    '& .MuiFormHelperText-root': {
+      color: '#d0d0e0', // Ensure helper text is always visible
+    }
   };
 
   const toggleButtonStyles = {
@@ -179,6 +186,25 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
             onChange={(e) => setBackgroundPlaylistUrl(e.target.value)}
             fullWidth
             sx={textFieldStyles}
+          />
+          
+          <TextField
+            label="Audio Ducking Percentage"
+            type="number"
+            value={audioDuckingPercentage}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              if (!isNaN(value) && value >= 0 && value <= 100) {
+                setAudioDuckingPercentage(value);
+              }
+            }}
+            helperText="Percentage of volume to use when audio ducking is enabled (0-100)"
+            FormHelperTextProps={{
+              sx: { color: 'var(--dark-text-secondary)' }
+            }}
+            fullWidth
+            sx={textFieldStyles}
+            inputProps={{ min: 0, max: 100 }}
           />
         
           <FormControlLabel

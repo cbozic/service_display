@@ -93,6 +93,8 @@ npm test
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
 
 ## To Do
+- Make a native app
+- Stop YouTube Background Player from restarting from timed event with ANY volume (it's distracting)
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track
 - Fix weird youtube volume transition issues with external audio (AirPlay or HDMI)
