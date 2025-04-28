@@ -3,6 +3,7 @@ servicedisplay/package-lock.json
 node_modules
 build/
 .DS_Store
+dist/
 
 # Don't ignore the docs directory for GitHub Pages
 !docs/

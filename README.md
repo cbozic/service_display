@@ -51,23 +51,38 @@ npm install
 ## Development
 
 ```bash
-# Start the development server
+# Start the web development server
 npm start
+
+# Start the Electron app in development mode
+npm run electron:start
 ```
 
-This runs the app in development mode. Open [http://localhost:3000](http://localhost:3000) to view it in your browser. The page will reload when you make changes, and you may see lint errors in the console.
+The web app runs in development mode at [http://localhost:3000](http://localhost:3000).
+
+The Electron app will launch as a native desktop application using the development web server.
 
 ## Building for Production
 
 ```bash
-# Standard build
+# Standard web build
 npm run build
 
 # Build for GitHub Pages (puts files in docs/ folder)
 npm run build:docs
+
+# Build Electron app for your current platform
+npm run electron:build
+
+# Platform-specific Electron builds
+npm run electron:build:win   # Windows
+npm run electron:build:mac   # macOS
+npm run electron:build:linux # Linux
 ```
 
-The standard build creates files in the `build` folder, while the GitHub Pages build places them in the `docs` folder.
+The standard web build creates files in the `build` folder, while the GitHub Pages build places them in the `docs` folder.
+
+Electron builds are placed in the `dist` folder.
 
 ## Deployment
 
@@ -93,7 +108,6 @@ npm test
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
 
 ## To Do
-- Make a native app
 - Stop YouTube Background Player from restarting from timed event with ANY volume (it's distracting)
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track

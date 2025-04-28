@@ -1,8 +1,13 @@
 {
-  "name": "servicedisplay",
+  "name": "service-display",
   "version": "0.1.0",
   "private": true,
-  "homepage": ".",
+  "homepage": "./",
+  "main": "electron/electron.js",
+  "author": {
+    "name": "Service Display",
+    "email": "support@servicedisplay.app"
+  },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -31,14 +36,47 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.2.22",
     "@types/testing-library__jest-dom": "^5.14.9",
-    "typescript": "^4.4.4"
+    "concurrently": "^8.2.2",
+    "electron": "^29.1.1",
+    "electron-builder": "^24.13.3",
+    "typescript": "^4.4.4",
+    "wait-on": "^7.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "build:docs": "react-scripts build && rm -rf docs/* && cp -r build/* docs/",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron:start": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build && npm run electron:prepare && electron-builder build --publish never",
+    "electron:build:win": "npm run build && npm run electron:prepare && electron-builder build --win --publish never",
+    "electron:build:mac": "npm run build && npm run electron:prepare && electron-builder build --mac --publish never",
+    "electron:build:linux": "npm run build && npm run electron:prepare && electron-builder build --linux --publish never",
+    "electron:build:unsigned": "npm run build && npm run electron:prepare && electron-builder build --publish never --config.mac.identity=null",
+    "electron:prepare": "mkdir -p build && cp -r electron/* build/"
+  },
+  "build": {
+    "appId": "com.servicedisplay.app",
+    "productName": "Service Display",
+    "files": [
+      "build/**/*"
+    ],
+    "directories": {
+      "buildResources": "public"
+    },
+    "mac": {
+      "icon": "public/logo512.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "public/logo512.png",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "icon": "public/logo512.png",
+      "target": ["AppImage", "deb"]
+    }
   },
   "eslintConfig": {
     "extends": [
