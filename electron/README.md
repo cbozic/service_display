@@ -34,6 +34,13 @@ On macOS, code signing is required for distribution. If you don't have a valid c
 npm run electron:build:unsigned
 ```
 
+Before building, you might want to clean any resource forks and Finder information:
+
+```bash
+rm -rf dist/ 
+xattr -cr .
+``` 
+
 This will skip the code signing step and create an unsigned application that can be used for testing.
 
 The built applications will be available in the `dist` directory.

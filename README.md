@@ -108,6 +108,10 @@ npm test
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
 
 ## To Do
+- Add electron self update functionality
+- Add electron icon and favicon
+- Add electron popup support
+- Add ability to show youtube video on the overlay and have it PiP and start at a defined time
 - Stop YouTube Background Player from restarting from timed event with ANY volume (it's distracting)
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track
