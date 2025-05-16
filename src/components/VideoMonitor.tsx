@@ -97,8 +97,8 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
           // Update the time display
           setCurrentTime(mainTime);
           
-          // If time difference is more than 0.3 seconds, sync
-          if (Math.abs(mainTime - monitorTime) > 0.3) {
+          // If time difference is more than 1 second, sync
+          if (Math.abs(mainTime - monitorTime) > 1) {
             playerRef.current.seekTo(mainTime, true);
           }
 
