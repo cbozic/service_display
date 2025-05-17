@@ -24,6 +24,11 @@ interface MainVideoFrameProps {
   playlistUrl?: string;
   usePlaylistMode?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  overlayVideo?: {
+    videoUrl: string;
+    autoStartVideo: boolean;
+    videoPlayer: any | null;
+  };
 }
 
 const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
@@ -43,7 +48,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   volume = 100,
   playlistUrl,
   usePlaylistMode = false,
-  onFullscreenChange
+  onFullscreenChange,
+  overlayVideo
 }) => {
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -107,6 +113,12 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   }, [player, isPlayerReady, playlistUrl, usePlaylistMode, getPlaylistId, startSeconds]);
 
   const handleClick = () => {
+    // If we have an overlay video and it's playing, don't toggle main video
+    if (overlayVideo?.videoUrl && showOverlay) {
+      // This prevents main video play/pause toggle when interacting with overlay video
+      return;
+    }
+
     if (player && isPlayerReady) {
       // Toggle play/pause state by sending appropriate state code
       // YouTube API: 1 = playing, 2 = paused
@@ -520,6 +532,27 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     }
   };
 
+  // Handle overlay video end event
+  const handleOverlayVideoEnd = () => {
+    console.log('[VideoFadeFrame] Overlay video ended');
+    
+    // If we're in PiP mode, exit PiP
+    if (isPipMode) {
+      console.log('[VideoFadeFrame] Exiting PiP mode because overlay video ended');
+      // Dispatch an event that can be caught by the parent to exit PiP
+      const event = new CustomEvent('exitPipMode', { detail: { reason: 'overlayVideoEnded' } });
+      window.dispatchEvent(event);
+    }
+    
+    // If main video is paused, resume it
+    if (!isPlaying && player && isPlayerReady) {
+      console.log('[VideoFadeFrame] Resuming main video because overlay video ended');
+      // Use a custom event to request play without directly controlling the player
+      const event = new CustomEvent('requestMainVideoPlay', { detail: { reason: 'overlayVideoEnded' } });
+      window.dispatchEvent(event);
+    }
+  };
+
   // Add CSS transition for overlay opacity
   const overlayStyle = {
     transition: `opacity ${fadeDurationInSeconds}s ease-in-out`
@@ -712,6 +745,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           slide={overlaySlide} 
           fadeDurationInSeconds={fadeDurationInSeconds}
           style={overlayStyle}
+          overlayVideo={overlayVideo}
+          onVideoEnd={handleOverlayVideoEnd}
         />
       )}
       <button 

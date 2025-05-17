@@ -24,12 +24,13 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: black;
+  background-color: rgba(0, 0, 0, 0.97);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.5s ease-in-out;
-  overflow: hidden;
+  box-sizing: border-box;
+  padding: 16px;
+  z-index: 100;
 }
 
 .overlay img {
@@ -45,11 +46,42 @@
 
 /* Ensure image container takes full space */
 .overlay-image-container {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* New styles for overlay video */
+.overlay-video-container {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  box-sizing: border-box;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.overlay-video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.overlay-video-player iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+  transition: opacity 2s ease-in-out;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }

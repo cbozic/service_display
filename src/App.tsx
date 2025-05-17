@@ -8,6 +8,7 @@ import PianoKeyboard from './components/PianoKeyboard';
 import SlideOverlayControl from './components/SlideOverlayControl';
 import ChromaticTuner from './components/ChromaticTuner';
 import MainVideoMonitor from './components/MainVideoMonitor';
+import OverlayVideo from './components/OverlayVideo';
 import { Layout, Model, TabNode, IJsonModel, Actions } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
@@ -51,6 +52,12 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                   type: "tab",
                   name: "Slides",
                   component: "slides",
+                  enableClose: false,
+                },
+                {
+                  type: "tab",
+                  name: "Overlay Video",
+                  component: "overlayVideo",
                   enableClose: false,
                 },
                 {
@@ -218,6 +225,15 @@ const AppContent: React.FC = () => {
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [overlayVideo, setOverlayVideo] = useState<{
+    videoUrl: string;
+    autoStartVideo: boolean;
+    videoPlayer: any | null;
+  }>({
+    videoUrl: '',
+    autoStartVideo: false,
+    videoPlayer: null
+  });
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -1320,6 +1336,33 @@ const AppContent: React.FC = () => {
     }
   }, [useBackgroundVideo, model]);
 
+  // Add event listeners for overlay video end events
+  useEffect(() => {
+    const handleExitPipMode = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.reason === 'overlayVideoEnded') {
+        console.log('[App] Exiting PiP mode due to overlay video ending');
+        handleDisablePip();
+      }
+    };
+
+    const handleRequestMainVideoPlay = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.reason === 'overlayVideoEnded') {
+        console.log('[App] Starting main video due to overlay video ending');
+        setIsPlaying(true);
+      }
+    };
+
+    window.addEventListener('exitPipMode', handleExitPipMode);
+    window.addEventListener('requestMainVideoPlay', handleRequestMainVideoPlay);
+    
+    return () => {
+      window.removeEventListener('exitPipMode', handleExitPipMode);
+      window.removeEventListener('requestMainVideoPlay', handleRequestMainVideoPlay);
+    };
+  }, [handleDisablePip]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -1366,6 +1409,7 @@ const AppContent: React.FC = () => {
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
             onFullscreenChange={setIsFullscreen}
+            overlayVideo={overlayVideo.videoUrl ? overlayVideo : undefined}
           />
           <VideoTimeEvents
             ref={timeEventsRef}
@@ -1408,6 +1452,15 @@ const AppContent: React.FC = () => {
           playlistUrl={playlistUrl} 
           currentVideo={video}
           onError={handleVideoListError}
+        />
+      );
+    } else if (component === "overlayVideo") {
+      return (
+        <OverlayVideo 
+          onVideoConfigChange={(config) => {
+            console.log('Overlay video config updated:', config);
+            setOverlayVideo(config);
+          }}
         />
       );
     } else if (component === "controls") {
