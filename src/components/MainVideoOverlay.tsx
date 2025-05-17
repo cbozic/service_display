@@ -12,6 +12,7 @@ interface MainVideoOverlayProps {
     videoUrl: string;
     autoStartVideo: boolean;
     videoPlayer: any | null;
+    isPlaying?: boolean;
   };
   onVideoEnd?: () => void;
 }
@@ -133,118 +134,192 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
     };
   }, [slide]); // Re-run when slide changes
 
-  // Handle player state and overlay visibility changes separately to avoid race conditions
   const initializeVideoPlayback = useCallback(() => {
-    if (!overlayPlayer || !videoId || !showOverlay) return;
-    
+    if (!overlayPlayer || !videoId || !showOverlay) {
+      console.log('[MainVideoOverlay] initializeVideoPlayback: Preconditions not met.', { hasPlayer: !!overlayPlayer, videoId, showOverlay });
+      return;
+    }
     try {
-      if (isVideoPlaying) {
-        // Already playing, nothing to do
-        return;
-      }
-        
-      console.log('Starting overlay video...');
+      console.log('[MainVideoOverlay] Commanding PLAY on overlayPlayer');
       overlayPlayer.seekTo(0);
-      overlayPlayer.unMute();
-      // Fade in volume
-      fadeToVolume(overlayPlayer, 100, fadeDurationInSeconds);
+      overlayPlayer.unMute(); 
+      // Call playVideo first, then start the fade. 
+      // The fade is asynchronous and shouldn't block playVideo.
       overlayPlayer.playVideo();
+      fadeToVolume(overlayPlayer, 100, fadeDurationInSeconds);
       setIsVideoPlaying(true);
     } catch (error) {
-      console.error('Error starting overlay video:', error);
+      console.error('Error in initializeVideoPlayback:', error);
+      setIsVideoPlaying(false);
     }
-  }, [overlayPlayer, videoId, showOverlay, isVideoPlaying, fadeDurationInSeconds]);
+  }, [overlayPlayer, videoId, showOverlay, fadeDurationInSeconds]);
 
-  // Handle overlay visibility changes separately
+  const stopVideoPlayback = useCallback(() => {
+    if (!overlayPlayer) {
+      console.log('[MainVideoOverlay] stopVideoPlayback: Player not available.');
+      return;
+    }
+    try {
+      console.log('[MainVideoOverlay] Commanding PAUSE on overlayPlayer');
+      fadeToVolume(overlayPlayer, 0, fadeDurationInSeconds / 2, () => {
+        if (overlayPlayer) {
+          try {
+            overlayPlayer.pauseVideo();
+            setIsVideoPlaying(false);
+          } catch (e) {
+             console.error('[MainVideoOverlay] Error pausing video in fade callback:', e);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error in stopVideoPlayback:', error);
+    }
+  }, [overlayPlayer, fadeDurationInSeconds]);
+
+  // Effect to handle manual play/pause commands from OverlayVideo component via props
   useEffect(() => {
-    // Clean up any existing timeout
+    // Clear any stale playback timeouts from player ready events
+    if (videoFadeTimeoutRef.current) {
+      clearTimeout(videoFadeTimeoutRef.current);
+      videoFadeTimeoutRef.current = null;
+      console.log('[MainVideoOverlay] Cleared pending videoFadeTimeoutRef due to new isPlaying command.');
+    }
+
+    if (!overlayPlayer || !playerLoaded || !videoId) {
+      // Player not ready or no video, do nothing regarding play/pause commands.
+      // However, if overlay is hidden and video was playing, ensure it's stopped.
+      if (!showOverlay && isVideoPlaying && overlayPlayer) {
+        console.log('[MainVideoOverlay] Effect (player not ready branch): Overlay hidden, stopping video.');
+        stopVideoPlayback();
+      }
+      return;
+    }
+
+    if (showOverlay) {
+      // Overlay is visible, commands can be processed
+      if (overlayVideo?.isPlaying) {
+        const currentPlayerState = overlayPlayer.getPlayerState();
+        if (currentPlayerState !== 1 /* PLAYING */ && currentPlayerState !== 3 /* BUFFERING */) {
+          console.log(`[MainVideoOverlay] Effect: Desired state PLAY. Player state: ${currentPlayerState}. Initializing playback.`);
+          initializeVideoPlayback();
+        }
+      } else {
+        // Parent wants video to stop/pause
+        const currentPlayerState = overlayPlayer.getPlayerState();
+        if (currentPlayerState === 1 /* PLAYING */ || currentPlayerState === 3 /* BUFFERING */) {
+          console.log(`[MainVideoOverlay] Effect: Desired state PAUSE. Player state: ${currentPlayerState}. Stopping playback.`);
+          stopVideoPlayback();
+        } else {
+          // Player already not playing, ensure local state is also false
+          if (isVideoPlaying) {
+            setIsVideoPlaying(false);
+          }
+        }
+      }
+    } else {
+      // Overlay is hidden. If video was playing or player state indicates playing, stop it.
+      const currentPlayerState = overlayPlayer.getPlayerState();
+      if (isVideoPlaying || currentPlayerState === 1 || currentPlayerState === 3) {
+        console.log('[MainVideoOverlay] Effect: Overlay hidden, stopping video.');
+        stopVideoPlayback();
+      }
+    }
+  }, [
+    overlayVideo?.isPlaying, 
+    showOverlay, 
+    videoId, 
+    playerLoaded, 
+    overlayPlayer, 
+    initializeVideoPlayback, 
+    stopVideoPlayback,
+    isVideoPlaying // Added back to correctly handle the final else if overlay is hidden
+  ]);
+
+  // Effect for autoStartVideo (original logic, separate from manual play/pause)
+   useEffect(() => {
     if (videoFadeTimeoutRef.current) {
       clearTimeout(videoFadeTimeoutRef.current);
       videoFadeTimeoutRef.current = null;
     }
 
     if (showOverlay) {
-      console.log(`Overlay becoming visible. Auto-start: ${overlayVideo?.autoStartVideo}, Player loaded: ${playerLoaded}`);
-      
-      // Mark that we should play when ready if autostart is enabled
       if (overlayVideo?.autoStartVideo) {
         shouldPlayWhenReadyRef.current = true;
-        
-        // If player is already loaded, start playback after a short delay
         if (overlayPlayer && videoId && playerLoaded) {
+          console.log('[MainVideoOverlay] Autostart: Player ready, starting video with delay.');
           videoFadeTimeoutRef.current = setTimeout(() => {
             initializeVideoPlayback();
-          }, fadeDurationInSeconds * 500); // Half of fade duration in ms
+          }, fadeDurationInSeconds * 500);
         }
       }
     } else {
-      // Overlay becoming hidden - stop video immediately
       shouldPlayWhenReadyRef.current = false;
-      
-      if (overlayPlayer && isVideoPlaying) {
-        try {
-          console.log('Stopping overlay video due to overlay hidden');
-          // Fade out volume
-          fadeToVolume(overlayPlayer, 0, fadeDurationInSeconds / 2, () => {
-            if (overlayPlayer) {
-              overlayPlayer.pauseVideo();
-              setIsVideoPlaying(false);
-            }
-          });
-        } catch (error) {
-          console.error('Error stopping overlay video:', error);
-        }
-      }
+      // This part is now handled by the main useEffect for isPlaying and showOverlay changes.
+      // if (overlayPlayer && isVideoPlaying) {
+      //   stopVideoPlayback();
+      // }
     }
-
+    // Cleanup function for this specific effect
     return () => {
       if (videoFadeTimeoutRef.current) {
         clearTimeout(videoFadeTimeoutRef.current);
         videoFadeTimeoutRef.current = null;
       }
     };
-  }, [showOverlay, overlayVideo, overlayPlayer, videoId, playerLoaded, isVideoPlaying, fadeDurationInSeconds, initializeVideoPlayback]);
+  // Dependencies: ensure this effect reruns if these change, affecting autostart logic
+  }, [showOverlay, overlayVideo?.autoStartVideo, overlayPlayer, videoId, playerLoaded, initializeVideoPlayback, fadeDurationInSeconds]);
 
-  // Handle player ready with stable initialization
   const handlePlayerReady = useCallback((event: YouTubeEvent) => {
     console.log('Overlay video player ready');
-    
+    const playerInstance = event.target;
+
+    // Always set/update player instance and loaded status
+    setOverlayPlayer(playerInstance);
+    setPlayerLoaded(true);
+
     if (!isInitializedRef.current) {
       isInitializedRef.current = true;
-      
       try {
-        // Configure player initially
-        event.target.setPlaybackQuality('hd720');
-        event.target.mute();
-        event.target.pauseVideo();
-        event.target.seekTo(0);
+        playerInstance.setPlaybackQuality('hd720');
+        playerInstance.mute();
+        playerInstance.pauseVideo();
+        playerInstance.seekTo(0);
         
-        // Set player state after initialization
-        setOverlayPlayer(event.target);
-        setPlayerLoaded(true);
-        
-        // Start playback if overlay is visible and autostart is enabled
-        if (showOverlay && shouldPlayWhenReadyRef.current && videoId) {
-          console.log('Auto-starting overlay video after ready');
-          // Use a timeout to ensure the player is fully initialized
-          videoFadeTimeoutRef.current = setTimeout(() => {
-            try {
-              event.target.seekTo(0);
-              event.target.unMute();
-              // Fade in volume
-              fadeToVolume(event.target, 100, fadeDurationInSeconds);
-              event.target.playVideo();
-              setIsVideoPlaying(true);
-            } catch (error) {
-              console.error('Error auto-starting overlay video:', error);
-            }
-          }, fadeDurationInSeconds * 500); // Half of fade duration in ms
+        // Logic for when player becomes ready *after* a play command might have been issued
+        // or if autostart is true.
+        if (showOverlay && videoId) {
+          if (overlayVideo?.isPlaying) { // Manual play was already requested
+            console.log('[MainVideoOverlay] handlePlayerReady: Manual play already requested. Starting video now (with delay).');
+            if (videoFadeTimeoutRef.current) clearTimeout(videoFadeTimeoutRef.current); // Clear previous timeout if any
+            videoFadeTimeoutRef.current = setTimeout(() => {
+              initializeVideoPlayback();
+            }, fadeDurationInSeconds * 100); // Shorter delay for responsiveness
+          } else if (overlayVideo?.autoStartVideo) { // Autostart video
+            console.log('[MainVideoOverlay] handlePlayerReady: Autostart is true. Starting video with delay.');
+            if (videoFadeTimeoutRef.current) clearTimeout(videoFadeTimeoutRef.current); // Clear previous timeout if any
+            videoFadeTimeoutRef.current = setTimeout(() => {
+              initializeVideoPlayback();
+            }, fadeDurationInSeconds * 500);
+          }
         }
       } catch (error) {
         console.error('Error initializing overlay player:', error);
       }
+    } else {
+      // Player re-readied, e.g. after video ID change and YouTube component re-mount
+      // Ensure it's configured correctly if it's a new instance for a new videoId.
+      // The key={videoId} on <YouTube> should handle giving a fresh player, but to be safe:
+      try {
+        playerInstance.setPlaybackQuality('hd720');
+        playerInstance.mute();
+        playerInstance.pauseVideo();
+        playerInstance.seekTo(0);
+        console.log('[MainVideoOverlay] handlePlayerReady: Player re-initialized.');
+      } catch (e) {
+        console.error('[MainVideoOverlay] Error re-initializing player on subsequent ready event:', e);
+      }
     }
-  }, [showOverlay, videoId, fadeDurationInSeconds]);
+  }, [showOverlay, videoId, fadeDurationInSeconds, overlayVideo?.isPlaying, overlayVideo?.autoStartVideo, initializeVideoPlayback]);
 
   // Handle player state changes with robust state management
   const handlePlayerStateChange = useCallback((event: YouTubeEvent) => {
@@ -255,6 +330,15 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       case 0: // Video ended
         console.log('Overlay video ended');
         setIsVideoPlaying(false);
+        
+        // Notify the parent that the video has stopped playing
+        if (overlayVideo && 'isPlaying' in overlayVideo) {
+          // Dispatch a custom event that OverlayVideo component can listen for
+          const customEvent = new CustomEvent('overlayVideoStateChange', { 
+            detail: { isPlaying: false }
+          });
+          window.dispatchEvent(customEvent);
+        }
         
         // Fade out the video player
         const videoElement = event.target.getIframe();
@@ -277,6 +361,15 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
         if (!isVideoPlaying) {
           setIsVideoPlaying(true);
           
+          // Notify the parent that the video is playing
+          if (overlayVideo && 'isPlaying' in overlayVideo) {
+            // Dispatch a custom event that OverlayVideo component can listen for
+            const customEvent = new CustomEvent('overlayVideoStateChange', { 
+              detail: { isPlaying: true }
+            });
+            window.dispatchEvent(customEvent);
+          }
+          
           // Ensure video player is visible
           const iframe = event.target.getIframe();
           if (iframe) {
@@ -290,6 +383,15 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
         if (isVideoPlaying) {
           console.log('Overlay video paused');
           setIsVideoPlaying(false);
+          
+          // Notify the parent that the video has been paused
+          if (overlayVideo && 'isPlaying' in overlayVideo) {
+            // Dispatch a custom event that OverlayVideo component can listen for
+            const customEvent = new CustomEvent('overlayVideoStateChange', { 
+              detail: { isPlaying: false }
+            });
+            window.dispatchEvent(customEvent);
+          }
         }
         break;
       
@@ -306,7 +408,7 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
         console.log('Overlay video unstarted');
         break;
     }
-  }, [isVideoPlaying, fadeDurationInSeconds, onVideoEnd]);
+  }, [isVideoPlaying, fadeDurationInSeconds, onVideoEnd, overlayVideo]);
 
   const handlePlayerError = useCallback((event: YouTubeEvent) => {
     console.error('Overlay video player error:', event.data);
@@ -352,55 +454,85 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
     padding: 0
   };
 
+  // Determine which content to display in the overlay
+  const showingVideo = videoId && (isVideoPlaying || (overlayVideo?.isPlaying && showOverlay));
+
   return (
     <div className="overlay" style={{...overlayStyle, padding: 0}} ref={containerRef}>
-      {videoId ? (
-        <div className="overlay-video-container" style={containerStyle}>
-          <YouTube
-            key={videoId} // Use videoId as key to ensure proper reinitialization when ID changes
-            videoId={videoId}
-            opts={opts}
-            onReady={handlePlayerReady}
-            onStateChange={handlePlayerStateChange}
-            onError={handlePlayerError}
-            className="overlay-video-player"
-            style={{ 
-              opacity: 1, 
-              transition: `opacity ${fadeDurationInSeconds}s ease-in-out`,
-              position: 'relative',
-              zIndex: 10,
-              width: '100%',
-              height: '100%'
-            }}
-          />
-          {/* Transparent div to prevent direct clicking on the video */}
-          <div 
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              zIndex: 5,
-              cursor: 'default',
-              backgroundColor: 'transparent',
-              pointerEvents: 'none' // Changed from 'auto' to 'none' to allow interaction with video
-            }} 
-          />
-        </div>
-      ) : (
-        <div className="overlay-image-container" style={containerStyle}>
-          {slide && (
-            <img 
-              ref={imageRef}
-              src={slide} 
-              alt="Overlay"
-              style={imageStyle}
-              className="overlay-image"
+      {/* Always render both containers but control visibility with CSS */}
+      <div 
+        className="overlay-video-container" 
+        style={{
+          ...containerStyle,
+          opacity: showingVideo ? 1 : 0,
+          visibility: showingVideo ? 'visible' : 'hidden',
+          transition: `opacity ${fadeDurationInSeconds}s ease-in-out, visibility ${fadeDurationInSeconds}s ease-in-out`,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: showingVideo ? 10 : 1
+        }}
+      >
+        {videoId && (
+          <>
+            <YouTube
+              key={videoId} // Use videoId as key to ensure proper reinitialization when ID changes
+              videoId={videoId}
+              opts={opts}
+              onReady={handlePlayerReady}
+              onStateChange={handlePlayerStateChange}
+              onError={handlePlayerError}
+              className="overlay-video-player"
+              style={{ 
+                opacity: 1, 
+                transition: `opacity ${fadeDurationInSeconds}s ease-in-out`,
+                position: 'relative',
+                zIndex: 10,
+                width: '100%',
+                height: '100%'
+              }}
             />
-          )}
-        </div>
-      )}
+            {/* Transparent div to prevent direct clicking on the video */}
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 5,
+                cursor: 'default',
+                backgroundColor: 'transparent',
+                pointerEvents: 'none' // Allow interaction with video
+              }} 
+            />
+          </>
+        )}
+      </div>
+      
+      <div 
+        className="overlay-image-container" 
+        style={{
+          ...containerStyle,
+          opacity: showingVideo ? 0 : 1,
+          visibility: showingVideo ? 'hidden' : 'visible',
+          transition: `opacity ${fadeDurationInSeconds}s ease-in-out, visibility ${fadeDurationInSeconds}s ease-in-out`,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: showingVideo ? 1 : 10
+        }}
+      >
+        {slide && (
+          <img 
+            ref={imageRef}
+            src={slide} 
+            alt="Overlay"
+            style={imageStyle}
+            className="overlay-image"
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -7,17 +7,23 @@ import {
   FormControlLabel, 
   Paper,
   CircularProgress,
-  Button
+  Button,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 
 interface OverlayVideoProps {
   onVideoConfigChange: (config: {
     videoUrl: string;
     autoStartVideo: boolean;
     videoPlayer: any | null;
+    isPlaying?: boolean;
   }) => void;
+  isOverlayVisible?: boolean;
 }
 
 // Function to extract YouTube video ID from URL
@@ -40,7 +46,7 @@ const formatDuration = (seconds: number): string => {
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
+const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOverlayVisible = false }) => {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoId, setVideoId] = useState<string | null>(null);
   const [autoStartVideo, setAutoStartVideo] = useState<boolean>(false);
@@ -50,6 +56,7 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [videoTitle, setVideoTitle] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const configUpdatedRef = useRef<boolean>(false);
   const playerInstanceRef = useRef<HTMLDivElement>(null);
@@ -98,6 +105,9 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
 
       // Mark that we need to update the config
       configUpdatedRef.current = true;
+      
+      // Reset playing state when URL changes
+      setIsPlaying(false);
     }
   }, [videoUrl, videoId]);
 
@@ -108,13 +118,14 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
       onVideoConfigChange({
         videoUrl,
         autoStartVideo,
-        videoPlayer: player
+        videoPlayer: player,
+        isPlaying
       });
       
       // Reset the flag
       configUpdatedRef.current = false;
     }
-  }, [videoUrl, autoStartVideo, player, onVideoConfigChange]);
+  }, [videoUrl, autoStartVideo, player, onVideoConfigChange, isPlaying]);
 
   // Handle player changes separately
   useEffect(() => {
@@ -127,6 +138,35 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
   useEffect(() => {
     configUpdatedRef.current = true;
   }, [autoStartVideo]);
+
+  // Handle play state changes separately
+  useEffect(() => {
+    configUpdatedRef.current = true;
+  }, [isPlaying]);
+
+  // Handle overlay visibility changes
+  useEffect(() => {
+    if (!isOverlayVisible && isPlaying) {
+      // If overlay becomes hidden while playing, stop playback
+      setIsPlaying(false);
+    }
+  }, [isOverlayVisible, isPlaying]);
+
+  // Add event listener for play state changes from MainVideoOverlay
+  useEffect(() => {
+    const handleOverlayVideoStateChange = (e: CustomEvent) => {
+      const newIsPlaying = e.detail?.isPlaying;
+      if (newIsPlaying !== undefined && newIsPlaying !== isPlaying) {
+        console.log('Received overlay video state change event:', newIsPlaying);
+        setIsPlaying(newIsPlaying);
+      }
+    };
+    
+    window.addEventListener('overlayVideoStateChange', handleOverlayVideoStateChange as EventListener);
+    return () => {
+      window.removeEventListener('overlayVideoStateChange', handleOverlayVideoStateChange as EventListener);
+    };
+  }, [isPlaying]);
 
   // Handle player ready event
   const handleReady = useCallback((event: YouTubeEvent) => {
@@ -203,6 +243,18 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
   const handleAutoStartChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setAutoStartVideo(event.target.checked);
   }, []);
+
+  // Update the handlePlayPauseClick function to be more robust
+  const handlePlayPauseClick = useCallback(() => {
+    if (player && videoId && isOverlayVisible) {
+      const newIsPlaying = !isPlaying;
+      console.log(`Setting overlay video isPlaying to ${newIsPlaying}`);
+      setIsPlaying(newIsPlaying);
+      
+      // The actual play/pause action will be handled by MainVideoOverlay
+      // when it receives the updated overlayVideo prop
+    }
+  }, [player, videoId, isOverlayVisible, isPlaying]);
 
   // Add a manual refresh function to retry loading if it fails
   const handleRefresh = useCallback(() => {
@@ -342,31 +394,90 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
                   borderRadius: '4px'
                 }}
               />
+              
+              {/* Play/Pause Button Overlay */}
+              <Box 
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '4px'
+                }}
+              >
+                <Tooltip title={isOverlayVisible ? (isPlaying ? "Pause" : "Play") : "Overlay must be visible to play video"}>
+                  <span>
+                    <IconButton
+                      onClick={handlePlayPauseClick}
+                      disabled={!isOverlayVisible}
+                      size="large"
+                      sx={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        },
+                        '&.Mui-disabled': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                          color: 'rgba(255, 255, 255, 0.3)',
+                        }
+                      }}
+                    >
+                      {isPlaying ? <PauseIcon fontSize="large" /> : <PlayArrowIcon fontSize="large" />}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
             </Box>
             
-            {videoTitle && (
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              mt: 2
+            }}>
               <Typography 
                 variant="subtitle1" 
                 sx={{ 
-                  color: 'white', 
-                  mt: 1,
+                  color: 'white',
+                  fontWeight: 'medium',
+                  flexGrow: 1,
                   textAlign: 'center',
-                  fontWeight: 'medium'
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {videoTitle}
               </Typography>
-            )}
+              
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  ml: 1,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {formatDuration(videoDuration)}
+              </Typography>
+            </Box>
             
             <Typography 
               variant="body2" 
               sx={{ 
-                color: 'rgba(255, 255, 255, 0.7)', 
+                color: isPlaying ? '#4caf50' : 'rgba(255, 255, 255, 0.5)', 
                 mt: 1,
-                textAlign: 'center'
+                textAlign: 'center',
+                fontWeight: isPlaying ? 'bold' : 'normal'
               }}
             >
-              Duration: {formatDuration(videoDuration)}
+              {isPlaying ? "Video is playing in overlay" : "Video is not playing"}
             </Typography>
           </Paper>
           

@@ -225,14 +225,17 @@ const AppContent: React.FC = () => {
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [isOverlayVisible, setIsOverlayVisible] = useState<boolean>(true);
   const [overlayVideo, setOverlayVideo] = useState<{
     videoUrl: string;
     autoStartVideo: boolean;
     videoPlayer: any | null;
+    isPlaying?: boolean;
   }>({
     videoUrl: '',
     autoStartVideo: false,
-    videoPlayer: null
+    videoPlayer: null,
+    isPlaying: false
   });
 
   const handlePlayPause = useCallback(() => {
@@ -1381,6 +1384,18 @@ const AppContent: React.FC = () => {
     console.log('Current overlay video config:', overlayVideo);
   }, [overlayVideo]);
 
+  // Add this effect to listen for overlay visibility changes from MainVideoFrame
+  useEffect(() => {
+    const handleOverlayVisibilityChange = (e: CustomEvent) => {
+      setIsOverlayVisible(e.detail.isVisible);
+    };
+    
+    window.addEventListener('overlayVisibilityChange', handleOverlayVisibilityChange as EventListener);
+    return () => {
+      window.removeEventListener('overlayVisibilityChange', handleOverlayVisibilityChange as EventListener);
+    };
+  }, []);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -1427,6 +1442,7 @@ const AppContent: React.FC = () => {
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
             onFullscreenChange={setIsFullscreen}
+            onOverlayVisibilityChange={(isVisible) => setIsOverlayVisible(isVisible)}
             overlayVideo={overlayVideo.videoUrl ? overlayVideo : undefined}
           />
           <VideoTimeEvents
@@ -1475,11 +1491,18 @@ const AppContent: React.FC = () => {
     } else if (component === "overlayVideo") {
       return (
         <OverlayVideo 
+          isOverlayVisible={isOverlayVisible}
           onVideoConfigChange={(config) => {
             console.log('Overlay video config updated:', config);
             // Ensure we only update if the config is valid
             if (config.videoUrl || config.videoPlayer) {
-              setOverlayVideo(config);
+              // Create a new overlay video object preserving existing properties
+              setOverlayVideo(prevState => ({
+                ...prevState,
+                ...config,
+                // Ensure isPlaying is included if present in config
+                isPlaying: config.isPlaying !== undefined ? config.isPlaying : prevState.isPlaying
+              }));
             }
           }}
         />

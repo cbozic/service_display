@@ -24,10 +24,12 @@ interface MainVideoFrameProps {
   playlistUrl?: string;
   usePlaylistMode?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  onOverlayVisibilityChange?: (isVisible: boolean) => void;
   overlayVideo?: {
     videoUrl: string;
     autoStartVideo: boolean;
     videoPlayer: any | null;
+    isPlaying?: boolean;
   };
 }
 
@@ -49,6 +51,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   playlistUrl,
   usePlaylistMode = false,
   onFullscreenChange,
+  onOverlayVisibilityChange,
   overlayVideo
 }) => {
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
@@ -345,6 +348,12 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         try {
           // Start fading out overlay immediately
           setShowOverlay(false);
+          
+          // Notify parent about overlay visibility change
+          if (onOverlayVisibilityChange) {
+            onOverlayVisibilityChange(false);
+          }
+          
           player.unMute();
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, volume, fadeDurationInSeconds);
@@ -360,6 +369,12 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         try {
           // Show overlay immediately when pausing
           setShowOverlay(true);
+          
+          // Notify parent about overlay visibility change
+          if (onOverlayVisibilityChange) {
+            onOverlayVisibilityChange(true);
+          }
+          
           setIsMainPlayerPlaying(false);
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, 0, fadeDurationInSeconds, () => {
@@ -380,7 +395,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         }
       }
     }
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying, onOverlayVisibilityChange]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
