@@ -349,8 +349,9 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           // Start fading out overlay immediately
           setShowOverlay(false);
           
-          // Notify parent about overlay visibility change
-          if (onOverlayVisibilityChange) {
+          // Notify parent about overlay visibility change, but only if not in PiP mode
+          // In PiP mode, the overlay visibility should be independent of main video
+          if (onOverlayVisibilityChange && !isPipMode) {
             onOverlayVisibilityChange(false);
           }
           
@@ -370,8 +371,9 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           // Show overlay immediately when pausing
           setShowOverlay(true);
           
-          // Notify parent about overlay visibility change
-          if (onOverlayVisibilityChange) {
+          // Notify parent about overlay visibility change, but only if not in PiP mode
+          // In PiP mode, the overlay visibility should be independent of main video
+          if (onOverlayVisibilityChange && !isPipMode) {
             onOverlayVisibilityChange(true);
           }
           
@@ -395,7 +397,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         }
       }
     }
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying, onOverlayVisibilityChange]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying, onOverlayVisibilityChange, isPipMode]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
@@ -568,6 +570,24 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     }
   };
 
+  // Manual control for the overlay video - can be triggered via click on PiP or main overlay
+  const handleOverlayVideoClick = useCallback(() => {
+    if (overlayVideo?.videoUrl) {
+      // Toggle the isPlaying state
+      const newIsPlaying = !(overlayVideo.isPlaying || false);
+      console.log(`[VideoFadeFrame] Toggling overlay video isPlaying to ${newIsPlaying} in ${isPipMode ? 'PiP' : 'normal'} mode`);
+      
+      // In PiP mode, we can play the overlay video even if the main video is playing
+      // because they are visually separate
+      
+      // Dispatch event to notify OverlayVideo component
+      const customEvent = new CustomEvent('overlayVideoStateChange', { 
+        detail: { isPlaying: newIsPlaying }
+      });
+      window.dispatchEvent(customEvent);
+    }
+  }, [overlayVideo, isPipMode]);
+
   // Add CSS transition for overlay opacity
   const overlayStyle = {
     transition: `opacity ${fadeDurationInSeconds}s ease-in-out`
@@ -724,13 +744,69 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
 
   return (
     <div ref={videoContainerRef} onClick={handleClick} style={videoContainerStyle}>
-      {isPipMode && overlaySlide && (
+      {isPipMode && (
         <div style={underlayStyle}>
-          <img 
-            src={overlaySlide} 
-            alt="Background"
-            style={underlayImageStyle}
-          />
+          {overlayVideo?.videoUrl ? (
+            <>
+              <MainVideoOverlay 
+                showOverlay={true} 
+                slide={overlaySlide} 
+                fadeDurationInSeconds={fadeDurationInSeconds}
+                overlayVideo={overlayVideo}
+                onVideoEnd={handleOverlayVideoEnd}
+                isPipMode={isPipMode}
+              />
+              {/* Add a play/pause button overlay for the PiP mode */}
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOverlayVideoClick();
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'transparent',
+                  zIndex: 15,
+                  cursor: 'pointer'
+                }}
+              >
+                {!overlayVideo.isPlaying && (
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: 0,
+                      height: 0,
+                      borderTop: '15px solid transparent',
+                      borderBottom: '15px solid transparent',
+                      borderLeft: '25px solid white',
+                      marginLeft: '5px'
+                    }} />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            overlaySlide && (
+              <img 
+                src={overlaySlide} 
+                alt="Background"
+                style={underlayImageStyle}
+              />
+            )
+          )}
         </div>
       )}
       <div style={videoWrapperStyle}>
@@ -755,14 +831,61 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         </div>
       </div>
       {useOverlay && !isPipMode && (
-        <MainVideoOverlay 
-          showOverlay={showOverlay} 
-          slide={overlaySlide} 
-          fadeDurationInSeconds={fadeDurationInSeconds}
-          style={overlayStyle}
-          overlayVideo={overlayVideo?.videoUrl ? overlayVideo : undefined}
-          onVideoEnd={handleOverlayVideoEnd}
-        />
+        <>
+          <MainVideoOverlay 
+            showOverlay={showOverlay} 
+            slide={overlaySlide} 
+            fadeDurationInSeconds={fadeDurationInSeconds}
+            style={overlayStyle}
+            overlayVideo={overlayVideo?.videoUrl ? overlayVideo : undefined}
+            onVideoEnd={handleOverlayVideoEnd}
+            isPipMode={isPipMode}
+          />
+          {overlayVideo?.videoUrl && showOverlay && (
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOverlayVideoClick();
+              }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'transparent',
+                zIndex: 15,
+                cursor: 'pointer',
+                opacity: showOverlay ? 1 : 0,
+                pointerEvents: showOverlay ? 'auto' : 'none',
+              }}
+            >
+              {!overlayVideo.isPlaying && (
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{
+                    width: 0,
+                    height: 0,
+                    borderTop: '20px solid transparent',
+                    borderBottom: '20px solid transparent',
+                    borderLeft: '30px solid white',
+                    marginLeft: '5px'
+                  }} />
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
       <button 
         style={fullscreenButtonStyle} 

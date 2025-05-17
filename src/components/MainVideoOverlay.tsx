@@ -15,6 +15,7 @@ interface MainVideoOverlayProps {
     isPlaying?: boolean;
   };
   onVideoEnd?: () => void;
+  isPipMode?: boolean;
 }
 
 const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({ 
@@ -23,7 +24,8 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
   fadeDurationInSeconds,
   style = {},
   overlayVideo,
-  onVideoEnd
+  onVideoEnd,
+  isPipMode
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -135,24 +137,35 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
   }, [slide]); // Re-run when slide changes
 
   const initializeVideoPlayback = useCallback(() => {
-    if (!overlayPlayer || !videoId || !showOverlay) {
-      console.log('[MainVideoOverlay] initializeVideoPlayback: Preconditions not met.', { hasPlayer: !!overlayPlayer, videoId, showOverlay });
+    if (!overlayPlayer || !videoId) {
+      console.log('[MainVideoOverlay] initializeVideoPlayback: Preconditions not met.', { hasPlayer: !!overlayPlayer, videoId });
       return;
     }
     try {
       console.log('[MainVideoOverlay] Commanding PLAY on overlayPlayer');
       overlayPlayer.seekTo(0);
-      overlayPlayer.unMute(); 
-      // Call playVideo first, then start the fade. 
-      // The fade is asynchronous and shouldn't block playVideo.
+      
+      // Make sure the player is unmuted and has proper volume
+      if (overlayPlayer.isMuted && overlayPlayer.isMuted()) {
+        console.log('[MainVideoOverlay] Unmuting player');
+        overlayPlayer.unMute();
+      }
+      
+      // Set initial volume before fading
+      overlayPlayer.setVolume(30);
+      
+      // Call playVideo first, then start the fade
       overlayPlayer.playVideo();
+      
+      // Fade to full volume over the specified duration
       fadeToVolume(overlayPlayer, 100, fadeDurationInSeconds);
+      
       setIsVideoPlaying(true);
     } catch (error) {
       console.error('Error in initializeVideoPlayback:', error);
       setIsVideoPlaying(false);
     }
-  }, [overlayPlayer, videoId, showOverlay, fadeDurationInSeconds]);
+  }, [overlayPlayer, videoId, fadeDurationInSeconds]);
 
   const stopVideoPlayback = useCallback(() => {
     if (!overlayPlayer) {
@@ -187,52 +200,41 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
 
     if (!overlayPlayer || !playerLoaded || !videoId) {
       // Player not ready or no video, do nothing regarding play/pause commands.
-      // However, if overlay is hidden and video was playing, ensure it's stopped.
-      if (!showOverlay && isVideoPlaying && overlayPlayer) {
-        console.log('[MainVideoOverlay] Effect (player not ready branch): Overlay hidden, stopping video.');
-        stopVideoPlayback();
-      }
       return;
     }
 
-    if (showOverlay) {
-      // Overlay is visible, commands can be processed
-      if (overlayVideo?.isPlaying) {
-        const currentPlayerState = overlayPlayer.getPlayerState();
-        if (currentPlayerState !== 1 /* PLAYING */ && currentPlayerState !== 3 /* BUFFERING */) {
-          console.log(`[MainVideoOverlay] Effect: Desired state PLAY. Player state: ${currentPlayerState}. Initializing playback.`);
-          initializeVideoPlayback();
-        }
-      } else {
-        // Parent wants video to stop/pause
-        const currentPlayerState = overlayPlayer.getPlayerState();
-        if (currentPlayerState === 1 /* PLAYING */ || currentPlayerState === 3 /* BUFFERING */) {
-          console.log(`[MainVideoOverlay] Effect: Desired state PAUSE. Player state: ${currentPlayerState}. Stopping playback.`);
-          stopVideoPlayback();
-        } else {
-          // Player already not playing, ensure local state is also false
-          if (isVideoPlaying) {
-            setIsVideoPlaying(false);
-          }
-        }
+    // Log the current state for debugging
+    console.log(`[MainVideoOverlay] Video control - isPipMode: ${isPipMode}, isPlaying: ${isVideoPlaying}, overlay isPlaying: ${overlayVideo?.isPlaying}`);
+
+    // Process play/pause commands regardless of overlay visibility
+    if (overlayVideo?.isPlaying) {
+      const currentPlayerState = overlayPlayer.getPlayerState();
+      if (currentPlayerState !== 1 /* PLAYING */ && currentPlayerState !== 3 /* BUFFERING */) {
+        console.log(`[MainVideoOverlay] Effect: Desired state PLAY. Player state: ${currentPlayerState}. Initializing playback.`);
+        initializeVideoPlayback();
       }
     } else {
-      // Overlay is hidden. If video was playing or player state indicates playing, stop it.
+      // Parent wants video to stop/pause
       const currentPlayerState = overlayPlayer.getPlayerState();
-      if (isVideoPlaying || currentPlayerState === 1 || currentPlayerState === 3) {
-        console.log('[MainVideoOverlay] Effect: Overlay hidden, stopping video.');
+      if (currentPlayerState === 1 /* PLAYING */ || currentPlayerState === 3 /* BUFFERING */) {
+        console.log(`[MainVideoOverlay] Effect: Desired state PAUSE. Player state: ${currentPlayerState}. Stopping playback.`);
         stopVideoPlayback();
+      } else {
+        // Player already not playing, ensure local state is also false
+        if (isVideoPlaying) {
+          setIsVideoPlaying(false);
+        }
       }
     }
   }, [
     overlayVideo?.isPlaying, 
-    showOverlay, 
     videoId, 
     playerLoaded, 
     overlayPlayer, 
     initializeVideoPlayback, 
     stopVideoPlayback,
-    isVideoPlaying // Added back to correctly handle the final else if overlay is hidden
+    isVideoPlaying,
+    isPipMode
   ]);
 
   // Effect for autoStartVideo (original logic, separate from manual play/pause)
@@ -242,7 +244,8 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       videoFadeTimeoutRef.current = null;
     }
 
-    if (showOverlay) {
+    // Allow autoStartVideo to work in both regular overlay mode and PiP mode
+    if (showOverlay || isPipMode) {
       if (overlayVideo?.autoStartVideo) {
         shouldPlayWhenReadyRef.current = true;
         if (overlayPlayer && videoId && playerLoaded) {
@@ -267,7 +270,7 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       }
     };
   // Dependencies: ensure this effect reruns if these change, affecting autostart logic
-  }, [showOverlay, overlayVideo?.autoStartVideo, overlayPlayer, videoId, playerLoaded, initializeVideoPlayback, fadeDurationInSeconds]);
+  }, [showOverlay, isPipMode, overlayVideo?.autoStartVideo, overlayPlayer, videoId, playerLoaded, initializeVideoPlayback, fadeDurationInSeconds]);
 
   const handlePlayerReady = useCallback((event: YouTubeEvent) => {
     console.log('Overlay video player ready');
@@ -281,13 +284,15 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       isInitializedRef.current = true;
       try {
         playerInstance.setPlaybackQuality('hd720');
-        playerInstance.mute();
+        // Don't mute by default - this was causing the underlay to be silent
+        // playerInstance.mute();
+        playerInstance.setVolume(100); // Set to full volume instead
         playerInstance.pauseVideo();
         playerInstance.seekTo(0);
         
         // Logic for when player becomes ready *after* a play command might have been issued
         // or if autostart is true.
-        if (showOverlay && videoId) {
+        if ((showOverlay || isPipMode) && videoId) {
           if (overlayVideo?.isPlaying) { // Manual play was already requested
             console.log('[MainVideoOverlay] handlePlayerReady: Manual play already requested. Starting video now (with delay).');
             if (videoFadeTimeoutRef.current) clearTimeout(videoFadeTimeoutRef.current); // Clear previous timeout if any
@@ -311,7 +316,9 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       // The key={videoId} on <YouTube> should handle giving a fresh player, but to be safe:
       try {
         playerInstance.setPlaybackQuality('hd720');
-        playerInstance.mute();
+        // Don't mute by default - this was causing the underlay to be silent
+        // playerInstance.mute();
+        playerInstance.setVolume(100); // Set to full volume instead
         playerInstance.pauseVideo();
         playerInstance.seekTo(0);
         console.log('[MainVideoOverlay] handlePlayerReady: Player re-initialized.');
@@ -421,8 +428,9 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
 
   const overlayStyle: CSSProperties = {
     ...style,
-    opacity: showOverlay ? 1 : 0,
-    pointerEvents: showOverlay ? 'auto' : 'none',
+    // When in PiP mode, always make overlay visible
+    opacity: isPipMode || showOverlay ? 1 : 0,
+    pointerEvents: isPipMode || showOverlay ? 'auto' : 'none',
   };
 
   // Stable YouTube player options that won't change between renders
@@ -440,7 +448,8 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
       rel: 0,
       showinfo: 0,
       enablejsapi: 1,
-      origin: window.location.origin
+      origin: window.location.origin,
+      mute: 0 // Ensure not muted by default
     },
   }).current;
 
@@ -455,7 +464,7 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
   };
 
   // Determine which content to display in the overlay
-  const showingVideo = videoId && (isVideoPlaying || (overlayVideo?.isPlaying && showOverlay));
+  const showingVideo = videoId && (isVideoPlaying || overlayVideo?.isPlaying);
 
   return (
     <div className="overlay" style={{...overlayStyle, padding: 0}} ref={containerRef}>

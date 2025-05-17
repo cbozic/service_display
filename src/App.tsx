@@ -1492,6 +1492,8 @@ const AppContent: React.FC = () => {
       return (
         <OverlayVideo 
           isOverlayVisible={isOverlayVisible}
+          isMainVideoPlaying={isPlaying && !showStartOverlay}
+          isPipMode={isPipMode}
           onVideoConfigChange={(config) => {
             console.log('Overlay video config updated:', config);
             // Ensure we only update if the config is valid

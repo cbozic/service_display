@@ -24,6 +24,8 @@ interface OverlayVideoProps {
     isPlaying?: boolean;
   }) => void;
   isOverlayVisible?: boolean;
+  isMainVideoPlaying?: boolean;
+  isPipMode?: boolean;
 }
 
 // Function to extract YouTube video ID from URL
@@ -46,7 +48,12 @@ const formatDuration = (seconds: number): string => {
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOverlayVisible = false }) => {
+const OverlayVideo: React.FC<OverlayVideoProps> = ({ 
+  onVideoConfigChange, 
+  isOverlayVisible = false, 
+  isMainVideoPlaying = false,
+  isPipMode = false
+}) => {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoId, setVideoId] = useState<string | null>(null);
   const [autoStartVideo, setAutoStartVideo] = useState<boolean>(false);
@@ -146,11 +153,12 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOver
 
   // Handle overlay visibility changes
   useEffect(() => {
-    if (!isOverlayVisible && isPlaying) {
+    // In PiP mode, don't stop playback when overlay visibility changes
+    if (!isPipMode && !isOverlayVisible && isPlaying) {
       // If overlay becomes hidden while playing, stop playback
       setIsPlaying(false);
     }
-  }, [isOverlayVisible, isPlaying]);
+  }, [isOverlayVisible, isPlaying, isPipMode]);
 
   // Add event listener for play state changes from MainVideoOverlay
   useEffect(() => {
@@ -246,15 +254,28 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOver
 
   // Update the handlePlayPauseClick function to be more robust
   const handlePlayPauseClick = useCallback(() => {
-    if (player && videoId && isOverlayVisible) {
+    // In PiP mode, we should allow play/pause regardless of overlay visibility
+    // Otherwise, only allow when overlay is visible
+    if (player && videoId && (isPipMode || isOverlayVisible)) {
       const newIsPlaying = !isPlaying;
-      console.log(`Setting overlay video isPlaying to ${newIsPlaying}`);
+      console.log(`Setting overlay video isPlaying to ${newIsPlaying} (PiP mode: ${isPipMode})`);
       setIsPlaying(newIsPlaying);
       
-      // The actual play/pause action will be handled by MainVideoOverlay
-      // when it receives the updated overlayVideo prop
+      // Make sure the update is immediate
+      onVideoConfigChange({
+        videoUrl,
+        autoStartVideo,
+        videoPlayer: player,
+        isPlaying: newIsPlaying
+      });
+      
+      // Also dispatch the event for MainVideoOverlay to pick up immediately
+      const customEvent = new CustomEvent('overlayVideoStateChange', { 
+        detail: { isPlaying: newIsPlaying }
+      });
+      window.dispatchEvent(customEvent);
     }
-  }, [player, videoId, isOverlayVisible, isPlaying]);
+  }, [player, videoId, isOverlayVisible, isPipMode, isPlaying, onVideoConfigChange, videoUrl, autoStartVideo]);
 
   // Add a manual refresh function to retry loading if it fails
   const handleRefresh = useCallback(() => {
@@ -307,6 +328,11 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOver
       enablejsapi: 1,
     },
   };
+
+  // Calculate if play button should be enabled based on rules:
+  // - Always enabled in PiP mode
+  // - Otherwise, enabled only if main video is paused
+  const isPlayButtonEnabled = (isPipMode || !isMainVideoPlaying) && Boolean(videoId);
 
   return (
     <Box sx={{ 
@@ -410,11 +436,13 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange, isOver
                   borderRadius: '4px'
                 }}
               >
-                <Tooltip title={isOverlayVisible ? (isPlaying ? "Pause" : "Play") : "Overlay must be visible to play video"}>
+                <Tooltip title={!isPlayButtonEnabled 
+                  ? "Cannot play while main video is playing (unless in PiP mode)"
+                  : isPlaying ? "Pause" : "Play"}>
                   <span>
                     <IconButton
                       onClick={handlePlayPauseClick}
-                      disabled={!isOverlayVisible}
+                      disabled={!isPlayButtonEnabled}
                       size="large"
                       sx={{
                         backgroundColor: 'rgba(0, 0, 0, 0.5)',
