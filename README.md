@@ -117,7 +117,7 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 - Fix background music player not moving to next track at end of current track
 - Fix weird youtube volume transition issues with external audio (AirPlay or HDMI)
 - Fix popout fullscreen behavior issues
-- Improved mobile experience
+- Improved mobile experience - Investigate if disabling "playsinline" in youtube player helps
 - Use an external URL for slides
 - In the piano, add startAt setting for each key because not every key starts at the same time
 

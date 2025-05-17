@@ -745,7 +745,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           slide={overlaySlide} 
           fadeDurationInSeconds={fadeDurationInSeconds}
           style={overlayStyle}
-          overlayVideo={overlayVideo}
+          overlayVideo={overlayVideo?.videoUrl ? overlayVideo : undefined}
           onVideoEnd={handleOverlayVideoEnd}
         />
       )}

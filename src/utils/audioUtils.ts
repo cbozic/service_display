@@ -15,7 +15,8 @@ export const fadeToVolume = (
   fadeDurationInSeconds = 0, 
   invokeWhenFinished = () => {}
 ): (() => void) => {
-  if (!player || !player.getVolume) {
+  if (!player || typeof player.getVolume !== 'function') {
+    console.warn('Invalid player object or missing getVolume method');
     invokeWhenFinished();
     return () => {};
   }
@@ -28,11 +29,13 @@ export const fadeToVolume = (
       if (targetVolume === 0) {
         player.mute();
       } else {
-        player.unMute();
+        if (player.isMuted && player.isMuted()) {
+          player.unMute();
+        }
         player.setVolume(targetVolume);
       }
     } catch (e) {
-      console.log('Error setting volume directly:', e);
+      console.error('Error setting volume directly:', e);
     }
     invokeWhenFinished();
     return () => {};
@@ -45,7 +48,7 @@ export const fadeToVolume = (
       currentVolume = player.getVolume();
       if (isNaN(currentVolume)) currentVolume = 0;
     } catch (e) {
-      console.log('Error getting volume:', e);
+      console.error('Error getting volume:', e);
     }
 
     const volumeDifference = targetVolume - currentVolume;
@@ -54,34 +57,39 @@ export const fadeToVolume = (
     let currentStep = 0;
 
     const fadeStep = () => {
-      if (!player || !player.getVolume) {
+      if (!player || typeof player.getVolume !== 'function') {
+        console.warn('Player object became invalid during fade');
         invokeWhenFinished();
         return;
       }
 
       if (currentStep < steps) {
-        const newVolume = currentVolume + (volumeDifference * (currentStep / steps));
+        const newVolume = Math.round(currentVolume + (volumeDifference * (currentStep / steps)));
         try {
-          if (newVolume === 0) {
+          if (newVolume <= 0) {
             player.mute();
           } else {
-            player.unMute();
+            if (player.isMuted && player.isMuted()) {
+              player.unMute();
+            }
             player.setVolume(newVolume);
           }
           currentStep++;
           fadeTimeoutRef = setTimeout(fadeStep, stepDuration);
         } catch (e) {
-          console.log('Error in fade step:', e);
+          console.error('Error in fade step:', e);
           // Skip to end
           try {
             if (targetVolume === 0) {
               player.mute();
             } else {
-              player.unMute();
+              if (player.isMuted && player.isMuted()) {
+                player.unMute();
+              }
               player.setVolume(targetVolume);
             }
           } catch (e) {
-            console.log('Error setting final volume:', e);
+            console.error('Error setting final volume:', e);
           }
           fadeTimeoutRef = null;
           invokeWhenFinished();
@@ -91,11 +99,13 @@ export const fadeToVolume = (
           if (targetVolume === 0) {
             player.mute();
           } else {
-            player.unMute();
+            if (player.isMuted && player.isMuted()) {
+              player.unMute();
+            }
             player.setVolume(targetVolume);
           }
         } catch (e) {
-          console.log('Error setting final volume:', e);
+          console.error('Error setting final volume:', e);
         }
         fadeTimeoutRef = null;
         invokeWhenFinished();
@@ -104,7 +114,7 @@ export const fadeToVolume = (
 
     fadeStep();
   } catch (e) {
-    console.log('Error in fade setup:', e);
+    console.error('Error in fade setup:', e);
     invokeWhenFinished();
   }
 

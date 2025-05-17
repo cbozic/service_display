@@ -1363,6 +1363,24 @@ const AppContent: React.FC = () => {
     };
   }, [handleDisablePip]);
 
+  // Add this useEffect near the other useEffect hooks in AppContent
+  useEffect(() => {
+    // Ensure YouTube API is loaded
+    const loadYouTubeAPI = () => {
+      if (!window.YT) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      }
+    };
+    
+    loadYouTubeAPI();
+    
+    // Log overlay video config for debugging
+    console.log('Current overlay video config:', overlayVideo);
+  }, [overlayVideo]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -1459,7 +1477,10 @@ const AppContent: React.FC = () => {
         <OverlayVideo 
           onVideoConfigChange={(config) => {
             console.log('Overlay video config updated:', config);
-            setOverlayVideo(config);
+            // Ensure we only update if the config is valid
+            if (config.videoUrl || config.videoPlayer) {
+              setOverlayVideo(config);
+            }
           }}
         />
       );

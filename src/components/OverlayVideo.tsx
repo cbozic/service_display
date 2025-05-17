@@ -245,14 +245,14 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
     height: '360',
     width: '640',
     playerVars: {
-      autoplay: 0,
+      playsinline: 1,
       controls: 0,
       disablekb: 1,
+      iv_load_policy: 3,
       fs: 0,
       modestbranding: 1,
       rel: 0,
-      origin: window.location.origin,
-      enablejsapi: 1
+      enablejsapi: 1,
     },
   };
 
@@ -265,10 +265,6 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
       p: 2,
       gap: 2
     }}>
-      <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-        Overlay Video
-      </Typography>
-      
       <TextField
         fullWidth
         variant="outlined"
@@ -399,12 +395,13 @@ const OverlayVideo: React.FC<OverlayVideoProps> = ({ onVideoConfigChange }) => {
       {/* Hidden YouTube player for loading video data */}
       <div ref={playerInstanceRef} style={{ 
         position: 'absolute', 
-        opacity: 0, 
+        opacity: 0.01,
         pointerEvents: 'none', 
-        height: '1px', 
-        width: '1px', 
+        height: '360px',
+        width: '640px',
         overflow: 'hidden',
-        zIndex: -1
+        zIndex: -1,
+        visibility: 'visible'
       }}>
         {isPlayerVisible && videoId && (
           <YouTube
