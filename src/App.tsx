@@ -1,13 +1,13 @@
 import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
 import './App.css';
-import VideoFadeFrame from './components/VideoFadeFrame';
-import VideoConfigurationForm from './components/VideoConfigurationForm';
-import VideoList from './components/VideoList';
+import MainVideoFrame from './components/MainVideoFrame';
+import SettingsForm from './components/SettingsForm';
+import MainVideoSelectionList from './components/MainVideoSelectionList';
 import VideoControls from './components/VideoControls';
-import PianoControls from './components/PianoControls';
-import GifFrameDisplay from './components/GifFrameDisplay';
+import PianoKeyboard from './components/PianoKeyboard';
+import SlideOverlayControl from './components/SlideOverlayControl';
 import ChromaticTuner from './components/ChromaticTuner';
-import VideoMonitor from './components/VideoMonitor';
+import MainVideoMonitor from './components/MainVideoMonitor';
 import { Layout, Model, TabNode, IJsonModel, Actions } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
@@ -16,7 +16,7 @@ import BackgroundVideoPlayer from './components/BackgroundVideoPlayer';
 import BackgroundMusicPlayer from './components/BackgroundMusicPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
 import ReactDOM from 'react-dom';
-import ServiceStartOverlay from './components/ServiceStartOverlay';
+import EasyStartPopup from './components/EasyStartPopup';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
@@ -1110,7 +1110,7 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing slides');
       const slidesComponent = document.createElement('div');
       const slidesInstance = (
-        <GifFrameDisplay 
+        <SlideOverlayControl 
           gifPath={gifPath} 
           onFrameSelect={handleFrameSelect} 
           onFramesUpdate={handleFramesUpdate}
@@ -1132,7 +1132,7 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing video list');
       const videoListComponent = document.createElement('div');
       const videoListInstance = (
-        <VideoList 
+        <MainVideoSelectionList 
           setVideo={setVideo} 
           playlistUrl={playlistUrl} 
           currentVideo={video}
@@ -1327,7 +1327,7 @@ const AppContent: React.FC = () => {
     const component = node.getComponent();
     if (component === "form") {
       return (
-        <VideoConfigurationForm
+        <SettingsForm
           video={video}
           setVideo={setVideo}
           startTimeInSeconds={startTimeInSeconds}
@@ -1355,7 +1355,7 @@ const AppContent: React.FC = () => {
     } else if (component === "video") {
       return (
         <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
-          <VideoFadeFrame 
+          <MainVideoFrame 
             video={video} 
             startSeconds={parseInt(startTimeInSeconds)} 
             overlaySlide={overlaySlide}
@@ -1406,7 +1406,7 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "videoList") {
       return (
-        <VideoList 
+        <MainVideoSelectionList 
           setVideo={setVideo} 
           playlistUrl={playlistUrl} 
           currentVideo={video}
@@ -1462,7 +1462,7 @@ const AppContent: React.FC = () => {
           justifyContent: 'center',
           overflow: 'hidden'
         }}>
-          <PianoControls 
+          <PianoKeyboard 
             onNotePlay={(midiNumber) => console.log('Note played:', midiNumber)}
             onNoteStop={(midiNumber) => console.log('Note stopped:', midiNumber)}
           />
@@ -1472,7 +1472,7 @@ const AppContent: React.FC = () => {
       return <ChromaticTuner />;
     } else if (component === "slides") {
       return (
-        <GifFrameDisplay 
+        <SlideOverlayControl 
           gifPath={gifPath} 
           onFrameSelect={handleFrameSelect} 
           onFramesUpdate={handleFramesUpdate}
@@ -1484,7 +1484,7 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "videoMonitor") {
       return (
-        <VideoMonitor 
+        <MainVideoMonitor 
           mainPlayer={player}
           videoId={video}
           usePlaylistMode={usePlaylistMode}
@@ -1496,7 +1496,7 @@ const AppContent: React.FC = () => {
 
   return (
     <React.Fragment>
-      {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
+      {showStartOverlay && <EasyStartPopup onStartService={handleStartService} />}
       <Box 
         sx={{ 
           height: '100%',

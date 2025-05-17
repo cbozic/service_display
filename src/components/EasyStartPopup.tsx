@@ -5,11 +5,11 @@ import BackgroundPlayerControls from './BackgroundPlayerControls';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import MusicOffIcon from '@mui/icons-material/MusicOff';
 
-interface ServiceStartOverlayProps {
+interface EasyStartPopupProps {
   onStartService: () => void;
 }
 
-const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartService }) => {
+const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [isMusicEnabled, setIsMusicEnabled] = useState<boolean>(false);
   const [animationPhase, setAnimationPhase] = useState<'hidden' | 'expanding' | 'showing'>('hidden');
@@ -660,4 +660,4 @@ const ServiceStartOverlay: React.FC<ServiceStartOverlayProps> = ({ onStartServic
   );
 };
 
-export default ServiceStartOverlay;
+export default EasyStartPopup;

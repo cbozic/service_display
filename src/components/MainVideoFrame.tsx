@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import './VideoFadeFrame.css';
+import './MainVideoFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Box, Typography } from '@mui/material';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
 import { fadeToVolume } from '../utils/audioUtils';
 
-import Overlay from './Overlay';
+import MainVideoOverlay from './MainVideoOverlay';
 import { useYouTube } from '../contexts/YouTubeContext';
 
-interface VideoFadeFrameProps {
+interface MainVideoFrameProps {
   video: string;
   startSeconds: number;
   useOverlay?: boolean;
@@ -29,7 +29,7 @@ interface VideoFadeFrameProps {
   onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
-const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
+const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   video,
   startSeconds,
   useOverlay = true,
@@ -708,7 +708,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         </div>
       </div>
       {useOverlay && !isPipMode && (
-        <Overlay 
+        <MainVideoOverlay 
           showOverlay={showOverlay} 
           slide={overlaySlide} 
           fadeDurationInSeconds={fadeDurationInSeconds}
@@ -729,4 +729,4 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   );
 }
 
-export default VideoFadeFrame;
+export default MainVideoFrame;

@@ -5,7 +5,7 @@ import CountdownOverlay from './CountdownOverlay';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
 
-interface GifFrameDisplayProps {
+interface SlideOverlayControlProps {
   gifPath: string;
   onFrameSelect?: (frameUrl: string, index: number) => void;
   onFramesUpdate?: (frames: string[]) => void;
@@ -16,7 +16,7 @@ interface GifFrameDisplayProps {
   onError?: () => void;
 }
 
-const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({ 
+const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({ 
   gifPath, 
   onFrameSelect,
   onFramesUpdate,
@@ -429,4 +429,4 @@ const GifFrameDisplay: React.FC<GifFrameDisplayProps> = ({
   );
 };
 
-export default GifFrameDisplay;
+export default SlideOverlayControl;

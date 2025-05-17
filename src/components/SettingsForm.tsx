@@ -4,7 +4,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import { useYouTube } from '../contexts/YouTubeContext';
 
-interface VideoConfigurationFormProps {
+interface SettingFormProps {
   video: string;
   setVideo: (value: string) => void;
   startTimeInSeconds: string;
@@ -21,7 +21,7 @@ interface VideoConfigurationFormProps {
   setAudioDuckingPercentage?: (value: number) => void;
 }
 
-const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
+const SettingsForm: React.FC<SettingFormProps> = ({
   video,
   setVideo,
   startTimeInSeconds,
@@ -235,4 +235,4 @@ const VideoConfigurationForm: React.FC<VideoConfigurationFormProps> = ({
   );
 };
 
-export default VideoConfigurationForm;
+export default SettingsForm;
