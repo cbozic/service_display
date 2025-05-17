@@ -116,7 +116,6 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 - Stop earlier timed events from removing themselves (they should be either all on or all off)
 - Fix background music player not moving to next track at end of current track
 - Fix weird youtube volume transition issues with external audio (AirPlay or HDMI)
-- Rename the component files to match current state of codebase
 - Fix popout fullscreen behavior issues
 - Improved mobile experience
 - Use an external URL for slides

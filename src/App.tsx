@@ -1,13 +1,13 @@
 import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
 import './App.css';
-import VideoFadeFrame from './components/VideoFadeFrame';
-import VideoConfigurationForm from './components/VideoConfigurationForm';
-import VideoList from './components/VideoList';
+import MainVideoFrame from './components/MainVideoFrame';
+import SettingsForm from './components/SettingsForm';
+import MainVideoSelectionList from './components/MainVideoSelectionList';
 import VideoControls from './components/VideoControls';
-import PianoControls from './components/PianoControls';
-import GifFrameDisplay from './components/GifFrameDisplay';
+import PianoKeyboard from './components/PianoKeyboard';
+import SlideOverlayControl from './components/SlideOverlayControl';
 import ChromaticTuner from './components/ChromaticTuner';
-import VideoMonitor from './components/VideoMonitor';
+import MainVideoMonitor from './components/MainVideoMonitor';
 import { Layout, Model, TabNode, IJsonModel, Actions } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
@@ -15,8 +15,8 @@ import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundVideoPlayer from './components/BackgroundVideoPlayer';
 import BackgroundMusicPlayer from './components/BackgroundMusicPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
-import ReactDOM from 'react-dom';
-import ServiceStartOverlay from './components/ServiceStartOverlay';
+import { createRoot } from 'react-dom/client';
+import EasyStartPopup from './components/EasyStartPopup';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
@@ -113,15 +113,12 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                   enablePopout: true,
                   enableClose: false,
                 },
-                // Include Monitor only if experimental features are enabled
-                ...(showExperimental ? [
-                  {
-                    type: "tab",
-                    name: "Monitor",
-                    component: "videoMonitor",
-                    enableClose: false,
-                  }
-                ] : [])
+                {
+                  type: "tab",
+                  name: "Monitor",
+                  component: "videoMonitor",
+                  enableClose: false,
+                }
               ]
             },
             {
@@ -162,7 +159,7 @@ const AppContent: React.FC = () => {
   const [overlaySlide, setOverlaySlide] = useState<string>();
   const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
-  const [player, setPlayer] = useState<any>(null);
+  const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -201,7 +198,7 @@ const AppContent: React.FC = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
-  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<any>(null);
+  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
@@ -259,7 +256,7 @@ const AppContent: React.FC = () => {
     setIsFullscreen(prev => !prev);
   }, []);
 
-  const handlePlayerReady = useCallback((playerInstance: any) => {
+  const handlePlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setPlayer(playerInstance);
     setIsPlayerReady(true);
     
@@ -653,7 +650,7 @@ const AppContent: React.FC = () => {
     }
   }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents]);
 
-  const handleMonitorPlayerReady = useCallback((playerInstance: any) => {
+  const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
   }, []);
 
@@ -1110,7 +1107,7 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing slides');
       const slidesComponent = document.createElement('div');
       const slidesInstance = (
-        <GifFrameDisplay 
+        <SlideOverlayControl 
           gifPath={gifPath} 
           onFrameSelect={handleFrameSelect} 
           onFramesUpdate={handleFramesUpdate}
@@ -1120,8 +1117,8 @@ const AppContent: React.FC = () => {
           onAnimationToggle={setIsSlideTransitionsEnabled}
         />
       );
-      // @ts-ignore - ReactDOM is available in the browser
-      ReactDOM.render(slidesInstance, slidesComponent);
+      const root = createRoot(slidesComponent);
+      root.render(slidesInstance);
       slidesInitializedRef.current = true;
     }
   }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
@@ -1132,15 +1129,15 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing video list');
       const videoListComponent = document.createElement('div');
       const videoListInstance = (
-        <VideoList 
+        <MainVideoSelectionList 
           setVideo={setVideo} 
           playlistUrl={playlistUrl} 
           currentVideo={video}
           onError={handleVideoListError}
         />
       );
-      // @ts-ignore - ReactDOM is available in the browser
-      ReactDOM.render(videoListInstance, videoListComponent);
+      const root = createRoot(videoListComponent);
+      root.render(videoListInstance);
       videoListInitializedRef.current = true;
     }
   }, [handleVideoListError, playlistUrl, setVideo, video]);
@@ -1327,7 +1324,7 @@ const AppContent: React.FC = () => {
     const component = node.getComponent();
     if (component === "form") {
       return (
-        <VideoConfigurationForm
+        <SettingsForm
           video={video}
           setVideo={setVideo}
           startTimeInSeconds={startTimeInSeconds}
@@ -1355,7 +1352,7 @@ const AppContent: React.FC = () => {
     } else if (component === "video") {
       return (
         <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
-          <VideoFadeFrame 
+          <MainVideoFrame 
             video={video} 
             startSeconds={parseInt(startTimeInSeconds)} 
             overlaySlide={overlaySlide}
@@ -1406,7 +1403,7 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "videoList") {
       return (
-        <VideoList 
+        <MainVideoSelectionList 
           setVideo={setVideo} 
           playlistUrl={playlistUrl} 
           currentVideo={video}
@@ -1462,7 +1459,7 @@ const AppContent: React.FC = () => {
           justifyContent: 'center',
           overflow: 'hidden'
         }}>
-          <PianoControls 
+          <PianoKeyboard 
             onNotePlay={(midiNumber) => console.log('Note played:', midiNumber)}
             onNoteStop={(midiNumber) => console.log('Note stopped:', midiNumber)}
           />
@@ -1472,7 +1469,7 @@ const AppContent: React.FC = () => {
       return <ChromaticTuner />;
     } else if (component === "slides") {
       return (
-        <GifFrameDisplay 
+        <SlideOverlayControl 
           gifPath={gifPath} 
           onFrameSelect={handleFrameSelect} 
           onFramesUpdate={handleFramesUpdate}
@@ -1484,7 +1481,7 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "videoMonitor") {
       return (
-        <VideoMonitor 
+        <MainVideoMonitor 
           mainPlayer={player}
           videoId={video}
           usePlaylistMode={usePlaylistMode}
@@ -1496,7 +1493,7 @@ const AppContent: React.FC = () => {
 
   return (
     <React.Fragment>
-      {showStartOverlay && <ServiceStartOverlay onStartService={handleStartService} />}
+      {showStartOverlay && <EasyStartPopup onStartService={handleStartService} />}
       <Box 
         sx={{ 
           height: '100%',

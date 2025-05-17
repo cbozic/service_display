@@ -1,14 +1,14 @@
 import React, { CSSProperties, useRef, useEffect, useState } from 'react';
-import './Overlay.css';
+import './MainVideoOverlay.css';
 
-interface OverlayProps {
+interface MainVideoOverlayProps {
   showOverlay: boolean;
   slide?: string;
   fadeDurationInSeconds: number;
   style?: CSSProperties;
 }
 
-const Overlay: React.FC<OverlayProps> = ({ 
+const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({ 
   showOverlay, 
   slide, 
   fadeDurationInSeconds,
@@ -99,4 +99,4 @@ const Overlay: React.FC<OverlayProps> = ({
   );
 };
 
-export default Overlay;
+export default MainVideoOverlay;

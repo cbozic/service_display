@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import './VideoFadeFrame.css';
+import './MainVideoFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
-import { Box, Typography } from '@mui/material';
-import { loadYouTubeAPI } from '../utils/youtubeAPI';
-import { FADE_STEPS } from '../App';
 import { fadeToVolume } from '../utils/audioUtils';
 
-import Overlay from './Overlay';
+import MainVideoOverlay from './MainVideoOverlay';
 import { useYouTube } from '../contexts/YouTubeContext';
 
-interface VideoFadeFrameProps {
+interface MainVideoFrameProps {
   video: string;
   startSeconds: number;
   useOverlay?: boolean;
@@ -29,7 +26,7 @@ interface VideoFadeFrameProps {
   onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
-const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
+const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   video,
   startSeconds,
   useOverlay = true,
@@ -48,14 +45,13 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   usePlaylistMode = false,
   onFullscreenChange
 }) => {
-  const [player, setPlayer] = useState<any>(null);
+  const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
   const [currentVideoId, setCurrentVideoId] = useState<string>(video);
   const videoContainerRef = useRef<HTMLDivElement>(null);
-  const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userExitedFullscreenRef = useRef<boolean>(false);
   const playlistUrlRef = useRef<string | undefined>(playlistUrl);
@@ -267,7 +263,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   }, [startSeconds, onPlayerReady, setMainPlayersReady, usePlaylistMode, playlistUrl, getPlaylistId, video, onStateChange]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
-    if (!isPlayerReady) return;
+    if (!isPlayerReady || !player) return;
 
     console.log('Player State Changed: ' + event.data);
     
@@ -624,8 +620,11 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
     if (player && isPlayerReady) {
       // Force player to resize when underlay mode changes
       try {
-        player.getIframe().style.width = '100%';
-        player.getIframe().style.height = '100%';
+        const iframe = player!.getIframe();
+        if (iframe) {
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+        }
       } catch (e) {
         console.log('Error resizing player:', e);
       }
@@ -634,10 +633,10 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
 
   // Make sure to set the volume on the player when it changes
   useEffect(() => {
-    if (player) {
-      player.setVolume(volume);
+    if (player && isPlayerReady) {
+      player!.setVolume(volume);
     }
-  }, [player, volume]);
+  }, [player, isPlayerReady, volume]);
 
   const instructionsOverlayStyle: React.CSSProperties = {
     position: 'absolute',
@@ -708,7 +707,7 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
         </div>
       </div>
       {useOverlay && !isPipMode && (
-        <Overlay 
+        <MainVideoOverlay 
           showOverlay={showOverlay} 
           slide={overlaySlide} 
           fadeDurationInSeconds={fadeDurationInSeconds}
@@ -729,4 +728,4 @@ const VideoFadeFrame: React.FC<VideoFadeFrameProps> = ({
   );
 }
 
-export default VideoFadeFrame;
+export default MainVideoFrame;
