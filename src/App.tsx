@@ -113,15 +113,12 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                   enablePopout: true,
                   enableClose: false,
                 },
-                // Include Monitor only if experimental features are enabled
-                ...(showExperimental ? [
-                  {
-                    type: "tab",
-                    name: "Monitor",
-                    component: "videoMonitor",
-                    enableClose: false,
-                  }
-                ] : [])
+                {
+                  type: "tab",
+                  name: "Monitor",
+                  component: "videoMonitor",
+                  enableClose: false,
+                }
               ]
             },
             {

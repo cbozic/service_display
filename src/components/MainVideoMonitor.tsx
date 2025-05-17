@@ -254,12 +254,12 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
           padding: '8px',
           width: '100%',
           textAlign: 'center',
-          backgroundColor: 'darkred',
+          backgroundColor: 'var(--dark-accent)',
           fontWeight: 500,
           letterSpacing: '0.5px'
         }}
       >
-        Video Monitor (Experimental)
+        Video Monitor
       </Typography>
       <Box
         ref={containerRef}

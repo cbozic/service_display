@@ -237,6 +237,14 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
             </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Video Monitor"
+                secondary="A tool that displays the current state of the main video even when it's not visible in the main display. This is useful for previewing, fast-forwarding, or rewinding the video while slides are shown in the main display. The monitor also shows the current time of the video, making it easier to navigate to specific parts of the content without disrupting what's being displayed to the audience."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
           </List>
         </Box>
 
@@ -305,7 +313,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Experimental Features"
-                secondary="Enables access to experimental components like the video monitor, piano keyboard, and tuner. These features are still in development but can provide additional functionality for specific use cases. Note that enabling this option requires a page refresh to take effect."
+                secondary="Enables access to experimental components like the piano keyboard and tuner. These features are still in development but can provide additional functionality for specific use cases. Note that enabling this option requires a page refresh to take effect."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />
@@ -372,14 +380,6 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             This group of components are functional but still in development. These components may eventually be included in the main application or they may be discarded. They are provided for testing and feedback purposes.
           </Typography>
           <List>
-            <ListItem>
-              <ListItemText
-                primary="Monitor"
-                secondary="A tool that displays the current state of the main video even when it's not hidden behind your slides. This is useful for fast-forwarding or rewinding the video while slides are shownin the main display. It also shows the current time of the video."
-                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
-                secondaryTypographyProps={{ sx: secondaryTextStyle }}
-              />
-            </ListItem>
             <ListItem>
               <ListItemText
                 primary="Keys (Piano Keyboard)"
