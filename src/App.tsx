@@ -15,7 +15,7 @@ import { YouTubeProvider, useYouTube } from './contexts/YouTubeContext';
 import BackgroundVideoPlayer from './components/BackgroundVideoPlayer';
 import BackgroundMusicPlayer from './components/BackgroundMusicPlayer';
 import VideoTimeEvents from './components/VideoTimeEvents';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import EasyStartPopup from './components/EasyStartPopup';
 import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, SkipNext } from '@mui/icons-material';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
@@ -162,7 +162,7 @@ const AppContent: React.FC = () => {
   const [overlaySlide, setOverlaySlide] = useState<string>();
   const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
-  const [player, setPlayer] = useState<any>(null);
+  const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -201,7 +201,7 @@ const AppContent: React.FC = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
-  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<any>(null);
+  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
@@ -259,7 +259,7 @@ const AppContent: React.FC = () => {
     setIsFullscreen(prev => !prev);
   }, []);
 
-  const handlePlayerReady = useCallback((playerInstance: any) => {
+  const handlePlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setPlayer(playerInstance);
     setIsPlayerReady(true);
     
@@ -653,7 +653,7 @@ const AppContent: React.FC = () => {
     }
   }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents]);
 
-  const handleMonitorPlayerReady = useCallback((playerInstance: any) => {
+  const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
   }, []);
 
@@ -1120,8 +1120,8 @@ const AppContent: React.FC = () => {
           onAnimationToggle={setIsSlideTransitionsEnabled}
         />
       );
-      // @ts-ignore - ReactDOM is available in the browser
-      ReactDOM.render(slidesInstance, slidesComponent);
+      const root = createRoot(slidesComponent);
+      root.render(slidesInstance);
       slidesInitializedRef.current = true;
     }
   }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
@@ -1139,8 +1139,8 @@ const AppContent: React.FC = () => {
           onError={handleVideoListError}
         />
       );
-      // @ts-ignore - ReactDOM is available in the browser
-      ReactDOM.render(videoListInstance, videoListComponent);
+      const root = createRoot(videoListComponent);
+      root.render(videoListInstance);
       videoListInitializedRef.current = true;
     }
   }, [handleVideoListError, playlistUrl, setVideo, video]);

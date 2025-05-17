@@ -12,7 +12,12 @@ interface VideoTimeEventsProps {
   isPlaying: boolean;
 }
 
-const VideoTimeEvents = React.forwardRef<any, VideoTimeEventsProps>(({ player, isPlaying }, ref) => {
+interface VideoTimeEventsRef {
+  registerEvent: (time: number, callback: () => void, eventInfo?: Omit<TimeEvent, 'triggered' | 'time'>) => void;
+  clearEvents: () => void;
+}
+
+const VideoTimeEvents = React.forwardRef<VideoTimeEventsRef, VideoTimeEventsProps>(({ player, isPlaying }, ref) => {
   const eventsRef = useRef<TimeEventWithCallback[]>([]);
   const intervalRef = useRef<number | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
