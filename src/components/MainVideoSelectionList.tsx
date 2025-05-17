@@ -3,7 +3,7 @@ import { Box, Card, CardMedia, CardContent, Typography, Grid, Alert, Dialog, Dia
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 
-interface VideoListProps {
+interface MainVideoSelectionListProps {
   setVideo: (videoId: string) => void;
   playlistUrl: string;
   currentVideo: string;
@@ -16,7 +16,7 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVideo, onError }) => {
+const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVideo, playlistUrl, currentVideo, onError }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -482,4 +482,4 @@ const VideoList: React.FC<VideoListProps> = ({ setVideo, playlistUrl, currentVid
   );
 };
 
-export default VideoList;
+export default MainVideoSelectionList;

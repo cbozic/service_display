@@ -34,14 +34,14 @@ interface YouTubePlayerConfig {
   };
 }
 
-interface VideoMonitorProps {
+interface MainVideoMonitorProps {
   mainPlayer: any; // The main YouTube player instance
   videoId: string;
   usePlaylistMode?: boolean;  // Add this prop
   playlistUrl?: string;      // Add this prop
 }
 
-const VideoMonitor: React.FC<VideoMonitorProps> = ({ 
+const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({ 
   mainPlayer, 
   videoId, 
   usePlaylistMode = false,
@@ -277,4 +277,4 @@ const VideoMonitor: React.FC<VideoMonitorProps> = ({
   );
 };
 
-export default VideoMonitor; 
+export default MainVideoMonitor; 

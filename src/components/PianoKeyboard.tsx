@@ -28,12 +28,12 @@ const VIDEO_MAP: { [key: number]: string } = {
   [FIRST_NOTE + 11]: 'd3n8D6nL4T0', // B3
 };
 
-interface PianoControlsProps {
+interface PianoKeyboardProps {
   onNotePlay?: (midiNumber: number) => void;
   onNoteStop?: (midiNumber: number) => void;
 }
 
-const PianoControls: React.FC<PianoControlsProps> = ({
+const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   onNotePlay,
   onNoteStop,
 }) => {
@@ -360,4 +360,4 @@ const PianoControls: React.FC<PianoControlsProps> = ({
   );
 };
 
-export default PianoControls; 
+export default PianoKeyboard; 
