@@ -31,6 +31,12 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
       { key: 'Alt + KeyR', description: 'Restart video' },
       { key: 'Shift + /', description: 'Open help dialog (?)' }
     ],
+    'Sync Recovery': [
+      { key: 'Digit1', description: 'Quality Toggle - Least noticeable sync fix, temporarily changes video quality' },
+      { key: 'Digit2', description: 'Quick Seek - Subtle sync fix, seeks to current position' },
+      { key: 'Digit3', description: 'Rapid Pause/Play - More noticeable sync fix, briefly pauses then resumes' },
+      { key: 'Digit4', description: 'Player Reload - Most effective but noticeable sync fix, reloads video' }
+    ],
     'Slides': [
       { key: 'ArrowUp', description: 'Previous slide' },
       { key: 'ArrowDown', description: 'Next slide' }
@@ -129,6 +135,15 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
                 sx={{ color: 'var(--accent-color)', fontSize: '1.1rem' }}
               >
                 Settings
+              </Link>
+            </ListItem>
+            <ListItem>
+              <Link
+                component="button"
+                onClick={() => scrollToSection('troubleshooting')}
+                sx={{ color: 'var(--accent-color)', fontSize: '1.1rem' }}
+              >
+                Troubleshooting
               </Link>
             </ListItem>
             <ListItem>
@@ -321,6 +336,59 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
           </List>
         </Box>
 
+        {/* Troubleshooting Section */}
+        <Box id="troubleshooting" sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={sectionTitleStyle}>
+            Troubleshooting
+          </Typography>
+          <Typography sx={textStyle}>
+            The most common issue you may encounter during a service is audio/video synchronization problems with YouTube videos. This can manifest as the audio being slightly ahead or behind the video. The application provides several ways to fix this, ranging from subtle to more noticeable interventions.
+          </Typography>
+          <Typography sx={textStyle}>
+            When you notice sync issues, try these solutions in order:
+          </Typography>
+          <Typography sx={textStyle} component="div">
+            <ol style={{ paddingLeft: '20px' }}>
+              <li>Press 1 to toggle video quality. This is the most subtle fix and takes about 10 seconds to complete. It's gentle but not always effective.</li>
+              <li>Press 2 to perform a quick seek. This creates a brief stutter but is more reliable than the quality toggle.</li>
+              <li>Press 3 to do a rapid pause/play. This is more noticeable but can be more effective at resolving sync issues.</li>
+              <li>Press 4 to reload the player. This is the most disruptive but also the most reliable solution. The player will automatically reload the video and skip right to where the video was when you hit the button.  This option takes a couple of seconds to complete.</li>
+            </ol>
+          </Typography>
+          <Typography sx={textStyle}>
+            Each option becomes progressively more noticeable to your audience but also more effective at resolving the sync issue. Start with option 1 and only move to more aggressive solutions if the problem persists.
+          </Typography>
+          <Typography sx={textStyle}>
+            If none of these options resolve the issue, you may need to completely refresh the content and set up the service again. If you're using a multi-display setup, you can minimize disruption by:
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemText
+                primary="1. Prepare the new instance on a non-displayed screen"
+                secondary="Set up a fresh instance of the application on a screen that isn't being shown to the audience."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="2. Configure the new instance"
+                secondary="Load the same video and slides, seeking to approximately the same position in the content."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="3. Switch displays"
+                secondary="Once the new instance is ready, switch which screen is being displayed to the audience. This creates only a brief interruption rather than showing the entire setup process."
+                primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
+                secondaryTypographyProps={{ sx: secondaryTextStyle }}
+              />
+            </ListItem>
+          </List>
+        </Box>
+
         {/* Keyboard Shortcuts Section */}
         <Box id="keyboard-shortcuts" sx={{ mb: 4 }}>
           <Typography variant="h6" sx={sectionTitleStyle}>
@@ -403,4 +471,4 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
   );
 };
 
-export default OnlineHelp; 
+export default OnlineHelp;
