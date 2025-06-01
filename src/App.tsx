@@ -870,6 +870,32 @@ const AppContent: React.FC = () => {
     console.log('[App] Timed events toggled:', !isAutomaticEventsEnabled);
   }, [isAutomaticEventsEnabled]);
 
+  // Handle popout for Display tab
+  const handlePopoutDisplay = useCallback(() => {
+    if (!model) return;
+    
+    // Find the Display tab by searching for component "video"
+    let displayTabId: string | null = null;
+    
+    model.visitNodes((node: any) => {
+      if (node.getType() === "tab" && node.getComponent() === "video") {
+        displayTabId = node.getId();
+      }
+    });
+    
+    if (displayTabId) {
+      try {
+        // Use flexlayout Actions.popoutTab to popout the Display tab
+        model.doAction(Actions.popoutTab(displayTabId));
+        console.log('[App] Popped out Display tab');
+      } catch (error) {
+        console.error('[App] Error popping out Display tab:', error);
+      }
+    } else {
+      console.warn('[App] Could not find Display tab to popout');
+    }
+  }, [model]);
+
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1438,6 +1464,7 @@ const AppContent: React.FC = () => {
             onHelpClick={() => setIsHelpOpen(true)}
             onTimeChange={handleTimeChange}
             onTimedEventsToggle={handleTimedEventsToggle}
+            onPopoutClick={handlePopoutDisplay}
             isPlaying={isPlaying}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             isPipMode={isPipMode}

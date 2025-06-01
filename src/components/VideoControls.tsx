@@ -16,6 +16,7 @@ import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import TimerIcon from '@mui/icons-material/Timer';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VideoTimeDisplay from './VideoTimeDisplay';
 import VideoTimeline from './VideoTimeline';
 
@@ -37,6 +38,7 @@ interface VideoControlsProps {
   onHelpClick?: () => void;
   onTimeChange?: (newTime: number) => void;
   onTimedEventsToggle?: () => void;
+  onPopoutClick?: () => void;
   isPlaying: boolean;
   isSlideTransitionsEnabled: boolean;
   isPipMode: boolean;
@@ -66,6 +68,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onHelpClick,
   onTimeChange,
   onTimedEventsToggle,
+  onPopoutClick,
   isPlaying,
   isSlideTransitionsEnabled,
   isPipMode,
@@ -244,89 +247,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               size="small"
             />
           </Box>
-        )}
-
-        {/* Left side controls - Display and Mode controls */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          borderRight: '1px solid rgba(255, 255, 255, 0.3)',
-          paddingRight: 1,
-        }}>
-          <Tooltip 
-            title="Toggle Fullscreen (F)" 
-            placement="top" 
-            arrow
-            componentsProps={{
-              tooltip: {
-                sx: tooltipSx
-              }
-            }}
-            PopperProps={tooltipPopperProps}
-          >
-            <IconButton onClick={onFullscreen} sx={buttonStyle}>
-              <FullscreenIcon />
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip 
-            title="Toggle Picture-in-Picture (P)" 
-            placement="top" 
-            arrow
-            componentsProps={{
-              tooltip: {
-                sx: tooltipSx
-              }
-            }}
-            PopperProps={tooltipPopperProps}
-          >
-            <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
-              {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip 
-            title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
-            placement="top" 
-            arrow
-            componentsProps={{
-              tooltip: {
-                sx: tooltipSx
-              }
-            }}
-            PopperProps={tooltipPopperProps}
-          >
-            <IconButton 
-              onClick={onSlideTransitionsToggle} 
-              sx={slideTransitionsButtonStyle}
-            >
-              <SlideshowOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip 
-            title={isTimedEventsEnabled ? "Disable Timed Events" : "Enable Timed Events"} 
-            placement="top" 
-            arrow
-            componentsProps={{
-              tooltip: {
-                sx: tooltipSx
-              }
-            }}
-            PopperProps={tooltipPopperProps}
-          >
-            <IconButton 
-              onClick={onTimedEventsToggle} 
-              sx={timedEventsButtonStyle}
-              disabled={!onTimedEventsToggle}
-            >
-              <TimerIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-
-        {/* Center controls - Playback controls */}
+        )}        
+        
+        {/* Left controls - Playback controls */}
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -399,11 +322,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </Tooltip>
         </Box>
 
-        {/* Right side controls - Audio controls */}
+        {/* Center controls - Audio controls */}
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
           gap: 1,
+          borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+          paddingRight: 2.5,
         }}>
           <Tooltip 
             title="Toggle Ducking (D)" 
@@ -461,6 +386,106 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               max={100}
               sx={sliderStyle}
             />
+          </Tooltip>
+        </Box>
+
+        {/* Right side controls - Display and Mode controls */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+        }}>
+
+          {onPopoutClick && (
+            <Tooltip 
+              title="Popout Display to New Window" 
+              placement="top" 
+              arrow
+              componentsProps={{
+                tooltip: {
+                  sx: tooltipSx
+                }
+              }}
+              PopperProps={tooltipPopperProps}
+            >
+              <IconButton 
+                onClick={onPopoutClick} 
+                sx={buttonStyle}
+              >
+                <OpenInNewIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          <Tooltip 
+            title="Toggle Fullscreen (F)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onFullscreen} sx={buttonStyle}>
+              <FullscreenIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title="Toggle Picture-in-Picture (P)" 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton onClick={onPipToggle} sx={pipButtonStyle}>
+              {isPipMode ? <PictureInPictureAltIcon /> : <PictureInPictureIcon />}
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip 
+            title={isSlideTransitionsEnabled ? "Disable Slide Transitions (T)" : "Enable Slide Transitions (T)"} 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={onSlideTransitionsToggle} 
+              sx={slideTransitionsButtonStyle}
+            >
+              <SlideshowOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip 
+            title={isTimedEventsEnabled ? "Disable Timed Events" : "Enable Timed Events"} 
+            placement="top" 
+            arrow
+            componentsProps={{
+              tooltip: {
+                sx: tooltipSx
+              }
+            }}
+            PopperProps={tooltipPopperProps}
+          >
+            <IconButton 
+              onClick={onTimedEventsToggle} 
+              sx={timedEventsButtonStyle}
+              disabled={!onTimedEventsToggle}
+            >
+              <TimerIcon />
+            </IconButton>
           </Tooltip>
         </Box>
         
