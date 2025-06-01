@@ -8,6 +8,7 @@ import PianoKeyboard from './components/PianoKeyboard';
 import SlideOverlayControl from './components/SlideOverlayControl';
 import ChromaticTuner from './components/ChromaticTuner';
 import MainVideoMonitor from './components/MainVideoMonitor';
+import DisplayWindowPlaceholder from './components/DisplayWindowPlaceholder';
 import { Layout, Model, TabNode, IJsonModel, Actions } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { Box } from '@mui/material';
@@ -218,37 +219,282 @@ const AppContent: React.FC = () => {
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  
+  // Display window state
+  const [isDisplayWindowOpen, setIsDisplayWindowOpen] = useState<boolean>(false);
+  const [isInDisplayWindow, setIsInDisplayWindow] = useState<boolean>(false);
+  const [isDisplayWindowPlayerReady, setIsDisplayWindowPlayerReady] = useState<boolean>(false);
+  const displayWindowSyncIntervalRef = useRef<number | null>(null);
+  const displayCommandQueueRef = useRef<Array<{command: string, args?: any[]}>>([]);
+
+  // Check if we're running in Electron and if this is the display window
+  useEffect(() => {
+    if (window.electron && window.electron.isDisplayWindow) {
+      const isDisplay = window.electron.isDisplayWindow();
+      console.log('[App] Electron - isDisplayWindow:', isDisplay);
+      setIsInDisplayWindow(isDisplay);
+    } else {
+      // Check URL params for web version
+      const urlParams = new URLSearchParams(window.location.search);
+      const isDisplay = urlParams.get('displayWindow') === 'true';
+      console.log('[App] Web - isDisplayWindow:', isDisplay, 'URL:', window.location.href);
+      setIsInDisplayWindow(isDisplay);
+    }
+  }, []);
+
+  const handleOpenDisplayWindow = useCallback(() => {
+    if (window.electron) {
+      window.electron.send('toMain', { action: 'openDisplayWindow' });
+      setIsDisplayWindowOpen(true);
+      // Switch to Monitor tab when display window opens
+      switchToMonitorTab();
+      
+      // Start syncing state to display window
+      if (displayWindowSyncIntervalRef.current) {
+        clearInterval(displayWindowSyncIntervalRef.current);
+      }
+      
+      displayWindowSyncIntervalRef.current = window.setInterval(() => {
+        syncToDisplayWindow();
+      }, 100);
+    } else {
+      // Web-based pop-out
+      const displayWindow = window.open(
+        `${window.location.origin}${window.location.pathname}?displayWindow=true`,
+        'ServiceDisplayWindow',
+        'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no'
+      );
+      
+      if (displayWindow) {
+        setIsDisplayWindowOpen(true);
+        switchToMonitorTab();
+        
+        // Store reference to the window
+        (window as any).displayWindow = displayWindow;
+        
+        // Set up message passing for web-based sync
+        const syncInterval = window.setInterval(() => {
+          if (!displayWindow.closed) {
+            syncToDisplayWindow();
+          } else {
+            clearInterval(syncInterval);
+            setIsDisplayWindowOpen(false);
+            delete (window as any).displayWindow;
+          }
+        }, 100);
+        
+        // Store the interval reference
+        displayWindowSyncIntervalRef.current = syncInterval;
+      }
+    }
+  }, [video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, isDucking, currentFrameIndex, isAutomaticEventsEnabled]);
+
+  const handleCloseDisplayWindow = useCallback(() => {
+    if (window.electron) {
+      window.electron.send('toMain', { action: 'closeDisplayWindow' });
+      setIsDisplayWindowOpen(false);
+      
+      // Stop syncing
+      if (displayWindowSyncIntervalRef.current) {
+        clearInterval(displayWindowSyncIntervalRef.current);
+        displayWindowSyncIntervalRef.current = null;
+      }
+    } else {
+      // Web-based close
+      if ((window as any).displayWindow && !(window as any).displayWindow.closed) {
+        (window as any).displayWindow.close();
+      }
+      setIsDisplayWindowOpen(false);
+    }
+  }, []);
+
+  const syncToDisplayWindow = useCallback(() => {
+    const syncData = {
+      video,
+      isPlaying,
+      overlaySlide,
+      isPipMode,
+      isSlideTransitionsEnabled,
+      videoVolume,
+      currentTime: player?.getCurrentTime() || 0,
+      startTimeInSeconds,
+      playlistUrl,
+      usePlaylistMode,
+      isMuted,
+      isDucking,
+      currentFrameIndex,
+      isAutomaticEventsEnabled
+    };
+    
+    // Only log periodically to avoid spam
+    if (Math.random() < 0.01) { // Log 1% of the time
+      console.log('[Main Window] Syncing to display window:', syncData);
+    }
+    
+    if (window.electron && isDisplayWindowOpen) {
+      window.electron.send('toMain', { 
+        action: 'syncToDisplay', 
+        syncData 
+      });
+    } else if (!window.electron && (window as any).displayWindow && !(window as any).displayWindow.closed) {
+      // Web-based sync
+      (window as any).displayWindow.postMessage({ 
+        action: 'syncToDisplay', 
+        syncData 
+      }, window.location.origin);
+    }
+  }, [video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isDisplayWindowOpen, isMuted, isDucking, currentFrameIndex, isAutomaticEventsEnabled]);
+
+  const sendDisplayPlayerCommand = useCallback((command: string, args?: any[]) => {
+    if (window.electron && isDisplayWindowOpen) {
+      console.log('[Main Window] Sending player command to display:', command, args);
+      
+      if (isDisplayWindowPlayerReady) {
+        // Send command immediately if player is ready
+        window.electron.send('toMain', {
+          action: 'controlDisplayPlayer',
+          command,
+          args
+        });
+      } else {
+        // Queue command if player is not ready
+        console.log('[Main Window] Queueing command for display window:', command);
+        displayCommandQueueRef.current.push({ command, args });
+      }
+    }
+  }, [isDisplayWindowOpen, isDisplayWindowPlayerReady]);
+
+  const handleSyncData = useCallback((syncData: any) => {
+    console.log('[Display Window] Received sync data:', syncData);
+    
+    // Update state based on sync data
+    if (syncData.video !== video) setVideo(syncData.video);
+    if (syncData.isPlaying !== isPlaying) setIsPlaying(syncData.isPlaying);
+    if (syncData.overlaySlide !== overlaySlide) setOverlaySlide(syncData.overlaySlide);
+    if (syncData.isPipMode !== isPipMode) setIsPipMode(syncData.isPipMode);
+    if (syncData.isSlideTransitionsEnabled !== isSlideTransitionsEnabled) {
+      setIsSlideTransitionsEnabled(syncData.isSlideTransitionsEnabled);
+    }
+    if (syncData.videoVolume !== videoVolume) setVideoVolume(syncData.videoVolume);
+    if (syncData.startTimeInSeconds !== startTimeInSeconds) {
+      setStartTimeInSeconds(syncData.startTimeInSeconds);
+    }
+    if (syncData.playlistUrl !== playlistUrl) setPlaylistUrl(syncData.playlistUrl);
+    if (syncData.usePlaylistMode !== usePlaylistMode) setUsePlaylistMode(syncData.usePlaylistMode);
+    if (syncData.isMuted !== isMuted) setIsMuted(syncData.isMuted);
+    if (syncData.isDucking !== isDucking) setIsDucking(syncData.isDucking);
+    if (syncData.currentFrameIndex !== currentFrameIndex) setCurrentFrameIndex(syncData.currentFrameIndex);
+    if (syncData.isAutomaticEventsEnabled !== isAutomaticEventsEnabled) {
+      setIsAutomaticEventsEnabled(syncData.isAutomaticEventsEnabled);
+    }
+    
+    // Sync player time if needed - only in display window
+    if (isInDisplayWindow && player && Math.abs(player.getCurrentTime() - syncData.currentTime) > 1) {
+      player.seekTo(syncData.currentTime, true);
+    }
+  }, [video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, isDucking, currentFrameIndex, isAutomaticEventsEnabled, isInDisplayWindow]);
+
+  const switchToMonitorTab = useCallback(() => {
+    if (!model) return;
+    
+    // Find the Monitor tab and select it
+    model.visitNodes((node: any) => {
+      if (node.getType() === "tab" && node.getName() === "Monitor") {
+        model.doAction(Actions.selectTab(node.getId()));
+      }
+    });
+  }, []);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
       setIsPlaying(newPlayState);
+      
+      // Send direct command to display window
+      if (isDisplayWindowOpen) {
+        sendDisplayPlayerCommand(newPlayState ? 'playVideo' : 'pauseVideo');
+      }
+      
       // No longer directly control background player here
       // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying]);
+  }, [isPlayerReady, isPlaying, isDisplayWindowOpen, sendDisplayPlayerCommand]);
 
   const handleSkipForward = useCallback(() => {
+    console.log('[Main Window] Skip forward requested');
+    
+    // Always get the current time from the main window player first
+    let currentTime = 0;
     if (player && isPlayerReady) {
-      const currentTime = player.getCurrentTime();
-      player.seekTo(currentTime + 15, true);
+      try {
+        currentTime = player.getCurrentTime();
+        console.log('[Main Window] Got current time from player:', currentTime);
+      } catch (error) {
+        console.error('[Main Window] Error getting current time from player:', error);
+        currentTime = currentVideoTime;
+      }
+    } else {
+      currentTime = currentVideoTime;
+      console.log('[Main Window] Using fallback current time:', currentTime);
+    }
+    
+    const newTime = currentTime + 15;
+    console.log('[Main Window] Calculated skip forward time:', currentTime, '->', newTime);
+    
+    // Apply to main window player if not in display mode
+    if (player && isPlayerReady && !isDisplayWindowOpen) {
+      console.log('[Main Window] Applying skip forward to main player');
+      player.seekTo(newTime, true);
       
       if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(currentTime + 15, true);
+        videoMonitorPlayer.seekTo(newTime, true);
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+    
+    // Always send command to display window if it's open
+    if (isDisplayWindowOpen) {
+      console.log('[Main Window] Sending skip forward command to display window:', newTime);
+      sendDisplayPlayerCommand('seekTo', [newTime, true]);
+    }
+  }, [player, isPlayerReady, videoMonitorPlayer, isDisplayWindowOpen, sendDisplayPlayerCommand, currentVideoTime]);
 
   const handleSkipBack = useCallback(() => {
+    console.log('[Main Window] Skip back requested');
+    
+    // Always get the current time from the main window player first
+    let currentTime = 0;
     if (player && isPlayerReady) {
-      const currentTime = player.getCurrentTime();
-      player.seekTo(currentTime - 5, true);
+      try {
+        currentTime = player.getCurrentTime();
+        console.log('[Main Window] Got current time from player:', currentTime);
+      } catch (error) {
+        console.error('[Main Window] Error getting current time from player:', error);
+        currentTime = currentVideoTime;
+      }
+    } else {
+      currentTime = currentVideoTime;
+      console.log('[Main Window] Using fallback current time:', currentTime);
+    }
+    
+    const newTime = Math.max(0, currentTime - 5);
+    console.log('[Main Window] Calculated skip back time:', currentTime, '->', newTime);
+    
+    // Apply to main window player if not in display mode
+    if (player && isPlayerReady && !isDisplayWindowOpen) {
+      console.log('[Main Window] Applying skip back to main player');
+      player.seekTo(newTime, true);
       
       if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(currentTime - 5, true);
+        videoMonitorPlayer.seekTo(newTime, true);
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+    
+    // Always send command to display window if it's open
+    if (isDisplayWindowOpen) {
+      console.log('[Main Window] Sending skip back command to display window:', newTime);
+      sendDisplayPlayerCommand('seekTo', [newTime, true]);
+    }
+  }, [player, isPlayerReady, videoMonitorPlayer, isDisplayWindowOpen, sendDisplayPlayerCommand, currentVideoTime]);
 
   const handleFullscreen = useCallback(() => {
     console.log('[App] Manually toggling fullscreen, resetting userExitedFullscreen flag');
@@ -257,8 +503,15 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handlePlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
+    console.log('[App] Player ready in', isInDisplayWindow ? 'DISPLAY WINDOW' : 'MAIN WINDOW');
     setPlayer(playerInstance);
     setIsPlayerReady(true);
+    
+    // If this is the display window, notify the main window that the player is ready
+    if (isInDisplayWindow && window.electron) {
+      console.log('[Display Window] Notifying main window that player is ready');
+      window.electron.send('toMain', { action: 'displayPlayerReady' });
+    }
     
     // Get initial duration immediately
     try {
@@ -270,7 +523,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error('[App] Error getting initial video duration:', error);
     }
-  }, []);
+  }, [isInDisplayWindow]);
 
   const handleStateChange = useCallback((state: number | { data: number, videoId: string }) => {
     if (!isPlayerReady) return;
@@ -348,21 +601,79 @@ const AppContent: React.FC = () => {
     if (!isPipMode) {
       console.log('[App] Enabling PiP mode (current state:', isPipMode, ')');
       setIsPipMode(true);
+      
+      // Send immediate sync to display window to update PiP state
+      if (isDisplayWindowOpen) {
+        console.log('[Main Window] Sending immediate PiP enable sync to display window');
+        const syncData = {
+          video,
+          isPlaying,
+          overlaySlide,
+          isPipMode: true, // Use the new state
+          isSlideTransitionsEnabled,
+          videoVolume,
+          currentTime: player?.getCurrentTime() || 0,
+          startTimeInSeconds,
+          playlistUrl,
+          usePlaylistMode,
+          isMuted,
+          isDucking,
+          currentFrameIndex,
+          isAutomaticEventsEnabled
+        };
+        
+        if (window.electron) {
+          window.electron.send('toMain', { 
+            action: 'syncToDisplay', 
+            syncData 
+          });
+        }
+      }
+      
       console.log('[App] PiP mode state after enable:', true);
     } else {
       console.log('[App] PiP mode already enabled, skipping enable');
     }
-  }, [isPipMode]);
+  }, [isPipMode, isDisplayWindowOpen, video, isPlaying, overlaySlide, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, isDucking, currentFrameIndex, isAutomaticEventsEnabled]);
 
   const handleDisablePip = useCallback(() => {
     if (isPipMode) {
       console.log('[App] Disabling PiP mode (current state:', isPipMode, ')');
       setIsPipMode(false);
+      
+      // Send immediate sync to display window to update PiP state
+      if (isDisplayWindowOpen) {
+        console.log('[Main Window] Sending immediate PiP disable sync to display window');
+        const syncData = {
+          video,
+          isPlaying,
+          overlaySlide,
+          isPipMode: false, // Use the new state
+          isSlideTransitionsEnabled,
+          videoVolume,
+          currentTime: player?.getCurrentTime() || 0,
+          startTimeInSeconds,
+          playlistUrl,
+          usePlaylistMode,
+          isMuted,
+          isDucking,
+          currentFrameIndex,
+          isAutomaticEventsEnabled
+        };
+        
+        if (window.electron) {
+          window.electron.send('toMain', { 
+            action: 'syncToDisplay', 
+            syncData 
+          });
+        }
+      }
+      
       console.log('[App] PiP mode state after disable:', false);
     } else {
       console.log('[App] PiP mode already disabled, skipping disable');
     }
-  }, [isPipMode]);
+  }, [isPipMode, isDisplayWindowOpen, video, isPlaying, overlaySlide, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, isDucking, currentFrameIndex, isAutomaticEventsEnabled]);
 
   // Add a resetTimeEvents function outside of handleRestart
   const resetTimeEvents = useCallback(() => {
@@ -628,7 +939,7 @@ const AppContent: React.FC = () => {
   }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef, videoDuration]);
 
   const handleRestart = useCallback(() => {
-    if (player && isPlayerReady) {
+    if (player && isPlayerReady && !isDisplayWindowOpen) {
       player.seekTo(0, true);
       if (!isPlaying) {
         setIsPlaying(true);
@@ -639,6 +950,7 @@ const AppContent: React.FC = () => {
         if (!isPlaying) {
           videoMonitorPlayer.playVideo();
         }
+        }
       }
       
       // Reset the user exited fullscreen flag when restarting
@@ -647,8 +959,16 @@ const AppContent: React.FC = () => {
       // Reset time events when restarting so they will trigger again
       console.log('[App] Calling resetTimeEvents after restart');
       resetTimeEvents();
+    
+    // Send direct commands to display window
+    if (isDisplayWindowOpen) {
+      sendDisplayPlayerCommand('seekTo', [0, true]);
+      if (!isPlaying) {
+        sendDisplayPlayerCommand('playVideo');
+        setIsPlaying(true);
+      }
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isDisplayWindowOpen, sendDisplayPlayerCommand]);
 
   const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
@@ -658,8 +978,40 @@ const AppContent: React.FC = () => {
     if (!isDucking) {
       // Instant duck down to the specified percentage
       preDuckVolume.current = videoVolume;
-      setVideoVolume(Math.round(videoVolume * (audioDuckingPercentage / 100)));
+      const duckedVolume = Math.round(videoVolume * (audioDuckingPercentage / 100));
+      setVideoVolume(duckedVolume);
       setIsDucking(true);
+      
+      // Send commands to display window if it's open
+      if (isDisplayWindowOpen) {
+        console.log('[Main Window] Sending ducking enable commands to display window, new volume:', duckedVolume);
+        sendDisplayPlayerCommand('setVolume', [duckedVolume]);
+        
+        // Send sync data to display window with updated ducking state
+        const syncData = {
+          video,
+          isPlaying,
+          overlaySlide,
+          isPipMode,
+          isSlideTransitionsEnabled,
+          videoVolume: duckedVolume,
+          currentTime: player?.getCurrentTime() || 0,
+          startTimeInSeconds,
+          playlistUrl,
+          usePlaylistMode,
+          isMuted,
+          isDucking: true,
+          currentFrameIndex,
+          isAutomaticEventsEnabled
+        };
+        
+        if (window.electron) {
+          window.electron.send('toMain', { 
+            action: 'syncToDisplay', 
+            syncData 
+          });
+        }
+      }
     } else {
       // Fade back to original volume over 3 seconds
       const startVolume = videoVolume;
@@ -674,26 +1026,92 @@ const AppContent: React.FC = () => {
         const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
         setVideoVolume(newVolume);
 
+        // Send volume updates to display window during fade
+        if (isDisplayWindowOpen) {
+          sendDisplayPlayerCommand('setVolume', [newVolume]);
+        }
+
         if (currentStep >= steps) {
           clearInterval(fadeInterval);
           setIsDucking(false);
+          
+          // Send final sync data to display window with updated ducking state
+          if (isDisplayWindowOpen) {
+            console.log('[Main Window] Sending final ducking disable sync to display window');
+            const syncData = {
+              video,
+              isPlaying,
+              overlaySlide,
+              isPipMode,
+              isSlideTransitionsEnabled,
+              videoVolume: newVolume,
+              currentTime: player?.getCurrentTime() || 0,
+              startTimeInSeconds,
+              playlistUrl,
+              usePlaylistMode,
+              isMuted,
+              isDucking: false,
+              currentFrameIndex,
+              isAutomaticEventsEnabled
+            };
+            
+            if (window.electron) {
+              window.electron.send('toMain', { 
+                action: 'syncToDisplay', 
+                syncData 
+              });
+            }
+          }
         }
       }, stepDuration);
     }
-  }, [isDucking, videoVolume, audioDuckingPercentage]);
+  }, [isDucking, videoVolume, audioDuckingPercentage, isDisplayWindowOpen, sendDisplayPlayerCommand, video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, currentFrameIndex, isAutomaticEventsEnabled]);
 
   const handleEnableDucking = useCallback(() => {
     if (!isDucking && !isMuted) {
       console.log('[App] Enabling audio ducking (current state:', isDucking, ')');
       // Instant duck down to the specified percentage
       preDuckVolume.current = videoVolume;
-      setVideoVolume(Math.round(videoVolume * (audioDuckingPercentage / 100)));
+      const duckedVolume = Math.round(videoVolume * (audioDuckingPercentage / 100));
+      setVideoVolume(duckedVolume);
       setIsDucking(true);
+      
+      // Send direct command to display window
+      if (isDisplayWindowOpen) {
+        console.log('[Main Window] Sending ducking enable command to display window, new volume:', duckedVolume);
+        sendDisplayPlayerCommand('setVolume', [duckedVolume]);
+        
+        // Send immediate sync data to display window with updated ducking state
+        const syncData = {
+          video,
+          isPlaying,
+          overlaySlide,
+          isPipMode,
+          isSlideTransitionsEnabled,
+          videoVolume: duckedVolume,
+          currentTime: player?.getCurrentTime() || 0,
+          startTimeInSeconds,
+          playlistUrl,
+          usePlaylistMode,
+          isMuted,
+          isDucking: true, // Use the new state
+          currentFrameIndex,
+          isAutomaticEventsEnabled
+        };
+        
+        if (window.electron) {
+          window.electron.send('toMain', { 
+            action: 'syncToDisplay', 
+            syncData 
+          });
+        }
+      }
+      
       console.log('[App] Audio ducking state after enable:', true);
     } else {
       console.log('[App] Audio ducking already enabled or audio is muted, skipping enable');
     }
-  }, [isDucking, isMuted, videoVolume, audioDuckingPercentage]);
+  }, [isDucking, isMuted, videoVolume, audioDuckingPercentage, isDisplayWindowOpen, sendDisplayPlayerCommand, video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, player, startTimeInSeconds, playlistUrl, usePlaylistMode, currentFrameIndex, isAutomaticEventsEnabled]);
 
   const handleDisableDucking = useCallback(() => {
     if (isDucking) {
@@ -711,28 +1129,84 @@ const AppContent: React.FC = () => {
         const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
         setVideoVolume(newVolume);
 
+        // Send volume updates to display window during fade
+        if (isDisplayWindowOpen) {
+          sendDisplayPlayerCommand('setVolume', [newVolume]);
+        }
+
         if (currentStep >= steps) {
           clearInterval(fadeInterval);
           setIsDucking(false);
+          
+          // Send final sync data to display window with updated ducking state
+          if (isDisplayWindowOpen) {
+            console.log('[Main Window] Sending final ducking disable sync to display window');
+            const syncData = {
+              video,
+              isPlaying,
+              overlaySlide,
+              isPipMode,
+              isSlideTransitionsEnabled,
+              videoVolume: newVolume,
+              currentTime: player?.getCurrentTime() || 0,
+              startTimeInSeconds,
+              playlistUrl,
+              usePlaylistMode,
+              isMuted,
+              isDucking: false, // Use the new state
+              currentFrameIndex,
+              isAutomaticEventsEnabled
+            };
+            
+            if (window.electron) {
+              window.electron.send('toMain', { 
+                action: 'syncToDisplay', 
+                syncData 
+              });
+            }
+          }
+          
           console.log('[App] Audio ducking state after disable:', false);
         }
       }, stepDuration);
     } else {
       console.log('[App] Audio ducking already disabled, skipping disable');
     }
-  }, [isDucking, videoVolume]);
+  }, [isDucking, videoVolume, isDisplayWindowOpen, sendDisplayPlayerCommand, video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, currentFrameIndex, isAutomaticEventsEnabled]);
 
   const handleToggleMute = useCallback(() => {
     if (!isMuted) {
       previousVolumeRef.current = videoVolume;
       setVideoVolume(0);
       setIsMuted(true);
+      
+      // Send direct command to display window
+      if (isDisplayWindowOpen) {
+        sendDisplayPlayerCommand('mute');
+      }
     } else {
       const targetVolume = previousVolumeRef.current || 25;
       setIsMuted(false);
       setVideoVolume(targetVolume);
+      
+      // Send direct commands to display window
+      if (isDisplayWindowOpen) {
+        sendDisplayPlayerCommand('unMute');
+        sendDisplayPlayerCommand('setVolume', [targetVolume]);
+      }
     }
-  }, [isMuted, videoVolume]);
+  }, [isMuted, videoVolume, isDisplayWindowOpen, sendDisplayPlayerCommand]);
+
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    console.log('[Main Window] Volume change requested:', newVolume);
+    setVideoVolume(newVolume);
+    
+    // Send direct command to display window
+    if (isDisplayWindowOpen) {
+      console.log('[Main Window] Sending volume command to display window');
+      sendDisplayPlayerCommand('setVolume', [newVolume]);
+    }
+  }, [isDisplayWindowOpen, sendDisplayPlayerCommand]);
 
   const handleVideoListError = useCallback((hasError: boolean) => {
     setUsePlaylistMode(hasError);
@@ -856,19 +1330,53 @@ const AppContent: React.FC = () => {
   }, [player, isPlayerReady, video, videoMonitorPlayer]);
 
   const handleTimeChange = useCallback((newTime: number) => {
-    if (player && isPlayerReady) {
+    if (player && isPlayerReady && !isDisplayWindowOpen) {
       player.seekTo(newTime, true);
       
       if (videoMonitorPlayer) {
         videoMonitorPlayer.seekTo(newTime, true);
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+    
+    // Send direct command to display window
+    if (isDisplayWindowOpen) {
+      sendDisplayPlayerCommand('seekTo', [newTime, true]);
+    }
+  }, [player, isPlayerReady, videoMonitorPlayer, isDisplayWindowOpen, sendDisplayPlayerCommand]);
 
   const handleTimedEventsToggle = useCallback(() => {
-    setIsAutomaticEventsEnabled(prev => !prev);
-    console.log('[App] Timed events toggled:', !isAutomaticEventsEnabled);
-  }, [isAutomaticEventsEnabled]);
+    const newTimedEventsState = !isAutomaticEventsEnabled;
+    setIsAutomaticEventsEnabled(newTimedEventsState);
+    console.log('[App] Timed events toggled:', newTimedEventsState);
+    
+    // Send immediate sync to display window to update timed events state
+    if (isDisplayWindowOpen) {
+      console.log('[Main Window] Sending immediate timed events sync to display window');
+      const syncData = {
+        video,
+        isPlaying,
+        overlaySlide,
+        isPipMode,
+        isSlideTransitionsEnabled,
+        videoVolume,
+        currentTime: player?.getCurrentTime() || 0,
+        startTimeInSeconds,
+        playlistUrl,
+        usePlaylistMode,
+        isMuted,
+        isDucking,
+        currentFrameIndex,
+        isAutomaticEventsEnabled: newTimedEventsState // Use the new state
+      };
+      
+      if (window.electron) {
+        window.electron.send('toMain', { 
+          action: 'syncToDisplay', 
+          syncData 
+        });
+      }
+    }
+  }, [isAutomaticEventsEnabled, isDisplayWindowOpen, video, isPlaying, overlaySlide, isPipMode, isSlideTransitionsEnabled, videoVolume, player, startTimeInSeconds, playlistUrl, usePlaylistMode, isMuted, isDucking, currentFrameIndex]);
 
   // Keyboard controls for video and slides
   useEffect(() => {
@@ -1006,6 +1514,16 @@ const AppContent: React.FC = () => {
       else if (event.code === 'KeyE' && !event.repeat) {
         event.preventDefault();
         handleTimedEventsToggle();
+      } else if (event.code === 'KeyD' && event.ctrlKey && !event.repeat) {
+        event.preventDefault();
+        // Toggle display pop-out window
+        if (window.electron) {
+          if (isDisplayWindowOpen) {
+            handleCloseDisplayWindow();
+          } else {
+            handleOpenDisplayWindow();
+          }
+        }
       }
     };
 
@@ -1018,7 +1536,8 @@ const AppContent: React.FC = () => {
       handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
       setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
       // Add these new dependencies:
-      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle
+      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle,
+      isDisplayWindowOpen, handleOpenDisplayWindow, handleCloseDisplayWindow
   ]);
 
   // Handle fullscreen changes from external sources
@@ -1320,6 +1839,138 @@ const AppContent: React.FC = () => {
     }
   }, [useBackgroundVideo, model]);
 
+  // Handle IPC messages from Electron
+  useEffect(() => {
+    if (!window.electron) return;
+
+    const handleIpcMessage = (data: any) => {
+      console.log('[App] Received IPC message:', data);
+      
+      if (data.action === 'toggleDisplayPopout') {
+        if (isDisplayWindowOpen) {
+          handleCloseDisplayWindow();
+        } else {
+          handleOpenDisplayWindow();
+        }
+      } else if (data.action === 'displayWindowClosed') {
+        setIsDisplayWindowOpen(false);
+        setIsDisplayWindowPlayerReady(false);
+        displayCommandQueueRef.current = [];
+        // Switch to Monitor tab when display window is closed
+        switchToMonitorTab();
+      } else if (data.action === 'syncToDisplay' && isInDisplayWindow) {
+        // Handle sync data in display window
+        handleSyncData(data.syncData);
+      } else if (data.action === 'syncToMain' && !isInDisplayWindow) {
+        // Handle sync data in main window
+        handleSyncData(data.syncData);
+      } else if (data.action === 'displayPlayerReady' && !isInDisplayWindow) {
+        // Display window player is ready
+        console.log('[Main Window] Display window player is ready');
+        setIsDisplayWindowPlayerReady(true);
+        
+        // Process queued commands
+        if (displayCommandQueueRef.current.length > 0) {
+          console.log('[Main Window] Processing queued commands:', displayCommandQueueRef.current.length);
+          displayCommandQueueRef.current.forEach(({ command, args }) => {
+            window.electron!.send('toMain', {
+              action: 'controlDisplayPlayer',
+              command,
+              args
+            });
+          });
+          displayCommandQueueRef.current = [];
+        }
+      } else if (data.action === 'controlPlayer' && isInDisplayWindow && player && isPlayerReady) {
+        // Handle direct player control commands in display window
+        console.log('[Display Window] Received player command:', data.command, data.args);
+        console.log('[Display Window] Player available:', !!player, 'Player ready:', isPlayerReady);
+        console.log('[Display Window] isInDisplayWindow:', isInDisplayWindow);
+        console.log('[Display Window] Player object:', player);
+        
+        try {
+          const command = data.command as keyof typeof player;
+          console.log('[Display Window] Command type check:', typeof player[command]);
+          
+          if (typeof player[command] === 'function') {
+            console.log('[Display Window] Executing command:', command);
+            if (data.args && data.args.length > 0) {
+              // Call player method with arguments
+              (player[command] as Function)(...data.args);
+            } else {
+              // Call player method without arguments
+              (player[command] as Function)();
+            }
+            console.log('[Display Window] Command executed successfully');
+          } else {
+            console.error('[Display Window] Command is not a function:', command);
+          }
+        } catch (error) {
+          console.error('[Display Window] Error executing player command:', error);
+        }
+      } else if (data.action === 'controlPlayer') {
+        // Log why the command wasn't handled
+        console.log('[Display Window] Command not handled:', {
+          action: data.action,
+          isInDisplayWindow,
+          hasPlayer: !!player,
+          isPlayerReady
+        });
+      }
+    };
+
+    window.electron.receive('fromMain', handleIpcMessage);
+
+    return () => {
+      // Clean up listener
+      if (window.electron && window.electron.removeAllListeners) {
+        window.electron.removeAllListeners('fromMain');
+      }
+    };
+  }, [isDisplayWindowOpen, isInDisplayWindow, handleCloseDisplayWindow, handleOpenDisplayWindow, switchToMonitorTab, handleSyncData, player, isPlayerReady]);
+
+  // Handle web-based message passing for display window sync
+  useEffect(() => {
+    if (window.electron) return; // Skip if using Electron
+    
+    const handleMessage = (event: MessageEvent) => {
+      // Only accept messages from same origin
+      if (event.origin !== window.location.origin) return;
+      
+      const data = event.data;
+      if (data.action === 'syncToDisplay' && isInDisplayWindow) {
+        // Handle sync data in display window
+        handleSyncData(data.syncData);
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [isInDisplayWindow, handleSyncData]);
+
+  // Ensure sync interval is updated when dependencies change
+  useEffect(() => {
+    if (isDisplayWindowOpen && displayWindowSyncIntervalRef.current) {
+      // Clear existing interval
+      clearInterval(displayWindowSyncIntervalRef.current);
+      
+      // Create new interval with updated dependencies
+      displayWindowSyncIntervalRef.current = window.setInterval(() => {
+        syncToDisplayWindow();
+      }, 100);
+    }
+    
+    return () => {
+      if (displayWindowSyncIntervalRef.current) {
+        clearInterval(displayWindowSyncIntervalRef.current);
+        displayWindowSyncIntervalRef.current = null;
+      }
+    };
+  }, [isDisplayWindowOpen, syncToDisplayWindow]);
+
   const factory = (node: TabNode) => {
     const component = node.getComponent();
     if (component === "form") {
@@ -1350,6 +2001,9 @@ const AppContent: React.FC = () => {
         />
       );
     } else if (component === "video") {
+      // If we're in the display window, always show the video
+      // If we're in the main window and display is popped out, show placeholder
+      if (isInDisplayWindow || (!isInDisplayWindow && !isDisplayWindowOpen)) {
       return (
         <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
           <MainVideoFrame 
@@ -1386,6 +2040,10 @@ const AppContent: React.FC = () => {
           )}
         </div>
       );
+      } else {
+        // Show placeholder in main window when display is popped out
+        return <DisplayWindowPlaceholder onCloseDisplayWindow={handleCloseDisplayWindow} />;
+      }
     } else if (component === "backgroundMusic" || component === "backgroundVideo") {
       // Render either the music or video player based on useBackgroundVideo state
       // regardless of what the tab component is set to
@@ -1430,7 +2088,7 @@ const AppContent: React.FC = () => {
             onEnablePip={handleEnablePip}
             onDisablePip={handleDisablePip}
             onRestart={handleRestart}
-            onVolumeChange={setVideoVolume}
+            onVolumeChange={handleVolumeChange}
             onDuckingToggle={handleDuckingToggle}
             onEnableDucking={handleEnableDucking}
             onDisableDucking={handleDisableDucking}
@@ -1438,6 +2096,7 @@ const AppContent: React.FC = () => {
             onHelpClick={() => setIsHelpOpen(true)}
             onTimeChange={handleTimeChange}
             onTimedEventsToggle={handleTimedEventsToggle}
+            onPopOutDisplay={handleOpenDisplayWindow}
             isPlaying={isPlaying}
             isSlideTransitionsEnabled={isSlideTransitionsEnabled}
             isPipMode={isPipMode}
@@ -1447,6 +2106,7 @@ const AppContent: React.FC = () => {
             isTimedEventsEnabled={isAutomaticEventsEnabled}
             currentTime={currentVideoTime}
             duration={videoDuration}
+            isDisplayPoppedOut={isDisplayWindowOpen}
           />
         </Box>
       );
@@ -1493,6 +2153,32 @@ const AppContent: React.FC = () => {
 
   return (
     <React.Fragment>
+      {/* If we're in the display window, only show the video display */}
+      {isInDisplayWindow ? (
+        <Box sx={{ width: '100%', height: '100vh', backgroundColor: '#000' }}>
+          <MainVideoFrame 
+            video={video} 
+            startSeconds={parseInt(startTimeInSeconds)} 
+            overlaySlide={overlaySlide}
+            onPlayerReady={handlePlayerReady}
+            onStateChange={handleStateChange}
+            isPlaying={isPlaying}
+            isFullscreen={false}
+            isPipMode={isPipMode}
+            isSlideTransitionsEnabled={isSlideTransitionsEnabled}
+            volume={videoVolume}
+            playlistUrl={playlistUrl}
+            usePlaylistMode={usePlaylistMode}
+            onFullscreenChange={setIsFullscreen}
+          />
+          <VideoTimeEvents
+            ref={timeEventsRef}
+            player={player}
+            isPlaying={isPlaying}
+          />
+        </Box>
+      ) : (
+        <>
       {showStartOverlay && <EasyStartPopup onStartService={handleStartService} />}
       <Box 
         sx={{ 
@@ -1518,6 +2204,8 @@ const AppContent: React.FC = () => {
         open={isHelpOpen} 
         onClose={() => setIsHelpOpen(false)}
       />
+        </>
+      )}
     </React.Fragment>
   );
 }

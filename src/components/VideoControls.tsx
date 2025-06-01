@@ -16,6 +16,7 @@ import VolumeDownIcon from '@mui/icons-material/VolumeDown';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import TimerIcon from '@mui/icons-material/Timer';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VideoTimeDisplay from './VideoTimeDisplay';
 import VideoTimeline from './VideoTimeline';
 
@@ -37,6 +38,7 @@ interface VideoControlsProps {
   onHelpClick?: () => void;
   onTimeChange?: (newTime: number) => void;
   onTimedEventsToggle?: () => void;
+  onPopOutDisplay?: () => void;
   isPlaying: boolean;
   isSlideTransitionsEnabled: boolean;
   isPipMode: boolean;
@@ -46,6 +48,7 @@ interface VideoControlsProps {
   isTimedEventsEnabled?: boolean;
   currentTime?: number;
   duration?: number;
+  isDisplayPoppedOut?: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -66,6 +69,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onHelpClick,
   onTimeChange,
   onTimedEventsToggle,
+  onPopOutDisplay,
   isPlaying,
   isSlideTransitionsEnabled,
   isPipMode,
@@ -75,6 +79,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isTimedEventsEnabled = false,
   currentTime = 0,
   duration = 0,
+  isDisplayPoppedOut = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -269,6 +274,33 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               <FullscreenIcon />
             </IconButton>
           </Tooltip>
+          
+          {onPopOutDisplay && (
+            <Tooltip 
+              title={isDisplayPoppedOut ? "Display is in separate window" : "Pop Out Display (Ctrl+D)"} 
+              placement="top" 
+              arrow
+              componentsProps={{
+                tooltip: {
+                  sx: tooltipSx
+                }
+              }}
+              PopperProps={tooltipPopperProps}
+            >
+              <IconButton 
+                onClick={onPopOutDisplay} 
+                sx={{
+                  ...buttonStyle,
+                  ...(isDisplayPoppedOut && {
+                    color: 'rgba(127, 255, 0, 0.8)',
+                    backgroundColor: 'rgba(127, 255, 0, 0.1)'
+                  })
+                }}
+              >
+                <OpenInNewIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           
           <Tooltip 
             title="Toggle Picture-in-Picture (P)" 
