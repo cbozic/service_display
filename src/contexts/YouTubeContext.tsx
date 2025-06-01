@@ -19,7 +19,7 @@ const YouTubeContext = createContext<YouTubeContextType | undefined>(undefined);
 export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mainPlayersReady, setMainPlayersReady] = useState(false);
   const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState(false);
-  const [backgroundVolume, setBackgroundVolume] = useState(10);
+  const [backgroundVolume, setBackgroundVolume] = useState(1);
   const [backgroundMuted, setBackgroundMuted] = useState(true);
   const backgroundPlayerRef = useRef<any>(null);
   const isManualVolumeChange = useRef<boolean>(false);

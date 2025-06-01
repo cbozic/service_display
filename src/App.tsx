@@ -202,7 +202,7 @@ const AppContent: React.FC = () => {
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
-  const [audioDuckingPercentage, setAudioDuckingPercentage] = useState<number>(66);
+  const [audioDuckingPercentage, setAudioDuckingPercentage] = useState<number>(50);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
