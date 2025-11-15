@@ -108,6 +108,7 @@ npm test
 Launches the test runner in interactive watch mode. See the [running tests](https://facebook.github.io/create-react-app/docs/running-tests) section in the Create React App documentation for more information.
 
 ## To Do
+- Start The Service button doesn't start from 0:00 if the video is a live stream
 - Add electron self update functionality
 - Add electron icon and favicon
 - Add electron popup support

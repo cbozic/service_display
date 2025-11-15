@@ -7,7 +7,7 @@ declare module 'react-youtube' {
       getDuration: () => number;
       getPlayerState: () => number;
       getVideoUrl: () => string;
-      getVideoData: () => { video_id: string; title: string };
+      getVideoData: () => { video_id: string; title: string; isLive?: boolean };
       seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
       playVideo: () => void;
       pauseVideo: () => void;

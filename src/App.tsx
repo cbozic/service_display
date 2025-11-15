@@ -218,6 +218,7 @@ const AppContent: React.FC = () => {
   const videoTimeUpdateIntervalRef = useRef<number | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -259,7 +260,18 @@ const AppContent: React.FC = () => {
   const handlePlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setPlayer(playerInstance);
     setIsPlayerReady(true);
-    
+
+    // Check if this is a live stream
+    try {
+      const videoData = playerInstance.getVideoData();
+      const isLive = videoData?.isLive || false;
+      setIsLiveStream(isLive);
+      console.log('[App] Video is live stream:', isLive);
+    } catch (error) {
+      console.error('[App] Error checking if video is live:', error);
+      setIsLiveStream(false);
+    }
+
     // Get initial duration immediately
     try {
       const duration = playerInstance.getDuration();
@@ -300,7 +312,15 @@ const AppContent: React.FC = () => {
       try {
         if (player) {
           const duration = player.getDuration();
-          if (duration && duration > 0) {
+          const currentTime = player.getCurrentTime();
+
+          // For live streams, use the maximum of getDuration() and current time + 60 seconds
+          // This ensures the timeline extends beyond the DVR window
+          if (isLiveStream && currentTime > 0) {
+            const effectiveDuration = Math.max(duration, currentTime + 60);
+            setVideoDuration(effectiveDuration);
+            console.log('[App] Updated live stream duration:', effectiveDuration, '(API duration:', duration, ', current time:', currentTime, ')');
+          } else if (duration && duration > 0) {
             setVideoDuration(duration);
             console.log('[App] Updated video duration:', duration);
           }
@@ -315,7 +335,7 @@ const AppContent: React.FC = () => {
     if (shouldBePlaying !== isPlaying) {
       setIsPlaying(shouldBePlaying);
     }
-  }, [isPlaying, isPlayerReady, video, player]);
+  }, [isPlaying, isPlayerReady, video, player, isLiveStream]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -1248,8 +1268,16 @@ const AppContent: React.FC = () => {
       // Get initial duration
       try {
         const duration = player.getDuration();
-        if (duration && duration > 0) {
+        const currentTime = player.getCurrentTime();
+
+        // For live streams, use effective duration that extends beyond DVR window
+        if (isLiveStream && currentTime > 0) {
+          const effectiveDuration = Math.max(duration, currentTime + 60);
+          setVideoDuration(effectiveDuration);
+          console.log('[App] Initial live stream duration:', effectiveDuration);
+        } else if (duration && duration > 0) {
           setVideoDuration(duration);
+          console.log('[App] Initial video duration:', duration);
         }
       } catch (error) {
         console.error('Error getting video duration:', error);
@@ -1260,10 +1288,18 @@ const AppContent: React.FC = () => {
         try {
           const time = player.getCurrentTime();
           setCurrentVideoTime(time);
-          
+
           // Also check for duration updates
           const currentDuration = player.getDuration();
-          if (currentDuration && currentDuration > 0 && currentDuration !== videoDuration) {
+
+          // For live streams, calculate effective duration to extend beyond DVR window
+          if (isLiveStream && time > 0) {
+            const effectiveDuration = Math.max(currentDuration, time + 60);
+            if (effectiveDuration !== videoDuration) {
+              setVideoDuration(effectiveDuration);
+              console.log('[App] Updated live stream duration:', effectiveDuration, '(API duration:', currentDuration, ', current time:', time, ')');
+            }
+          } else if (currentDuration && currentDuration > 0 && currentDuration !== videoDuration) {
             setVideoDuration(currentDuration);
             console.log('[App] Updated video duration:', currentDuration);
           }
@@ -1278,7 +1314,7 @@ const AppContent: React.FC = () => {
         window.clearInterval(videoTimeUpdateIntervalRef.current);
       }
     };
-  }, [player, isPlayerReady, videoDuration]);
+  }, [player, isPlayerReady, videoDuration, isLiveStream]);
 
   // Update the layout when background player type changes
   useEffect(() => {
