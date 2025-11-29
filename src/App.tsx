@@ -844,36 +844,55 @@ const AppContent: React.FC = () => {
         // Store current state
         const currentTime = player.getCurrentTime() - 2; // Subtract 2 seconds to account for the fade delay
         const wasPlaying = player.getPlayerState() === 1; // 1 is YT.PlayerState.PLAYING
-        
+
         // Stop and reload the video
         player.stopVideo();
-        
+
         // Reload the same video and restore position
         setTimeout(() => {
           player.cueVideoById({
             videoId: video,
             startSeconds: currentTime
           });
-          
+
+          // Restore volume and mute state after player is ready
+          setTimeout(() => {
+            player.setVolume(videoVolume);
+            if (isMuted) {
+              player.mute();
+            } else {
+              player.unMute();
+            }
+          }, 100);
+
           // Also handle the monitor player if it exists
           if (videoMonitorPlayer) {
             videoMonitorPlayer.stopVideo();
             videoMonitorPlayer.cueVideoById({
-              videoId: video, 
+              videoId: video,
               startSeconds: currentTime
             });
+
+            // Monitor player should always be muted
+            setTimeout(() => {
+              videoMonitorPlayer.mute();
+            }, 100);
           }
 
           // Resume playback if it was playing
           if (wasPlaying) {
-            setTimeout(() => player.playVideo(), 1000);
+            setTimeout(() => {
+              player.playVideo();
+              // Ensure volume is maintained after playback starts
+              player.setVolume(videoVolume);
+            }, 1000);
           }
         }, 200);
       } catch (error) {
         console.error('[App] Error during Player Reload Resync:', error);
       }
     }
-  }, [player, isPlayerReady, video, videoMonitorPlayer]);
+  }, [player, isPlayerReady, video, videoMonitorPlayer, videoVolume, isMuted]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     if (player && isPlayerReady) {
