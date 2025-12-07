@@ -96,9 +96,9 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
           
           // Update the time display
           setCurrentTime(mainTime);
-          
-          // If time difference is more than 1 second, sync
-          if (Math.abs(mainTime - monitorTime) > 1) {
+
+          // If time difference is more than 0.5 seconds, sync
+          if (Math.abs(mainTime - monitorTime) > 0.5) {
             playerRef.current.seekTo(mainTime, true);
           }
 
@@ -112,7 +112,7 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
           console.error('Error during video sync:', error);
         }
       }
-    }, 1000); // Update every 1000ms
+    }, 500); // Update every 500ms
   }, [mainPlayer]);
 
   const initPlayer = useCallback(() => {
