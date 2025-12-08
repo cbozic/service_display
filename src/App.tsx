@@ -219,6 +219,8 @@ const AppContent: React.FC = () => {
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
+  const [needsLiveStreamSeekToStart, setNeedsLiveStreamSeekToStart] = useState<boolean>(false);
+  const lastLiveStreamSeekVideoIdRef = useRef<string | null>(null); // Track which video we've set the seek flag for
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
@@ -265,8 +267,17 @@ const AppContent: React.FC = () => {
     try {
       const videoData = playerInstance.getVideoData();
       const isLive = videoData?.isLive || false;
+      const currentVideoId = videoData?.video_id || video;
       setIsLiveStream(isLive);
-      console.log('[App] Video is live stream:', isLive);
+      console.log('[App] Video is live stream:', isLive, 'video ID:', currentVideoId);
+
+      // Set flag so live streams start from beginning on first play
+      // Only if this is a different video than we last set the flag for
+      if (isLive && lastLiveStreamSeekVideoIdRef.current !== currentVideoId) {
+        setNeedsLiveStreamSeekToStart(true);
+        lastLiveStreamSeekVideoIdRef.current = currentVideoId;
+        console.log('[App] Setting needsLiveStreamSeekToStart for live stream (new video)');
+      }
     } catch (error) {
       console.error('[App] Error checking if video is live:', error);
       setIsLiveStream(false);
@@ -282,7 +293,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
       console.error('[App] Error getting initial video duration:', error);
     }
-  }, []);
+  }, [video]);
 
   const handleStateChange = useCallback((state: number | { data: number, videoId: string }) => {
     if (!isPlayerReady) return;
@@ -307,16 +318,40 @@ const AppContent: React.FC = () => {
       stateNumber = state;
     }
     
-    // Update duration when video is cued or begins playing
+    // Track if we should seek to start (local variable to handle async state updates)
+    let shouldSeekToStart = needsLiveStreamSeekToStart;
+    let currentIsLive = isLiveStream;
+
+    // Update duration and check live stream status when video is cued or begins playing
     if (stateNumber === 1 || stateNumber === 5) {
       try {
         if (player) {
+          // Check if this video is a live stream (re-check on each video change)
+          const videoData = player.getVideoData();
+          const isLive = videoData?.isLive || false;
+          const currentVideoId = videoData?.video_id || video;
+          currentIsLive = isLive;
+
+          // If live stream status changed to live, update state and set seek flag
+          // Only set flag if this is a different video than we last set the flag for
+          if (isLive !== isLiveStream) {
+            console.log('[App] Live stream status changed:', isLive);
+            setIsLiveStream(isLive);
+          }
+
+          if (isLive && lastLiveStreamSeekVideoIdRef.current !== currentVideoId) {
+            setNeedsLiveStreamSeekToStart(true);
+            shouldSeekToStart = true; // Set local variable for immediate use
+            lastLiveStreamSeekVideoIdRef.current = currentVideoId;
+            console.log('[App] Video changed to live stream - setting needsLiveStreamSeekToStart for:', currentVideoId);
+          }
+
           const duration = player.getDuration();
           const currentTime = player.getCurrentTime();
 
           // For live streams, use the maximum of getDuration() and current time + 60 seconds
           // This ensures the timeline extends beyond the DVR window
-          if (isLiveStream && currentTime > 0) {
+          if (isLive && currentTime > 0) {
             const effectiveDuration = Math.max(duration, currentTime + 60);
             setVideoDuration(effectiveDuration);
             console.log('[App] Updated live stream duration:', effectiveDuration, '(API duration:', duration, ', current time:', currentTime, ')');
@@ -329,13 +364,24 @@ const AppContent: React.FC = () => {
         console.error('[App] Error getting video duration:', error);
       }
     }
-    
+
+    // For live streams, seek to beginning on first play
+    if (stateNumber === 1 && shouldSeekToStart && currentIsLive) {
+      console.log('[App] Live stream starting - seeking to beginning');
+      player?.seekTo(0, true);
+      videoMonitorPlayer?.seekTo(0, true);
+      setNeedsLiveStreamSeekToStart(false);
+    } else if (stateNumber === 1) {
+      console.log('[App] State 1 but NOT seeking. shouldSeekToStart:', shouldSeekToStart, 'currentIsLive:', currentIsLive);
+    }
+
     // Only update playing state if it's different from current state
     const shouldBePlaying = stateNumber === 1;
     if (shouldBePlaying !== isPlaying) {
+      console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
       setIsPlaying(shouldBePlaying);
     }
-  }, [isPlaying, isPlayerReady, video, player, isLiveStream]);
+  }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, videoMonitorPlayer]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -882,10 +928,15 @@ const AppContent: React.FC = () => {
           // Resume playback if it was playing
           if (wasPlaying) {
             setTimeout(() => {
+              console.log('[App] Resuming playback after reload, calling playVideo()');
+              // Set isPlaying true BEFORE calling playVideo to cancel any pending pause fade
+              setIsPlaying(true);
               player.playVideo();
               // Ensure volume is maintained after playback starts
               player.setVolume(videoVolume);
             }, 1000);
+          } else {
+            console.log('[App] Not resuming playback - wasPlaying was false');
           }
         }, 200);
       } catch (error) {
@@ -1211,24 +1262,35 @@ const AppContent: React.FC = () => {
     const handleOpenControlsOnly = (e: CustomEvent) => {
       const shouldStartMedia = e.detail?.startMedia;
       const preserveBackgroundMusic = e.detail?.preserveBackgroundMusic;
-      
+
       if (!shouldStartMedia) {
         // Just opening controls, don't start media
         if (player) {
           player.pauseVideo();
         }
         setIsPlaying(false);
-        
+
         // Only affect background player if preserveBackgroundMusic is false
         if (!preserveBackgroundMusic && backgroundPlayerRef?.current) {
           backgroundPlayerRef.current.pauseVideo();
           backgroundPlayerRef.current.mute();
           setBackgroundMuted(true);
         }
+
+        // Set flag so first play will seek to start for live streams
+        if (isLiveStream) {
+          setNeedsLiveStreamSeekToStart(true);
+          console.log('[App] Fancy controls opened - setting needsLiveStreamSeekToStart for live stream');
+        }
       } else {
         // Start the service - restart and play the video
+        // Set flag for live streams as backup in case handleRestart's seekTo doesn't take effect immediately
+        if (isLiveStream) {
+          setNeedsLiveStreamSeekToStart(true);
+          console.log('[App] Start service clicked - setting needsLiveStreamSeekToStart for live stream');
+        }
         handleRestart(); // Call the restart handler directly
-        
+
         // Also restart monitor player if it exists
         if (videoMonitorPlayer) {
           videoMonitorPlayer.seekTo(0, true);
@@ -1239,12 +1301,12 @@ const AppContent: React.FC = () => {
 
     // Add event listener
     window.addEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
-    
+
     // Clean up
     return () => {
       window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
     };
-  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, handleRestart]);
+  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, handleRestart, isLiveStream]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
