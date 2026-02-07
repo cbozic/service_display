@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './MainVideoFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { fadeToVolume } from '../utils/audioUtils';
+import { enableStorageAccess } from '../utils/youtubeUtils';
 
 import MainVideoOverlay from './MainVideoOverlay';
 import { useYouTube } from '../contexts/YouTubeContext';
@@ -156,6 +157,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         playerInstance.pauseVideo();
         setPlayer(playerInstance);
         setIsPlayerReady(true);
+        enableStorageAccess(playerInstance);
         onPlayerReady?.(playerInstance);
         setMainPlayersReady(true);
         

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import { enableStorageAccess } from '../utils/youtubeUtils';
 import VideoTimeDisplay from './VideoTimeDisplay';
 
 interface YouTubeEvent {
@@ -163,6 +164,7 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
 
                 // Set lower quality for monitor
                 event.target.setPlaybackQuality('small');
+                enableStorageAccess(event.target);
               }
               
               // Start sync process if main player exists
