@@ -5,6 +5,7 @@ import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
 import { fadeToVolume } from '../utils/audioUtils';
+import { enableStorageAccess } from '../utils/youtubeUtils';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
 
 interface BackgroundPlayerProps {
@@ -441,6 +442,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       playerInstance.setPlaybackQuality('small');
       setPlayer(playerInstance);
       setIsPlayerReady(true);
+      enableStorageAccess(playerInstance);
       setIsMuted(true); // Set local muted state to true
       
       // Store player reference in context

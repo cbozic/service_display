@@ -3,6 +3,7 @@ import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
 import { fadeToVolume } from '../utils/audioUtils';
+import { enableStorageAccess } from '../utils/youtubeUtils';
 
 // Declare global for YouTube API
 declare global {
@@ -100,6 +101,7 @@ const HiddenVideoPlayer: React.FC<HiddenVideoPlayerProps> = ({
     setCurrentVolume(volume);
     setPlayer(player);
     setIsPlayerReady(true);
+    enableStorageAccess(player);
   };
 
   const onStateChange: YouTubeProps['onStateChange'] = (event) => {

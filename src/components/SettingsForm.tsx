@@ -229,6 +229,12 @@ const SettingsForm: React.FC<SettingFormProps> = ({
           <Typography variant="caption" sx={{ color: 'var(--dark-text-secondary)', mt: -1 }}>
             Show experimental components (Keys, Tuner, Video List, Monitor) - requires page refresh
           </Typography>
+
+          <Divider sx={dividerStyle} />
+
+          <Typography variant="caption" sx={{ color: 'var(--dark-text-secondary)' }}>
+            <strong>YouTube Premium:</strong> To remove ads from embedded players, make sure you're signed into YouTube in this browser. If ads still appear, add <code>[*.]youtube.com</code> to your browser's "allowed to use third-party cookies" list (Settings &gt; Privacy &gt; Cookies).
+          </Typography>
         </Box>
       </CardContent>
     </Card>
