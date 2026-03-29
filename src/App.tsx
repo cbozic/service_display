@@ -233,6 +233,7 @@ const AppContent: React.FC = () => {
   const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips } = useClipPlaylist();
   const pendingSeekOnUnpauseRef = useRef<number | null>(null);
   const clipModeFirstPlayRef = useRef<boolean>(true);
+  const loadedFromShareLinkRef = useRef<boolean>(false);
 
   // Parse URL parameters on startup for shared clip links
   // Compact format: ?v=VIDEO_ID&c=start.end,start.end.0
@@ -261,6 +262,7 @@ const AppContent: React.FC = () => {
           importClips(playlist);
           setIsPlaybackMode(true);
           setCurrentClipIndex(0);
+          loadedFromShareLinkRef.current = true;
         }
       } catch (e) {
         console.error('[App] Failed to parse clip URL parameters:', e);
@@ -801,8 +803,19 @@ const AppContent: React.FC = () => {
       // Reset time events when restarting so they will trigger again
       console.log('[App] Calling resetTimeEvents after restart');
       resetTimeEvents();
+
+      // When loaded from a share link, auto-fullscreen after a brief delay
+      // (resetTimeEvents skips the fullscreen event when currentTime > 1s)
+      if (loadedFromShareLinkRef.current) {
+        loadedFromShareLinkRef.current = false;
+        setTimeout(() => {
+          if (!isFullscreen) {
+            handleFullscreen();
+          }
+        }, 500);
+      }
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen]);
 
   const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
