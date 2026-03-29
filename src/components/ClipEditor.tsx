@@ -11,6 +11,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import SearchIcon from '@mui/icons-material/Search';
+import LinkIcon from '@mui/icons-material/Link';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
 import { VideoClip } from '../types/clipPlaylist';
 
@@ -209,6 +210,24 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
     }
   };
 
+  const handleCopyShareLink = () => {
+    // Compact format: start.end (pause default) or start.end.0 (continue)
+    const clipsParam = clips.map(c => {
+      const s = Math.round(c.startTime);
+      const e = Math.round(c.endTime);
+      return c.pauseAtEnd ? `${s}.${e}` : `${s}.${e}.0`;
+    }).join(',');
+    const url = new URL(window.location.href.split('?')[0]);
+    url.searchParams.set('v', videoId);
+    url.searchParams.set('c', clipsParam);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setSnackbar({ message: 'Share link copied to clipboard', severity: 'success' });
+    }).catch(() => {
+      // Fallback: show the URL in a prompt
+      window.prompt('Copy this link:', url.toString());
+    });
+  };
+
   // Styles for dark background readability
   const lightText = { color: 'rgba(255, 255, 255, 0.9)' };
   const dimText = { color: 'rgba(255, 255, 255, 0.6)' };
@@ -284,6 +303,13 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
           <span>
             <IconButton size="small" sx={iconBtnSx} onClick={clearClips} disabled={clips.length === 0}>
               <DeleteSweepIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Copy shareable link">
+          <span>
+            <IconButton size="small" sx={iconBtnSx} onClick={handleCopyShareLink} disabled={clips.length === 0}>
+              <LinkIcon fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>

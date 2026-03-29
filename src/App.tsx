@@ -230,9 +230,44 @@ const AppContent: React.FC = () => {
   const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
 
   // Clip playlist state
-  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex } = useClipPlaylist();
+  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips } = useClipPlaylist();
   const pendingSeekOnUnpauseRef = useRef<number | null>(null);
   const clipModeFirstPlayRef = useRef<boolean>(true);
+
+  // Parse URL parameters on startup for shared clip links
+  // Compact format: ?v=VIDEO_ID&c=start.end,start.end.0
+  // Times are integers (seconds). Pause-at-end is default; append .0 for auto-continue.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlVideo = params.get('v');
+    const urlClips = params.get('c');
+
+    if (urlVideo) {
+      setVideo(urlVideo);
+    }
+
+    if (urlClips) {
+      try {
+        const parsedClips = urlClips.split(',').map((segment, i) => {
+          const parts = segment.split('.');
+          const startTime = parseInt(parts[0], 10);
+          const endTime = parseInt(parts[1], 10);
+          const pauseAtEnd = parts[2] !== '0';
+          return { id: `u${i}`, startTime, endTime, pauseAtEnd };
+        });
+
+        if (parsedClips.every(c => !isNaN(c.startTime) && !isNaN(c.endTime) && c.endTime > c.startTime)) {
+          const playlist = JSON.stringify({ version: 1, videoId: urlVideo || video, clips: parsedClips });
+          importClips(playlist);
+          setIsPlaybackMode(true);
+          setCurrentClipIndex(0);
+        }
+      } catch (e) {
+        console.error('[App] Failed to parse clip URL parameters:', e);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reset first-play flag when clips change or entering playback mode
   useEffect(() => {
