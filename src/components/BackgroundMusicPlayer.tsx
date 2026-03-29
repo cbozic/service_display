@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Menu, MenuItem, ListItemText, ListItemIcon } from '@mui/material';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { FADE_STEPS } from '../App';
 import BackgroundPlayerControls from './BackgroundPlayerControls';
@@ -16,6 +17,18 @@ interface Track {
   title?: string;
   artist?: string;
   album?: string;
+}
+
+function titleFromFilename(filename: string): string {
+  return filename
+    .replace(/-mono\.m4a$/, '')
+    .replace(/^\d+-/, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+function trackNumberFromFilename(filename: string): number {
+  const match = filename.match(/^(\d+)-/);
+  return match ? parseInt(match[1], 10) : 999;
 }
 
 const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
@@ -36,7 +49,9 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     artist?: string;
     album?: string;
   }>({});
-  
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [allTrackMetadata, setAllTrackMetadata] = useState<Record<string, { title: string }>>({});
+
   const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
   
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -96,6 +111,41 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     
     loadTracks();
   }, [backgroundPlayerRef]);
+
+  // Load metadata for all tracks so the selector dropdown can show proper titles
+  useEffect(() => {
+    if (tracks.length === 0) return;
+
+    const loadAllMetadata = async () => {
+      const metadataMap: Record<string, { title: string }> = {};
+
+      // Set filename-derived titles immediately as fallback
+      for (const track of tracks) {
+        metadataMap[track.filename] = { title: titleFromFilename(track.filename) };
+      }
+      setAllTrackMetadata({ ...metadataMap });
+
+      // Then fetch real metadata in parallel
+      const promises = tracks.map(async (track) => {
+        try {
+          const response = await fetch(track.path);
+          const buffer = await response.arrayBuffer();
+          const metadata = await mm.parseBuffer(new Uint8Array(buffer), { mimeType: 'audio/mp4' });
+          metadataMap[track.filename] = {
+            title: metadata.common.title || titleFromFilename(track.filename),
+          };
+        } catch (error) {
+          console.error(`[BackgroundMusicPlayer] Error loading metadata for ${track.filename}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+      setAllTrackMetadata({ ...metadataMap });
+    };
+
+    loadAllMetadata();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracks.length]);
 
   // Custom version of fadeToVolume that updates display volume during transition
   const fadeToVolumeWithDisplay = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
@@ -466,6 +516,69 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     effectiveVolumeRef, 
     backgroundMuted
   ]);
+
+  const handleTitleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
+    setMenuAnchorEl(null);
+  }, []);
+
+  const handleTrackSelect = useCallback((trackIndex: number) => {
+    setMenuAnchorEl(null);
+    if (trackIndex === currentTrackIndex) return;
+
+    const selectedTrack = tracks[trackIndex];
+    if (!selectedTrack) return;
+
+    console.log('[BackgroundMusicPlayer] User selected track:', selectedTrack.filename);
+
+    setCurrentTrackIndex(trackIndex);
+    setCurrentTrack(selectedTrack);
+
+    if (backgroundPlayerRef?.current) {
+      backgroundPlayerRef.current._currentTrackIndex = trackIndex;
+    }
+
+    if (audioElement && selectedTrack) {
+      try {
+        const wasPlaying = !audioElement.paused;
+        audioElement.src = selectedTrack.path;
+        audioElement.load();
+
+        setTrackMetadata({
+          title: allTrackMetadata[selectedTrack.filename]?.title || titleFromFilename(selectedTrack.filename),
+          artist: 'Loading...',
+          album: 'Loading...',
+        });
+
+        if (wasPlaying) {
+          const playPromise = audioElement.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                setIsPlaying(true);
+                if (isMainPlayerPlaying) {
+                  audioElement.volume = 0;
+                  setDisplayVolume(0);
+                } else {
+                  const volume = effectiveVolumeRef.current;
+                  audioElement.volume = volume / 100;
+                  setDisplayVolume(volume);
+                }
+                audioElement.muted = backgroundMuted;
+              })
+              .catch(error => {
+                console.error('[BackgroundMusicPlayer] Error playing selected track:', error);
+              });
+          }
+        }
+      } catch (error) {
+        console.error('[BackgroundMusicPlayer] Error in track selection:', error);
+      }
+    }
+  }, [tracks, currentTrackIndex, audioElement, isMainPlayerPlaying, backgroundMuted, allTrackMetadata, backgroundPlayerRef]);
 
   // Initialize audio element
   useEffect(() => {
@@ -1058,6 +1171,12 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     autoPlayFirstTrack();
   }, [audioElement, isPlayerReady, tracks, hasInitialized, backgroundVolume, backgroundMuted, initialPaused]);
 
+  const sortedTracksForMenu = React.useMemo(() => {
+    return tracks
+      .map((track, index) => ({ track, originalIndex: index }))
+      .sort((a, b) => trackNumberFromFilename(a.track.filename) - trackNumberFromFilename(b.track.filename));
+  }, [tracks]);
+
   // Define the wave animation for the visualizer with even shorter bars
   const waveAnimation = useCallback((index: number) => {
     const delays = [0, 0.2, 0.4, 0.1, 0.3, 0.5, 0.2, 0.4];
@@ -1171,9 +1290,76 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             textAlign: 'center',
             mb: 0.5 // Reduced margin
           }}>
-            <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 'bold', marginBottom: 0.5, fontSize: '0.95rem' }}>
+            <Typography
+              variant="subtitle1"
+              onClick={handleTitleClick}
+              sx={{
+                color: '#fff',
+                fontWeight: 'bold',
+                marginBottom: 0.5,
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                '&:hover': {
+                  textDecoration: 'underline',
+                  color: '#8884d8',
+                },
+              }}
+            >
               {trackMetadata.title || 'No Track Selected'}
             </Typography>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={Boolean(menuAnchorEl)}
+              onClose={handleMenuClose}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    backgroundColor: '#1e1e1e',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    maxHeight: 300,
+                    minWidth: 250,
+                  },
+                },
+              }}
+            >
+              {sortedTracksForMenu.map(({ track, originalIndex }) => {
+                const isCurrentTrack = originalIndex === currentTrackIndex;
+                const displayTitle = allTrackMetadata[track.filename]?.title || titleFromFilename(track.filename);
+                const trackNum = trackNumberFromFilename(track.filename);
+
+                return (
+                  <MenuItem
+                    key={track.filename}
+                    onClick={() => handleTrackSelect(originalIndex)}
+                    selected={isCurrentTrack}
+                    sx={{
+                      color: isCurrentTrack ? '#8884d8' : '#fff',
+                      '&:hover': { backgroundColor: 'rgba(136, 132, 216, 0.15)' },
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(136, 132, 216, 0.2)',
+                        '&:hover': { backgroundColor: 'rgba(136, 132, 216, 0.3)' },
+                      },
+                    }}
+                  >
+                    {isCurrentTrack && (
+                      <ListItemIcon sx={{ color: '#8884d8', minWidth: 32 }}>
+                        <MusicNoteIcon fontSize="small" />
+                      </ListItemIcon>
+                    )}
+                    <ListItemText
+                      sx={{ pl: isCurrentTrack ? 0 : 4 }}
+                      primary={`${trackNum}. ${displayTitle}`}
+                      primaryTypographyProps={{
+                        fontSize: '0.9rem',
+                        fontWeight: isCurrentTrack ? 'bold' : 'normal',
+                      }}
+                    />
+                  </MenuItem>
+                );
+              })}
+            </Menu>
             <Typography variant="caption" sx={{ color: '#aaa', marginBottom: 0, fontSize: '0.8rem' }}>
               {trackMetadata.artist || 'Unknown Artist'} • {trackMetadata.album || 'Unknown Album'}
             </Typography>
