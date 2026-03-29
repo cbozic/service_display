@@ -11,11 +11,15 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import InfoIcon from '@mui/icons-material/Info';
+import { VideoClip } from '../types/clipPlaylist';
 
 interface VideoTimelineProps {
   currentTime: number;
   duration: number;
   onTimeChange: (newTime: number) => void;
+  clips?: VideoClip[];
+  currentClipIndex?: number;
+  isClipModeActive?: boolean;
 }
 
 // Custom styled slider for the timeline with minimal height
@@ -105,10 +109,31 @@ const EventMarker = styled(Box, {
   })
 );
 
+// Styled component for clip range visualization on the timeline
+const ClipRegion = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'leftPos' && prop !== 'widthPct' && prop !== 'isCurrent'
+})<{ leftPos: string; widthPct: string; isCurrent: boolean }>(
+  ({ leftPos, widthPct, isCurrent }) => ({
+    position: 'absolute',
+    left: leftPos,
+    width: widthPct,
+    top: 0,
+    bottom: 0,
+    backgroundColor: isCurrent ? 'rgba(25, 118, 210, 0.3)' : 'rgba(25, 118, 210, 0.12)',
+    border: isCurrent ? '1px solid rgba(25, 118, 210, 0.6)' : '1px solid rgba(25, 118, 210, 0.25)',
+    borderRadius: 2,
+    pointerEvents: 'none',
+    zIndex: 0,
+  })
+);
+
 const VideoTimeline: React.FC<VideoTimelineProps> = ({
   currentTime,
   duration,
   onTimeChange,
+  clips,
+  currentClipIndex,
+  isClipModeActive,
 }) => {
   // Get time events from context
   const { events } = useTimeEvents();
@@ -328,6 +353,22 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
       </MarkerContainer>
       
       <Box sx={{ position: 'relative' }}>
+        {/* Clip range indicators */}
+        {isClipModeActive && clips && clips.map((clip, index) => {
+          const maxValue = valueTransform(safeDuration);
+          const leftTransformed = valueTransform(Math.min(clip.startTime, safeDuration));
+          const rightTransformed = valueTransform(Math.min(clip.endTime, safeDuration));
+          const leftPct = (leftTransformed / maxValue) * 100;
+          const widthPct = ((rightTransformed - leftTransformed) / maxValue) * 100;
+          return (
+            <ClipRegion
+              key={clip.id}
+              leftPos={`${leftPct}%`}
+              widthPct={`${widthPct}%`}
+              isCurrent={index === currentClipIndex}
+            />
+          );
+        })}
         <CustomSlider
           value={currentSliderValue}
           min={0}

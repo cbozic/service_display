@@ -19,6 +19,7 @@ import TimerIcon from '@mui/icons-material/Timer';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VideoTimeDisplay from './VideoTimeDisplay';
 import VideoTimeline from './VideoTimeline';
+import { VideoClip } from '../types/clipPlaylist';
 
 interface VideoControlsProps {
   onPlayPause: () => void;
@@ -48,6 +49,9 @@ interface VideoControlsProps {
   isTimedEventsEnabled?: boolean;
   currentTime?: number;
   duration?: number;
+  clips?: VideoClip[];
+  currentClipIndex?: number;
+  isClipModeActive?: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -78,6 +82,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isTimedEventsEnabled = false,
   currentTime = 0,
   duration = 0,
+  clips,
+  currentClipIndex,
+  isClipModeActive,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -214,10 +221,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       {/* Timeline */}
       {duration > 0 && onTimeChange && (
         <Box sx={{ width: '100%', mb: 1.5, mt: 0.5 }}> {/* Adjusted margins */}
-          <VideoTimeline 
-            currentTime={currentTime} 
-            duration={duration} 
-            onTimeChange={handleTimeChange} 
+          <VideoTimeline
+            currentTime={currentTime}
+            duration={duration}
+            onTimeChange={handleTimeChange}
+            clips={clips}
+            currentClipIndex={currentClipIndex}
+            isClipModeActive={isClipModeActive}
           />
         </Box>
       )}

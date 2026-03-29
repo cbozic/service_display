@@ -21,7 +21,10 @@ import { Fullscreen, FullscreenExit, PlayArrow, Pause, VolumeUp, VolumeOff, Skip
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { Typography, Button, TextField, Grid, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import OnlineHelp from './components/OnlineHelp';
+import ClipEditor from './components/ClipEditor';
+import ClipBoundaryMonitor from './components/ClipBoundaryMonitor';
 import { TimeEventsProvider } from './contexts/TimeEventsContext';
+import { ClipPlaylistProvider, useClipPlaylist } from './contexts/ClipPlaylistContext';
 
 // System-wide constants
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
@@ -63,6 +66,12 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                   type: "tab",
                   name: "Settings",
                   component: "form",
+                  enableClose: false,
+                },
+                {
+                  type: "tab",
+                  name: "Clips",
+                  component: "clips",
                   enableClose: false,
                 }
               ]
@@ -219,17 +228,51 @@ const AppContent: React.FC = () => {
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
+
+  // Clip playlist state
+  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex } = useClipPlaylist();
+  const pendingSeekOnUnpauseRef = useRef<number | null>(null);
+  const clipModeFirstPlayRef = useRef<boolean>(true);
+
+  // Reset first-play flag when clips change or entering playback mode
+  useEffect(() => {
+    clipModeFirstPlayRef.current = true;
+    pendingSeekOnUnpauseRef.current = null;
+  }, [clips, isPlaybackMode]);
+
   const [needsLiveStreamSeekToStart, setNeedsLiveStreamSeekToStart] = useState<boolean>(false);
   const lastLiveStreamSeekVideoIdRef = useRef<string | null>(null); // Track which video we've set the seek flag for
 
   const handlePlayPause = useCallback(() => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
+
+      // When unpausing, check if we need to seek to a clip position
+      if (newPlayState && player) {
+        if (pendingSeekOnUnpauseRef.current !== null) {
+          // Seek to the pending clip position before resuming
+          const seekTime = pendingSeekOnUnpauseRef.current;
+          pendingSeekOnUnpauseRef.current = null;
+          player.seekTo(seekTime, true);
+          if (videoMonitorPlayer) {
+            videoMonitorPlayer.seekTo(seekTime, true);
+          }
+        } else if (isPlaybackMode && clipModeFirstPlayRef.current && clips.length > 0) {
+          // First play in clip playback mode: seek to first clip's start
+          clipModeFirstPlayRef.current = false;
+          const firstClipStart = clips[0].startTime;
+          player.seekTo(firstClipStart, true);
+          if (videoMonitorPlayer) {
+            videoMonitorPlayer.seekTo(firstClipStart, true);
+          }
+        }
+      }
+
       setIsPlaying(newPlayState);
       // No longer directly control background player here
       // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying]);
+  }, [isPlayerReady, isPlaying, player, videoMonitorPlayer, isPlaybackMode, clips]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -695,26 +738,36 @@ const AppContent: React.FC = () => {
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
-      player.seekTo(0, true);
+      // In clip playback mode, restart to first clip's start time
+      const seekTarget = (isPlaybackMode && clips.length > 0) ? clips[0].startTime : 0;
+
+      player.seekTo(seekTarget, true);
       if (!isPlaying) {
         setIsPlaying(true);
       }
-      
+
       if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(0, true);
+        videoMonitorPlayer.seekTo(seekTarget, true);
         if (!isPlaying) {
           videoMonitorPlayer.playVideo();
         }
       }
-      
+
+      // Reset clip state on restart
+      if (isPlaybackMode) {
+        setCurrentClipIndex(0);
+        pendingSeekOnUnpauseRef.current = null;
+        clipModeFirstPlayRef.current = false;
+      }
+
       // Reset the user exited fullscreen flag when restarting
       setUserExitedFullscreen(false);
-      
+
       // Reset time events when restarting so they will trigger again
       console.log('[App] Calling resetTimeEvents after restart');
       resetTimeEvents();
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex]);
 
   const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
@@ -948,12 +1001,24 @@ const AppContent: React.FC = () => {
   const handleTimeChange = useCallback((newTime: number) => {
     if (player && isPlayerReady) {
       player.seekTo(newTime, true);
-      
+
       if (videoMonitorPlayer) {
         videoMonitorPlayer.seekTo(newTime, true);
       }
+
+      // In clip playback mode, update currentClipIndex to match the seeked position
+      if (isPlaybackMode) {
+        const clipIndex = clips.findIndex(
+          c => newTime >= c.startTime && newTime < c.endTime
+        );
+        if (clipIndex !== -1) {
+          setCurrentClipIndex(clipIndex);
+        }
+        // Clear any pending seek since user manually seeked
+        pendingSeekOnUnpauseRef.current = null;
+      }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+  }, [player, isPlayerReady, videoMonitorPlayer, isPlaybackMode, clips, setCurrentClipIndex]);
 
   const handleTimedEventsToggle = useCallback(() => {
     setIsAutomaticEventsEnabled(prev => !prev);
@@ -989,6 +1054,12 @@ const AppContent: React.FC = () => {
   // Keyboard controls for video and slides
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Skip keyboard shortcuts when user is typing in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
       if (event.code === 'Space' && !event.repeat && isPlayerReady) {
         event.preventDefault();
         handlePlayPause();
@@ -1123,6 +1194,23 @@ const AppContent: React.FC = () => {
         event.preventDefault();
         handleTimedEventsToggle();
       }
+      else if (event.code === 'KeyC' && !event.repeat && isClipModeActive) {
+        event.preventDefault();
+        if (!isPlaybackMode && clips.length > 0) {
+          // Enter Play Clips mode: seek to first clip
+          if (player && isPlayerReady) {
+            player.seekTo(clips[0].startTime, true);
+            if (videoMonitorPlayer) {
+              videoMonitorPlayer.seekTo(clips[0].startTime, true);
+            }
+          }
+          setCurrentClipIndex(0);
+          setIsPlaybackMode(true);
+        } else {
+          // Exit to Find Clips mode
+          setIsPlaybackMode(false);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1134,7 +1222,8 @@ const AppContent: React.FC = () => {
       handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
       setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
       // Add these new dependencies:
-      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle
+      handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle,
+      isClipModeActive, isPlaybackMode, clips, setIsPlaybackMode, setCurrentClipIndex, player, videoMonitorPlayer
   ]);
 
   // Handle fullscreen changes from external sources
@@ -1509,11 +1598,19 @@ const AppContent: React.FC = () => {
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
             onFullscreenChange={setIsFullscreen}
+            isClipModeActive={isClipModeActive}
           />
           <VideoTimeEvents
             ref={timeEventsRef}
             player={player}
             isPlaying={isPlaying && !showStartOverlay}
+          />
+          <ClipBoundaryMonitor
+            player={player}
+            videoMonitorPlayer={videoMonitorPlayer}
+            isPlaying={isPlaying && !showStartOverlay}
+            onPause={handlePlayPause}
+            pendingSeekOnUnpauseRef={pendingSeekOnUnpauseRef}
           />
           {showStartOverlay && (
             <div style={{ 
@@ -1591,6 +1688,9 @@ const AppContent: React.FC = () => {
             isTimedEventsEnabled={isAutomaticEventsEnabled}
             currentTime={currentVideoTime}
             duration={videoDuration}
+            clips={clips}
+            currentClipIndex={currentClipIndex}
+            isClipModeActive={isClipModeActive}
           />
         </Box>
       );
@@ -1621,6 +1721,15 @@ const AppContent: React.FC = () => {
           isAnimationEnabled={isSlideTransitionsEnabled}
           setGifPath={setGifPath}
           onAnimationToggle={setIsSlideTransitionsEnabled}
+        />
+      );
+    } else if (component === "clips") {
+      return (
+        <ClipEditor
+          currentVideoTime={currentVideoTime}
+          videoId={video}
+          videoDuration={videoDuration}
+          onSeekToTime={handleTimeChange}
         />
       );
     } else if (component === "videoMonitor") {
@@ -1670,7 +1779,9 @@ const App: React.FC = () => {
   return (
     <TimeEventsProvider>
       <YouTubeProvider>
-        <AppContent />
+        <ClipPlaylistProvider>
+          <AppContent />
+        </ClipPlaylistProvider>
       </YouTubeProvider>
     </TimeEventsProvider>
   );
