@@ -25,6 +25,7 @@ interface MainVideoFrameProps {
   playlistUrl?: string;
   usePlaylistMode?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  isClipModeActive?: boolean;
 }
 
 const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
@@ -44,7 +45,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   volume = 100,
   playlistUrl,
   usePlaylistMode = false,
-  onFullscreenChange
+  onFullscreenChange,
+  isClipModeActive = false
 }) => {
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -300,8 +302,9 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         }
       } else {
         // Normal state change handling
-        if (event.data === 0) {
+        if (event.data === 0 && !isClipModeActive) {
           // Video has reached the end so reset the player
+          // (skipped in clip mode - ClipBoundaryMonitor handles end-of-clip behavior)
           setShowOverlay(true);
           player.seekTo(startSeconds);
           onStateChange?.(0);
@@ -315,8 +318,9 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     } catch (e) {
       console.error('[VideoFadeFrame] Error parsing video ID from URL:', e);
       // Fall back to normal state change handling
-      if (event.data === 0) {
+      if (event.data === 0 && !isClipModeActive) {
         // Video has reached the end so reset the player
+        // (skipped in clip mode - ClipBoundaryMonitor handles end-of-clip behavior)
         setShowOverlay(true);
         player.seekTo(startSeconds);
         onStateChange?.(0);
@@ -327,7 +331,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         setIsMainPlayerPlaying(isPlaying);
       }
     }
-  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, currentVideoId]);
+  }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, currentVideoId, isClipModeActive]);
 
   useEffect(() => {
     if (player && isPlayerReady) {
