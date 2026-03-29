@@ -1,11 +1,14 @@
 import React, { useState, useRef } from 'react';
 import {
   Box, Button, IconButton, List, ListItem, Typography, TextField,
-  Tooltip, Switch, FormControlLabel, Alert, Snackbar
+  Tooltip, Switch, FormControlLabel, Alert, Snackbar, Menu, MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
@@ -81,6 +84,7 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   const [outPointInput, setOutPointInput] = useState('');
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [reorderMenuAnchor, setReorderMenuAnchor] = useState<{ el: HTMLElement; index: number } | null>(null);
 
   const handleSetIn = () => {
     setClipInPoint(currentVideoTime);
@@ -380,17 +384,25 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                     label="Start"
                     value={editStartTime}
                     onChange={(e) => setEditStartTime(e.target.value)}
-                    sx={{ width: 90, ...textFieldSx }}
+                    sx={{ flex: 1, minWidth: 70, ...textFieldSx }}
                   />
                   <TextField
                     size="small"
                     label="End"
                     value={editEndTime}
                     onChange={(e) => setEditEndTime(e.target.value)}
-                    sx={{ width: 90, ...textFieldSx }}
+                    sx={{ flex: 1, minWidth: 70, ...textFieldSx }}
                   />
-                  <Button size="small" sx={{ color: '#90caf9' }} onClick={() => handleSaveEdit(clip.id)}>Save</Button>
-                  <Button size="small" sx={{ color: 'rgba(255, 255, 255, 0.7)' }} onClick={handleCancelEdit}>Cancel</Button>
+                  <Tooltip title="Save">
+                    <IconButton size="small" sx={{ color: '#90caf9' }} onClick={() => handleSaveEdit(clip.id)}>
+                      <CheckIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Cancel">
+                    <IconButton size="small" sx={iconBtnSx} onClick={handleCancelEdit}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               </Box>
             ) : (
@@ -425,29 +437,26 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                   />
                 </Tooltip>
 
-                <Tooltip title="Move up">
-                  <span>
+                {onSeekToTime && (
+                  <Tooltip title={`Seek to ${formatTime(clip.startTime)}`}>
                     <IconButton
                       size="small"
                       sx={iconBtnSx}
-                      disabled={index === 0}
-                      onClick={() => reorderClips(index, index - 1)}
+                      onClick={() => onSeekToTime(clip.startTime)}
                     >
-                      <ArrowUpwardIcon fontSize="small" />
+                      <PlayCircleOutlineIcon fontSize="small" />
                     </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Move down">
-                  <span>
-                    <IconButton
-                      size="small"
-                      sx={iconBtnSx}
-                      disabled={index === clips.length - 1}
-                      onClick={() => reorderClips(index, index + 1)}
-                    >
-                      <ArrowDownwardIcon fontSize="small" />
-                    </IconButton>
-                  </span>
+                  </Tooltip>
+                )}
+
+                <Tooltip title="More options">
+                  <IconButton
+                    size="small"
+                    sx={iconBtnSx}
+                    onClick={(e) => setReorderMenuAnchor({ el: e.currentTarget, index })}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
                 </Tooltip>
                 <Tooltip title="Delete clip">
                   <IconButton size="small" sx={iconBtnSx} onClick={() => removeClip(clip.id)}>
@@ -465,6 +474,35 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
           No clips defined. Use Set In / Set Out to create clips, or import a clip file.
         </Typography>
       )}
+
+      {/* Reorder menu */}
+      <Menu
+        anchorEl={reorderMenuAnchor?.el}
+        open={reorderMenuAnchor !== null}
+        onClose={() => setReorderMenuAnchor(null)}
+        PaperProps={{ sx: { bgcolor: '#1e1e1e', color: 'rgba(255,255,255,0.9)' } }}
+      >
+        <MenuItem
+          disabled={reorderMenuAnchor?.index === 0}
+          onClick={() => {
+            if (reorderMenuAnchor) reorderClips(reorderMenuAnchor.index, reorderMenuAnchor.index - 1);
+            setReorderMenuAnchor(null);
+          }}
+          sx={{ gap: 1, fontSize: '0.875rem' }}
+        >
+          <ArrowUpwardIcon fontSize="small" /> Move up
+        </MenuItem>
+        <MenuItem
+          disabled={reorderMenuAnchor?.index === clips.length - 1}
+          onClick={() => {
+            if (reorderMenuAnchor) reorderClips(reorderMenuAnchor.index, reorderMenuAnchor.index + 1);
+            setReorderMenuAnchor(null);
+          }}
+          sx={{ gap: 1, fontSize: '0.875rem' }}
+        >
+          <ArrowDownwardIcon fontSize="small" /> Move down
+        </MenuItem>
+      </Menu>
 
       <Snackbar
         open={snackbar !== null}
