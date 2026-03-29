@@ -290,13 +290,15 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
         
         console.log('[ServiceStartOverlay] Starting background music playback');
         
-        // Skip to a random video and play it
+        // Start with "Hope Deferred" as the default track
         try {
           const playlist = backgroundPlayerRef.current.getPlaylist();
           if (playlist && playlist.length > 0) {
-            const randomIndex = Math.floor(Math.random() * playlist.length);
-            console.log(`[ServiceStartOverlay] Playing random track at index ${randomIndex} from playlist of ${playlist.length} tracks`);
-            backgroundPlayerRef.current.playVideoAt(randomIndex);
+            const defaultFilename = '06-HopeDeferred-mono.m4a';
+            const defaultIndex = playlist.findIndex((t: { filename: string }) => t.filename === defaultFilename);
+            const startIndex = defaultIndex >= 0 ? defaultIndex : 0;
+            console.log(`[ServiceStartOverlay] Playing default track at index ${startIndex} from playlist of ${playlist.length} tracks`);
+            backgroundPlayerRef.current.playVideoAt(startIndex);
             
             // Explicitly force playback with small delay to ensure YouTube API responds
             setTimeout(() => {

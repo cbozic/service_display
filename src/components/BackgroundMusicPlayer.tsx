@@ -91,12 +91,15 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         // Shuffle the tracks to create a varied playlist experience
         const shuffledTracks = [...tracksList].sort(() => Math.random() - 0.5);
         setTracks(shuffledTracks);
-        
+
         if (shuffledTracks.length > 0) {
-          // Select first track from shuffled list
-          setCurrentTrack(shuffledTracks[0]);
-          setCurrentTrackIndex(0);
-          console.log('[BackgroundMusicPlayer] Initial track set to:', shuffledTracks[0].filename);
+          // Default to "Hope Deferred" as the initial track
+          const defaultFilename = '06-HopeDeferred-mono.m4a';
+          const defaultIndex = shuffledTracks.findIndex(t => t.filename === defaultFilename);
+          const initialIndex = defaultIndex >= 0 ? defaultIndex : 0;
+          setCurrentTrack(shuffledTracks[initialIndex]);
+          setCurrentTrackIndex(initialIndex);
+          console.log('[BackgroundMusicPlayer] Initial track set to:', shuffledTracks[initialIndex].filename);
           
           // Also update track info in backgroundPlayerRef right away for immediate access
           if (backgroundPlayerRef && backgroundPlayerRef.current) {
@@ -397,11 +400,19 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           // User manually played - clear the flag
           isManualPauseRef.current = false;
           setIsUserPaused(false);
+
+          // Unmute when user explicitly clicks play
+          if (backgroundMuted) {
+            audioElement.muted = false;
+            setIsMuted(false);
+            setBackgroundMuted(false);
+          }
+
           audioElement.play().catch(error => {
             console.error('[BackgroundMusicPlayer] Error playing audio:', error);
           });
           setIsPlaying(true);
-          
+
           // If main video is playing, keep background volume at 0
           if (isMainPlayerPlaying) {
             audioElement.volume = 0;
@@ -417,7 +428,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         console.error('[BackgroundMusicPlayer] Error toggling play/pause:', error);
       }
     }
-  }, [audioElement, isPlaying, isMainPlayerPlaying]);
+  }, [audioElement, isPlaying, isMainPlayerPlaying, backgroundMuted, setBackgroundMuted]);
 
   const handleSkipNext = useCallback((useSequential = false) => {
     if (tracks.length === 0) {
@@ -1123,10 +1134,13 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           console.log('[BackgroundMusicPlayer] Initializing first track (initialPaused:', initialPaused, ')');
           setHasInitialized(true);
           
-          // Initialize with the first track
-          const firstTrack = tracks[0];
+          // Initialize with "Hope Deferred" as the default track
+          const defaultFilename = '06-HopeDeferred-mono.m4a';
+          const defaultIndex = tracks.findIndex(t => t.filename === defaultFilename);
+          const initialIndex = defaultIndex >= 0 ? defaultIndex : 0;
+          const firstTrack = tracks[initialIndex];
           setCurrentTrack(firstTrack);
-          setCurrentTrackIndex(0);
+          setCurrentTrackIndex(initialIndex);
           
           // Set initial volume based on context
           const volumeToUse = backgroundVolume || 50;  // Use 50 as default if backgroundVolume is 0
