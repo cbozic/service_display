@@ -58,6 +58,12 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                 },
                 {
                   type: "tab",
+                  name: "Clips",
+                  component: "clips",
+                  enableClose: false,
+                },
+                {
+                  type: "tab",
                   name: "Videos",
                   component: "videoList",
                   enableClose: false,
@@ -66,12 +72,6 @@ const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean
                   type: "tab",
                   name: "Settings",
                   component: "form",
-                  enableClose: false,
-                },
-                {
-                  type: "tab",
-                  name: "Clips",
-                  component: "clips",
                   enableClose: false,
                 }
               ]
