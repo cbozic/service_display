@@ -1,5 +1,4 @@
-package-lock.json
-servicedisplay/package-lock.json
+
 node_modules
 build/
 .DS_Store
