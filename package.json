@@ -37,8 +37,8 @@
     "@types/react-dom": "^18.2.22",
     "@types/testing-library__jest-dom": "^5.14.9",
     "concurrently": "^8.2.2",
-    "electron": "^29.1.1",
-    "electron-builder": "^24.13.3",
+    "electron": "^39.8.6",
+    "electron-builder": "^26.0.0",
     "typescript": "^4.4.4",
     "wait-on": "^7.2.0"
   },
@@ -77,6 +77,17 @@
       "icon": "public/logo512.png",
       "target": ["AppImage", "deb"]
     }
+  },
+  "overrides": {
+    "lodash": "4.18.1",
+    "@xmldom/xmldom": "0.8.12",
+    "path-to-regexp": "0.1.13",
+    "serialize-javascript": "7.0.5",
+    "brace-expansion@^1": "1.1.13",
+    "brace-expansion@^2": "2.0.3",
+    "picomatch": "2.3.2",
+    "yaml@^1": "1.10.3",
+    "yaml@^2": "2.8.3"
   },
   "eslintConfig": {
     "extends": [
