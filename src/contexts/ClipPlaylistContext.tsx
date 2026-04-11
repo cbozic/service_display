@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { VideoClip, ClipPlaylist } from '../types/clipPlaylist';
 
+// Ensure the last clip in the list always has pauseAtEnd: true
+const enforceLastClipPause = (clips: VideoClip[]): VideoClip[] => {
+  if (clips.length === 0) return clips;
+  const lastIndex = clips.length - 1;
+  if (clips[lastIndex].pauseAtEnd) return clips;
+  return clips.map((c, i) => i === lastIndex ? { ...c, pauseAtEnd: true } : c);
+};
+
 interface ClipPlaylistContextType {
   clips: VideoClip[];
   currentClipIndex: number;
@@ -60,6 +68,7 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
       if (newClips.length === 0) {
         setCurrentClipIndex(-1);
         setIsPlaybackMode(false);
+        return newClips;
       } else {
         // Adjust currentClipIndex if needed
         setCurrentClipIndex(prevIndex => {
@@ -67,12 +76,15 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
           return prevIndex;
         });
       }
-      return newClips;
+      return enforceLastClipPause(newClips);
     });
   }, []);
 
   const updateClip = useCallback((id: string, updates: Partial<VideoClip>) => {
-    setClips(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setClips(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
+      return enforceLastClipPause(updated);
+    });
   }, []);
 
   const reorderClips = useCallback((fromIndex: number, toIndex: number) => {
@@ -80,7 +92,7 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
       const newClips = [...prev];
       const [moved] = newClips.splice(fromIndex, 1);
       newClips.splice(toIndex, 0, moved);
-      return newClips;
+      return enforceLastClipPause(newClips);
     });
     // Adjust currentClipIndex to follow the clip that was playing
     setCurrentClipIndex(prevIndex => {
@@ -120,11 +132,11 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
           warning = `Clip playlist was created for video ${data.videoId} but current video is ${currentVideoId}. Times may not match.`;
         }
 
-        setClips(migratedClips);
+        setClips(enforceLastClipPause(migratedClips));
         setCurrentClipIndex(migratedClips.length > 0 ? 0 : -1);
       } else {
         // v2: clips already have videoId, merge imported videoTitles
-        setClips(data.clips);
+        setClips(enforceLastClipPause(data.clips));
         setCurrentClipIndex(data.clips.length > 0 ? 0 : -1);
 
         if (data.videoTitles) {

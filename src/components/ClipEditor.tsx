@@ -593,21 +593,30 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
 
                   {/* Row 2: controls + video chip */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0, ml: -0.5 }}>
-                    <Tooltip title={clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
-                        sx={{
-                          ...iconBtnSx,
-                          fontSize: '0.65rem',
-                          width: 28,
-                          height: 28,
-                          color: clip.pauseAtEnd ? 'rgba(255, 255, 255, 0.5)' : 'rgba(76, 175, 80, 0.8)',
-                        }}
-                      >
-                        {clip.pauseAtEnd ? <PauseIcon sx={{ fontSize: 16 }} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
-                      </IconButton>
-                    </Tooltip>
+                    {(() => {
+                      const isLastClip = index === clips.length - 1;
+                      const showPause = clip.pauseAtEnd || isLastClip;
+                      return (
+                        <Tooltip title={isLastClip ? 'Last clip always pauses' : (clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)')}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              disabled={isLastClip}
+                              onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
+                              sx={{
+                                ...iconBtnSx,
+                                fontSize: '0.65rem',
+                                width: 28,
+                                height: 28,
+                                color: showPause ? 'rgba(255, 255, 255, 0.5)' : 'rgba(76, 175, 80, 0.8)',
+                              }}
+                            >
+                              {showPause ? <PauseIcon sx={{ fontSize: 16 }} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
 
                     <Tooltip title={`Seek to ${formatTime(clip.startTime)}`}>
                       <IconButton size="small" sx={{ ...iconBtnSx, width: 28, height: 28 }} onClick={() => handleSeekToClip(clip)}>
