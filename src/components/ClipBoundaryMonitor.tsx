@@ -7,6 +7,10 @@ interface ClipBoundaryMonitorProps {
   isPlaying: boolean;
   onPause: () => void;
   pendingSeekOnUnpauseRef: React.MutableRefObject<number | null>;
+  currentVideoId: string;
+  onLoadVideo: (videoId: string) => void;
+  onCrossVideoSeek: (videoId: string, startTime: number, autoResume: boolean) => void;
+  fadeDurationInSeconds?: number;
 }
 
 const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
@@ -15,6 +19,10 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   isPlaying,
   onPause,
   pendingSeekOnUnpauseRef,
+  currentVideoId,
+  onLoadVideo,
+  onCrossVideoSeek,
+  fadeDurationInSeconds = 2,
 }) => {
   const {
     clips,
@@ -27,6 +35,23 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
 
   const intervalRef = useRef<number | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
+  const fadeStartedRef = useRef<boolean>(false);
+  const fadeAdvanceTimerRef = useRef<number | null>(null);
+
+  // Clean up the delayed advance timer on unmount or clip changes
+  useEffect(() => {
+    return () => {
+      if (fadeAdvanceTimerRef.current) {
+        window.clearTimeout(fadeAdvanceTimerRef.current);
+        fadeAdvanceTimerRef.current = null;
+      }
+    };
+  }, [currentClipIndex, clips]);
+
+  // Reset fade flag when clip index changes
+  useEffect(() => {
+    fadeStartedRef.current = false;
+  }, [currentClipIndex]);
 
   useEffect(() => {
     if (!isPlaying || !isPlaybackMode || !player) {
@@ -45,12 +70,17 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
         const currentTime = player.getCurrentTime();
         const currentClip = clips[currentClipIndex];
 
+        // Skip boundary checks if the current clip is from a different video than what's loaded
+        if (currentClip.videoId !== currentVideoId) return;
+
         // Detect backward seek: re-evaluate which clip we're in
         if (currentTime < lastCheckTimeRef.current - 1) {
+          // Only match clips for the currently loaded video
           const newIndex = clips.findIndex(
-            c => currentTime >= c.startTime && currentTime < c.endTime
+            c => c.videoId === currentVideoId && currentTime >= c.startTime && currentTime < c.endTime
           );
           if (newIndex !== -1 && newIndex !== currentClipIndex) {
+            fadeStartedRef.current = false;
             setCurrentClipIndex(newIndex);
           }
           lastCheckTimeRef.current = currentTime;
@@ -59,24 +89,69 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
 
         lastCheckTimeRef.current = currentTime;
 
-        // Check if we've reached or passed the end of the current clip
-        if (currentTime >= currentClip.endTime) {
-          const isLastClip = currentClipIndex >= clips.length - 1;
+        const isLastClip = currentClipIndex >= clips.length - 1;
+        const willPause = currentClip.pauseAtEnd || isLastClip;
 
-          if (isLastClip) {
-            // Last clip ended: pause and reset to first clip for replay
-            setCurrentClipIndex(0);
-            pendingSeekOnUnpauseRef.current = clips[0].startTime;
+        // For clips that will pause: start the overlay/audio fade early so
+        // the transition completes right at the clip's end time. The video
+        // keeps playing during the fade (MainVideoFrame only calls
+        // pauseVideo() after the fade finishes).
+        if (willPause && !fadeStartedRef.current) {
+          const fadeStartTime = currentClip.endTime - fadeDurationInSeconds;
+          if (currentTime >= fadeStartTime) {
+            fadeStartedRef.current = true;
+
+            // Start the visual/audio fade — video keeps playing
             onPause();
-          } else if (currentClip.pauseAtEnd) {
-            // Pause at end: advance index, set pending seek, trigger pause
-            const nextClip = clips[currentClipIndex + 1];
+
+            // Schedule clip advancement for when the fade completes (at endTime)
+            const remainingMs = Math.max(0, (currentClip.endTime - currentTime) * 1000);
+            fadeAdvanceTimerRef.current = window.setTimeout(() => {
+              fadeAdvanceTimerRef.current = null;
+
+              if (isLastClip) {
+                const firstClip = clips[0];
+                setCurrentClipIndex(0);
+
+                if (firstClip.videoId !== currentVideoId) {
+                  onCrossVideoSeek(firstClip.videoId, firstClip.startTime, false);
+                  onLoadVideo(firstClip.videoId);
+                } else {
+                  pendingSeekOnUnpauseRef.current = firstClip.startTime;
+                }
+              } else {
+                const nextClip = clips[currentClipIndex + 1];
+                const isCrossVideo = nextClip.videoId !== currentVideoId;
+
+                if (isCrossVideo) {
+                  setIsTransitioningBetweenClips(true);
+                  setCurrentClipIndex(currentClipIndex + 1);
+                  onCrossVideoSeek(nextClip.videoId, nextClip.startTime, false);
+                  onLoadVideo(nextClip.videoId);
+                } else {
+                  setCurrentClipIndex(currentClipIndex + 1);
+                  pendingSeekOnUnpauseRef.current = nextClip.startTime;
+                }
+              }
+            }, remainingMs);
+
+            return;
+          }
+        }
+
+        // For auto-continue clips (no pause): trigger at the actual end time
+        if (!willPause && currentTime >= currentClip.endTime) {
+          const nextClip = clips[currentClipIndex + 1];
+          const isCrossVideo = nextClip.videoId !== currentVideoId;
+
+          if (isCrossVideo) {
+            setIsTransitioningBetweenClips(true);
             setCurrentClipIndex(currentClipIndex + 1);
-            pendingSeekOnUnpauseRef.current = nextClip.startTime;
+            onCrossVideoSeek(nextClip.videoId, nextClip.startTime, true);
             onPause();
+            onLoadVideo(nextClip.videoId);
           } else {
-            // Auto-continue: seek to next clip immediately
-            const nextClip = clips[currentClipIndex + 1];
+            // Same video, auto-continue: seek to next clip immediately
             setIsTransitioningBetweenClips(true);
             setCurrentClipIndex(currentClipIndex + 1);
 
@@ -107,7 +182,8 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   }, [
     isPlaying, isPlaybackMode, player, videoMonitorPlayer,
     clips, currentClipIndex, isTransitioningBetweenClips,
-    onPause, pendingSeekOnUnpauseRef,
+    onPause, pendingSeekOnUnpauseRef, currentVideoId,
+    onLoadVideo, onCrossVideoSeek, fadeDurationInSeconds,
     setCurrentClipIndex, setIsTransitioningBetweenClips,
   ]);
 

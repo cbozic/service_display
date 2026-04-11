@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box, Button, IconButton, List, ListItem, Typography, TextField,
-  Tooltip, Switch, FormControlLabel, Alert, Snackbar, Menu, MenuItem
+  Tooltip, Alert, Snackbar, Menu, MenuItem,
+  Autocomplete
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
@@ -13,6 +14,8 @@ import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 import SearchIcon from '@mui/icons-material/Search';
 import LinkIcon from '@mui/icons-material/Link';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
@@ -23,6 +26,7 @@ interface ClipEditorProps {
   videoId: string;
   videoDuration: number;
   onSeekToTime?: (time: number) => void;
+  onLoadVideo?: (videoId: string) => void;
 }
 
 // Generate a simple unique ID
@@ -70,9 +74,14 @@ const formatTime = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime }) => {
+interface VideoOption {
+  videoId: string;
+  title: string;
+}
+
+const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime, onLoadVideo }) => {
   const {
-    clips, clipInPoint, isClipModeActive, isPlaybackMode,
+    clips, clipInPoint, isClipModeActive, isPlaybackMode, videoTitles, currentClipIndex,
     addClip, removeClip, updateClip, reorderClips, clearClips,
     setCurrentClipIndex, setIsPlaybackMode,
     setClipInPoint, importClips, exportClips,
@@ -85,6 +94,61 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [reorderMenuAnchor, setReorderMenuAnchor] = useState<{ el: HTMLElement; index: number } | null>(null);
+  const [selectedVideoId, setSelectedVideoId] = useState<string>(videoId);
+
+  // Sync selectedVideoId when the player video changes externally
+  useEffect(() => {
+    setSelectedVideoId(videoId);
+  }, [videoId]);
+
+  // Build dropdown options: unique videoIds from clips + all from videoTitles (playlist)
+  const videoOptions: VideoOption[] = useMemo(() => {
+    const optionMap = new Map<string, string>();
+
+    // Add all known videos from videoTitles (includes playlist videos)
+    for (const [id, title] of Object.entries(videoTitles)) {
+      optionMap.set(id, title);
+    }
+
+    // Add videos from clips that may not have titles yet
+    for (const clip of clips) {
+      if (!optionMap.has(clip.videoId)) {
+        optionMap.set(clip.videoId, clip.videoId);
+      }
+    }
+
+    return Array.from(optionMap.entries()).map(([vid, title]) => ({
+      videoId: vid,
+      title,
+    }));
+  }, [videoTitles, clips]);
+
+  // Find the currently selected option (or create a free-text one)
+  const selectedOption: VideoOption = useMemo(() => {
+    const found = videoOptions.find(o => o.videoId === selectedVideoId);
+    return found || { videoId: selectedVideoId, title: selectedVideoId };
+  }, [videoOptions, selectedVideoId]);
+
+  const handleVideoSelect = (_event: any, newValue: VideoOption | string | null) => {
+    if (!newValue) return;
+
+    let newVideoId: string;
+    if (typeof newValue === 'string') {
+      // User typed a raw value. Check if it matches an existing option.
+      const existing = videoOptions.find(o => o.videoId === newValue);
+      newVideoId = existing ? existing.videoId : newValue;
+    } else {
+      newVideoId = newValue.videoId;
+    }
+
+    setSelectedVideoId(newVideoId);
+    setClipInPoint(null);
+
+    // Auto-load in player if different from current video
+    if (newVideoId !== videoId && onLoadVideo) {
+      onLoadVideo(newVideoId);
+    }
+  };
 
   const handleSetIn = () => {
     setClipInPoint(currentVideoTime);
@@ -107,8 +171,9 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       return;
     }
 
-    // Check for overlaps with existing clips
-    const overlaps = clips.some(c =>
+    // Check for overlaps with existing clips for the same video only
+    const sameVideoClips = clips.filter(c => c.videoId === selectedVideoId);
+    const overlaps = sameVideoClips.some(c =>
       (inTime < c.endTime && outTime > c.startTime)
     );
     if (overlaps) {
@@ -118,6 +183,7 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
 
     const newClip: VideoClip = {
       id: generateId(),
+      videoId: selectedVideoId,
       startTime: inTime,
       endTime: outTime,
       pauseAtEnd: true,
@@ -148,8 +214,10 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       return;
     }
 
-    // Check for overlaps (excluding this clip)
-    const overlaps = clips.some(c =>
+    // Check for overlaps (excluding this clip, same video only)
+    const editClip = clips.find(c => c.id === clipId);
+    const sameVideoClips = clips.filter(c => c.videoId === editClip?.videoId);
+    const overlaps = sameVideoClips.some(c =>
       c.id !== clipId && (startTime < c.endTime && endTime > c.startTime)
     );
     if (overlaps) {
@@ -166,12 +234,12 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   };
 
   const handleExport = () => {
-    const json = exportClips(videoId);
+    const json = exportClips();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `clips-${videoId}.json`;
+    a.download = `clips-multi.json`;
     a.click();
     URL.revokeObjectURL(url);
     setSnackbar({ message: 'Clips exported', severity: 'success' });
@@ -202,9 +270,13 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
 
   const handleTogglePlaybackMode = () => {
     if (!isPlaybackMode && clips.length > 0) {
-      // Entering Play Clips mode: seek to first clip start
+      // Entering Play Clips mode: if first clip is a different video, load it
+      const firstClip = clips[0];
+      if (firstClip.videoId !== videoId && onLoadVideo) {
+        onLoadVideo(firstClip.videoId);
+      }
       if (onSeekToTime) {
-        onSeekToTime(clips[0].startTime);
+        onSeekToTime(firstClip.startTime);
       }
       setCurrentClipIndex(0);
       setIsPlaybackMode(true);
@@ -215,14 +287,18 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   };
 
   const handleCopyShareLink = () => {
-    // Compact format: start.end (pause default) or start.end.0 (continue)
+    // Multi-video format: VID:start.end or VID:start.end.0 for continue
     const clipsParam = clips.map(c => {
       const s = Math.round(c.startTime);
       const e = Math.round(c.endTime);
-      return c.pauseAtEnd ? `${s}.${e}` : `${s}.${e}.0`;
+      const timeStr = c.pauseAtEnd ? `${s}.${e}` : `${s}.${e}.0`;
+      return `${c.videoId}:${timeStr}`;
     }).join(',');
     const url = new URL(window.location.href.split('?')[0]);
-    url.searchParams.set('v', videoId);
+    // Set first clip's video as initial video for backward compat
+    if (clips.length > 0) {
+      url.searchParams.set('v', clips[0].videoId);
+    }
     url.searchParams.set('c', clipsParam);
     navigator.clipboard.writeText(url.toString()).then(() => {
       setSnackbar({ message: 'Share link copied to clipboard', severity: 'success' });
@@ -230,6 +306,21 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       // Fallback: show the URL in a prompt
       window.prompt('Copy this link:', url.toString());
     });
+  };
+
+  const handleSeekToClip = (clip: VideoClip) => {
+    // If the clip is from a different video, load that video first
+    if (clip.videoId !== videoId && onLoadVideo) {
+      onLoadVideo(clip.videoId);
+    }
+    if (onSeekToTime) {
+      onSeekToTime(clip.startTime);
+    }
+  };
+
+  // Get a short display label for a video (title or abbreviated ID)
+  const getVideoLabel = (vid: string): string => {
+    return videoTitles[vid] || vid;
   };
 
   // Styles for dark background readability
@@ -246,6 +337,61 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
 
   return (
     <Box sx={{ p: 1, height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {/* Video picker dropdown */}
+      <Autocomplete
+        freeSolo
+        size="small"
+        options={videoOptions}
+        value={selectedOption}
+        onChange={handleVideoSelect}
+        getOptionLabel={(option) => {
+          if (typeof option === 'string') return option;
+          return option.title !== option.videoId ? option.title : option.videoId;
+        }}
+        renderOption={(props, option) => (
+          <li {...props} key={option.videoId}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {option.title !== option.videoId ? option.title : option.videoId}
+              </Typography>
+              {option.title !== option.videoId && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {option.videoId}
+                </Typography>
+              )}
+            </Box>
+          </li>
+        )}
+        isOptionEqualToValue={(option, value) => option.videoId === value.videoId}
+        filterOptions={(options, state) => {
+          const input = state.inputValue.toLowerCase();
+          return options.filter(o =>
+            o.videoId.toLowerCase().includes(input) ||
+            o.title.toLowerCase().includes(input)
+          );
+        }}
+        onInputChange={(_event, newInputValue, reason) => {
+          // When user types and blurs (or presses enter), treat as videoId selection
+          if (reason === 'reset' || reason === 'clear') return;
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Video"
+            placeholder="Select or enter video ID"
+            sx={{
+              ...textFieldSx,
+              '& .MuiInputBase-root': { color: 'white' },
+              '& .MuiSvgIcon-root': { color: 'rgba(255, 255, 255, 0.5)' },
+            }}
+          />
+        )}
+        sx={{
+          '& .MuiAutocomplete-popupIndicator': { color: 'rgba(255, 255, 255, 0.5)' },
+          '& .MuiAutocomplete-clearIndicator': { color: 'rgba(255, 255, 255, 0.5)' },
+        }}
+      />
+
       {/* Set In / Set Out controls */}
       <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
         <Button
@@ -361,112 +507,132 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       )}
 
       {/* Clip List */}
-      <List dense sx={{ flex: 1, overflow: 'auto' }}>
-        {clips.map((clip, index) => (
-          <ListItem
-            key={clip.id}
-            sx={{
-              border: '1px solid',
-              borderColor: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: 1,
-              mb: 0.5,
-              flexDirection: 'column',
-              alignItems: 'stretch',
-              p: 1,
-            }}
-          >
-            {editingClipId === clip.id ? (
-              // Edit mode
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      <List dense sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+        {clips.map((clip, index) => {
+          const isCurrent = index === currentClipIndex;
+          return (
+            <ListItem
+              key={clip.id}
+              sx={{
+                border: '1px solid',
+                borderColor: isCurrent ? 'rgba(76, 175, 80, 0.6)' : 'rgba(255, 255, 255, 0.15)',
+                borderLeft: isCurrent ? '3px solid rgba(76, 175, 80, 0.8)' : '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: 1,
+                mb: 0.5,
+                flexDirection: 'column',
+                alignItems: 'stretch',
+                p: 0.75,
+                backgroundColor: isCurrent ? 'rgba(76, 175, 80, 0.08)' : 'transparent',
+              }}
+            >
+              {editingClipId === clip.id ? (
+                // Edit mode
+                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                   <TextField
                     size="small"
                     label="Start"
                     value={editStartTime}
                     onChange={(e) => setEditStartTime(e.target.value)}
-                    sx={{ flex: 1, minWidth: 70, ...textFieldSx }}
+                    sx={{ flex: 1, minWidth: 55, ...textFieldSx }}
                   />
                   <TextField
                     size="small"
                     label="End"
                     value={editEndTime}
                     onChange={(e) => setEditEndTime(e.target.value)}
-                    sx={{ flex: 1, minWidth: 70, ...textFieldSx }}
+                    sx={{ flex: 1, minWidth: 55, ...textFieldSx }}
                   />
-                  <Tooltip title="Save">
-                    <IconButton size="small" sx={{ color: '#90caf9' }} onClick={() => handleSaveEdit(clip.id)}>
-                      <CheckIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Cancel">
-                    <IconButton size="small" sx={iconBtnSx} onClick={handleCancelEdit}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  <IconButton size="small" sx={{ color: '#90caf9' }} onClick={() => handleSaveEdit(clip.id)}>
+                    <CheckIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" sx={iconBtnSx} onClick={handleCancelEdit}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
                 </Box>
-              </Box>
-            ) : (
-              // Display mode
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Typography
-                  variant="body2"
-                  sx={{ flex: 1, cursor: 'pointer', ...lightText, '&:hover': { textDecoration: 'underline' } }}
-                  onClick={() => handleStartEdit(clip)}
-                >
-                  #{index + 1}: {formatTime(clip.startTime)} - {formatTime(clip.endTime)}
-                  <Typography component="span" variant="caption" sx={{ ml: 1, ...dimText }}>
-                    ({formatTime(clip.endTime - clip.startTime)})
-                  </Typography>
-                </Typography>
-
-                <Tooltip title={clip.pauseAtEnd ? 'Pauses at end' : 'Continues to next'}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        size="small"
-                        checked={!clip.pauseAtEnd}
-                        onChange={(e) => updateClip(clip.id, { pauseAtEnd: !e.target.checked })}
-                      />
-                    }
-                    label={
-                      <Typography variant="caption" sx={lightText}>
-                        {clip.pauseAtEnd ? 'Pause' : 'Continue'}
-                      </Typography>
-                    }
-                    sx={{ mr: 0 }}
-                  />
-                </Tooltip>
-
-                {onSeekToTime && (
-                  <Tooltip title={`Seek to ${formatTime(clip.startTime)}`}>
-                    <IconButton
-                      size="small"
-                      sx={iconBtnSx}
-                      onClick={() => onSeekToTime(clip.startTime)}
+              ) : (
+                // Display mode — two compact rows
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                  {/* Row 1: clip info + video title */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        flexShrink: 0,
+                        cursor: 'pointer',
+                        ...lightText,
+                        fontSize: '0.8rem',
+                        whiteSpace: 'nowrap',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                      onClick={() => handleStartEdit(clip)}
                     >
-                      <PlayCircleOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
+                      <Typography component="span" sx={{ fontWeight: isCurrent ? 600 : 400, fontSize: 'inherit', color: 'inherit' }}>
+                        #{index + 1}
+                      </Typography>
+                      {' '}{formatTime(clip.startTime)}-{formatTime(clip.endTime)}
+                      <Typography component="span" variant="caption" sx={{ ml: 0.5, ...dimText }}>
+                        ({formatTime(clip.endTime - clip.startTime)})
+                      </Typography>
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        flex: 1,
+                        minWidth: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        textAlign: 'right',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      {getVideoLabel(clip.videoId)}
+                    </Typography>
+                  </Box>
 
-                <Tooltip title="More options">
-                  <IconButton
-                    size="small"
-                    sx={iconBtnSx}
-                    onClick={(e) => setReorderMenuAnchor({ el: e.currentTarget, index })}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete clip">
-                  <IconButton size="small" sx={iconBtnSx} onClick={() => removeClip(clip.id)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-          </ListItem>
-        ))}
+                  {/* Row 2: controls + video chip */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0, ml: -0.5 }}>
+                    <Tooltip title={clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
+                        sx={{
+                          ...iconBtnSx,
+                          fontSize: '0.65rem',
+                          width: 28,
+                          height: 28,
+                          color: clip.pauseAtEnd ? 'rgba(255, 255, 255, 0.5)' : 'rgba(76, 175, 80, 0.8)',
+                        }}
+                      >
+                        {clip.pauseAtEnd ? <PauseIcon sx={{ fontSize: 16 }} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title={`Seek to ${formatTime(clip.startTime)}`}>
+                      <IconButton size="small" sx={{ ...iconBtnSx, width: 28, height: 28 }} onClick={() => handleSeekToClip(clip)}>
+                        <PlayCircleOutlineIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="More options">
+                      <IconButton size="small" sx={{ ...iconBtnSx, width: 28, height: 28 }} onClick={(e) => setReorderMenuAnchor({ el: e.currentTarget, index })}>
+                        <MoreVertIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Delete clip">
+                      <IconButton size="small" sx={{ ...iconBtnSx, width: 28, height: 28 }} onClick={() => removeClip(clip.id)}>
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+
+                  </Box>
+                </Box>
+              )}
+            </ListItem>
+          );
+        })}
       </List>
 
       {clips.length === 0 && (

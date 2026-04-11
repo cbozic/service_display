@@ -230,14 +230,15 @@ const AppContent: React.FC = () => {
   const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
 
   // Clip playlist state
-  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips } = useClipPlaylist();
+  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips, registerVideoTitle, registerVideoTitles, videoTitles, setIsTransitioningBetweenClips } = useClipPlaylist();
   const pendingSeekOnUnpauseRef = useRef<number | null>(null);
   const clipModeFirstPlayRef = useRef<boolean>(true);
   const loadedFromShareLinkRef = useRef<boolean>(false);
+  const pendingCrossVideoSeekRef = useRef<{ videoId: string; startTime: number; autoResume: boolean } | null>(null);
 
   // Parse URL parameters on startup for shared clip links
-  // Compact format: ?v=VIDEO_ID&c=start.end,start.end.0
-  // Times are integers (seconds). Pause-at-end is default; append .0 for auto-continue.
+  // Legacy format: ?v=VIDEO_ID&c=start.end,start.end.0
+  // Multi-video format: ?v=INITIAL_VID&c=VID:start.end,VID:start.end.0
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlVideo = params.get('v');
@@ -250,19 +251,38 @@ const AppContent: React.FC = () => {
     if (urlClips) {
       try {
         const parsedClips = urlClips.split(',').map((segment, i) => {
-          const parts = segment.split('.');
-          const startTime = parseInt(parts[0], 10);
-          const endTime = parseInt(parts[1], 10);
-          const pauseAtEnd = parts[2] !== '0';
-          return { id: `u${i}`, startTime, endTime, pauseAtEnd };
+          const colonIndex = segment.indexOf(':');
+
+          if (colonIndex !== -1) {
+            // Multi-video format: VID:start.end[.0]
+            const clipVideoId = segment.substring(0, colonIndex);
+            const timePart = segment.substring(colonIndex + 1);
+            const parts = timePart.split('.');
+            const startTime = parseInt(parts[0], 10);
+            const endTime = parseInt(parts[1], 10);
+            const pauseAtEnd = parts[2] !== '0';
+            return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd };
+          } else {
+            // Legacy format: start.end[.0] — all clips use ?v= video
+            const parts = segment.split('.');
+            const startTime = parseInt(parts[0], 10);
+            const endTime = parseInt(parts[1], 10);
+            const pauseAtEnd = parts[2] !== '0';
+            return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd };
+          }
         });
 
-        if (parsedClips.every(c => !isNaN(c.startTime) && !isNaN(c.endTime) && c.endTime > c.startTime)) {
-          const playlist = JSON.stringify({ version: 1, videoId: urlVideo || video, clips: parsedClips });
+        if (parsedClips.every(c => !isNaN(c.startTime) && !isNaN(c.endTime) && c.endTime > c.startTime && c.videoId)) {
+          const playlist = JSON.stringify({ version: 2, clips: parsedClips });
           importClips(playlist);
           setIsPlaybackMode(true);
           setCurrentClipIndex(0);
           loadedFromShareLinkRef.current = true;
+
+          // If first clip is a different video than urlVideo, switch to it
+          if (parsedClips.length > 0 && parsedClips[0].videoId !== (urlVideo || video)) {
+            setVideo(parsedClips[0].videoId);
+          }
         }
       } catch (e) {
         console.error('[App] Failed to parse clip URL parameters:', e);
@@ -297,10 +317,16 @@ const AppContent: React.FC = () => {
         } else if (isPlaybackMode && clipModeFirstPlayRef.current && clips.length > 0) {
           // First play in clip playback mode: seek to first clip's start
           clipModeFirstPlayRef.current = false;
-          const firstClipStart = clips[0].startTime;
-          player.seekTo(firstClipStart, true);
+          const firstClip = clips[0];
+          if (firstClip.videoId !== video) {
+            // First clip is on a different video — load it, then auto-seek+play
+            pendingCrossVideoSeekRef.current = { videoId: firstClip.videoId, startTime: firstClip.startTime, autoResume: true };
+            setVideo(firstClip.videoId);
+            return; // Don't toggle play yet — the cross-video handler will resume
+          }
+          player.seekTo(firstClip.startTime, true);
           if (videoMonitorPlayer) {
-            videoMonitorPlayer.seekTo(firstClipStart, true);
+            videoMonitorPlayer.seekTo(firstClip.startTime, true);
           }
         }
       }
@@ -309,7 +335,7 @@ const AppContent: React.FC = () => {
       // No longer directly control background player here
       // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying, player, videoMonitorPlayer, isPlaybackMode, clips]);
+  }, [isPlayerReady, isPlaying, player, videoMonitorPlayer, isPlaybackMode, clips, video]);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -412,6 +438,11 @@ const AppContent: React.FC = () => {
           const currentVideoId = videoData?.video_id || video;
           currentIsLive = isLive;
 
+          // Capture video title for clip playlist dropdown
+          if (videoData?.title && currentVideoId) {
+            registerVideoTitle(currentVideoId, videoData.title);
+          }
+
           // If live stream status changed to live, update state and set seek flag
           // Only set flag if this is a different video than we last set the flag for
           if (isLive !== isLiveStream) {
@@ -455,13 +486,30 @@ const AppContent: React.FC = () => {
       console.log('[App] State 1 but NOT seeking. shouldSeekToStart:', shouldSeekToStart, 'currentIsLive:', currentIsLive);
     }
 
+    // Handle pending cross-video clip seek
+    if ((stateNumber === 1 || stateNumber === 5) && pendingCrossVideoSeekRef.current) {
+      const pendingVideoId = videoId || (player ? player.getVideoData()?.video_id : null);
+      if (pendingVideoId && pendingCrossVideoSeekRef.current.videoId === pendingVideoId) {
+        const { startTime, autoResume } = pendingCrossVideoSeekRef.current;
+        pendingCrossVideoSeekRef.current = null;
+        console.log(`[App] Cross-video seek: seeking to ${startTime}s, autoResume=${autoResume}`);
+        player?.seekTo(startTime, true);
+        videoMonitorPlayer?.seekTo(startTime, true);
+        setIsTransitioningBetweenClips(false);
+        if (autoResume) {
+          setIsPlaying(true);
+          return; // Skip the normal isPlaying update below
+        }
+      }
+    }
+
     // Only update playing state if it's different from current state
     const shouldBePlaying = stateNumber === 1;
     if (shouldBePlaying !== isPlaying) {
       console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
       setIsPlaying(shouldBePlaying);
     }
-  }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, videoMonitorPlayer]);
+  }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, videoMonitorPlayer, registerVideoTitle, setIsTransitioningBetweenClips]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -778,23 +826,32 @@ const AppContent: React.FC = () => {
       // In clip playback mode, restart to first clip's start time
       const seekTarget = (isPlaybackMode && clips.length > 0) ? clips[0].startTime : 0;
 
-      player.seekTo(seekTarget, true);
-      if (!isPlaying) {
-        setIsPlaying(true);
-      }
-
-      if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(seekTarget, true);
-        if (!isPlaying) {
-          videoMonitorPlayer.playVideo();
-        }
-      }
-
-      // Reset clip state on restart
-      if (isPlaybackMode) {
+      // If first clip is from a different video, switch to it
+      if (isPlaybackMode && clips.length > 0 && clips[0].videoId !== video) {
         setCurrentClipIndex(0);
         pendingSeekOnUnpauseRef.current = null;
         clipModeFirstPlayRef.current = false;
+        pendingCrossVideoSeekRef.current = { videoId: clips[0].videoId, startTime: seekTarget, autoResume: true };
+        setVideo(clips[0].videoId);
+      } else {
+        player.seekTo(seekTarget, true);
+        if (!isPlaying) {
+          setIsPlaying(true);
+        }
+
+        if (videoMonitorPlayer) {
+          videoMonitorPlayer.seekTo(seekTarget, true);
+          if (!isPlaying) {
+            videoMonitorPlayer.playVideo();
+          }
+        }
+
+        // Reset clip state on restart
+        if (isPlaybackMode) {
+          setCurrentClipIndex(0);
+          pendingSeekOnUnpauseRef.current = null;
+          clipModeFirstPlayRef.current = false;
+        }
       }
 
       // Reset the user exited fullscreen flag when restarting
@@ -815,7 +872,19 @@ const AppContent: React.FC = () => {
         }, 500);
       }
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen]);
+  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen, video]);
+
+  // Load a different video for clip playback
+  const handleLoadVideoForClip = useCallback((newVideoId: string) => {
+    if (newVideoId !== video) {
+      setVideo(newVideoId);
+    }
+  }, [video]);
+
+  // Schedule a seek after a cross-video transition completes
+  const handleCrossVideoSeek = useCallback((targetVideoId: string, startTime: number, autoResume: boolean) => {
+    pendingCrossVideoSeekRef.current = { videoId: targetVideoId, startTime, autoResume };
+  }, []);
 
   const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
     setVideoMonitorPlayer(playerInstance);
@@ -1057,7 +1126,7 @@ const AppContent: React.FC = () => {
       // In clip playback mode, update currentClipIndex to match the seeked position
       if (isPlaybackMode) {
         const clipIndex = clips.findIndex(
-          c => newTime >= c.startTime && newTime < c.endTime
+          c => c.videoId === video && newTime >= c.startTime && newTime < c.endTime
         );
         if (clipIndex !== -1) {
           setCurrentClipIndex(clipIndex);
@@ -1066,7 +1135,7 @@ const AppContent: React.FC = () => {
         pendingSeekOnUnpauseRef.current = null;
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer, isPlaybackMode, clips, setCurrentClipIndex]);
+  }, [player, isPlayerReady, videoMonitorPlayer, isPlaybackMode, clips, setCurrentClipIndex, video]);
 
   const handleTimedEventsToggle = useCallback(() => {
     setIsAutomaticEventsEnabled(prev => !prev);
@@ -1246,10 +1315,15 @@ const AppContent: React.FC = () => {
         event.preventDefault();
         if (!isPlaybackMode && clips.length > 0) {
           // Enter Play Clips mode: seek to first clip
-          if (player && isPlayerReady) {
-            player.seekTo(clips[0].startTime, true);
+          const firstClip = clips[0];
+          if (firstClip.videoId !== video) {
+            // First clip is on a different video
+            pendingCrossVideoSeekRef.current = { videoId: firstClip.videoId, startTime: firstClip.startTime, autoResume: false };
+            setVideo(firstClip.videoId);
+          } else if (player && isPlayerReady) {
+            player.seekTo(firstClip.startTime, true);
             if (videoMonitorPlayer) {
-              videoMonitorPlayer.seekTo(clips[0].startTime, true);
+              videoMonitorPlayer.seekTo(firstClip.startTime, true);
             }
           }
           setCurrentClipIndex(0);
@@ -1382,18 +1456,19 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing video list');
       const videoListComponent = document.createElement('div');
       const videoListInstance = (
-        <MainVideoSelectionList 
-          setVideo={setVideo} 
-          playlistUrl={playlistUrl} 
+        <MainVideoSelectionList
+          setVideo={setVideo}
+          playlistUrl={playlistUrl}
           currentVideo={video}
           onError={handleVideoListError}
+          onVideosLoaded={registerVideoTitles}
         />
       );
       const root = createRoot(videoListComponent);
       root.render(videoListInstance);
       videoListInitializedRef.current = true;
     }
-  }, [handleVideoListError, playlistUrl, setVideo, video]);
+  }, [handleVideoListError, playlistUrl, setVideo, video, registerVideoTitles]);
 
   useEffect(() => {
     const handleOpenControlsOnly = (e: CustomEvent) => {
@@ -1659,6 +1734,9 @@ const AppContent: React.FC = () => {
             isPlaying={isPlaying && !showStartOverlay}
             onPause={handlePlayPause}
             pendingSeekOnUnpauseRef={pendingSeekOnUnpauseRef}
+            currentVideoId={video}
+            onLoadVideo={handleLoadVideoForClip}
+            onCrossVideoSeek={handleCrossVideoSeek}
           />
           {showStartOverlay && (
             <div style={{ 
@@ -1691,11 +1769,12 @@ const AppContent: React.FC = () => {
       );
     } else if (component === "videoList") {
       return (
-        <MainVideoSelectionList 
-          setVideo={setVideo} 
-          playlistUrl={playlistUrl} 
+        <MainVideoSelectionList
+          setVideo={setVideo}
+          playlistUrl={playlistUrl}
           currentVideo={video}
           onError={handleVideoListError}
+          onVideosLoaded={registerVideoTitles}
         />
       );
     } else if (component === "controls") {
@@ -1739,6 +1818,9 @@ const AppContent: React.FC = () => {
             clips={clips}
             currentClipIndex={currentClipIndex}
             isClipModeActive={isClipModeActive}
+            currentVideoId={video}
+            isPlaybackMode={isPlaybackMode}
+            videoTitles={videoTitles}
           />
         </Box>
       );
@@ -1778,6 +1860,7 @@ const AppContent: React.FC = () => {
           videoId={video}
           videoDuration={videoDuration}
           onSeekToTime={handleTimeChange}
+          onLoadVideo={handleLoadVideoForClip}
         />
       );
     } else if (component === "videoMonitor") {

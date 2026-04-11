@@ -8,6 +8,7 @@ interface MainVideoSelectionListProps {
   playlistUrl: string;
   currentVideo: string;
   onError?: (hasError: boolean) => void;
+  onVideosLoaded?: (videos: { videoId: string; title: string }[]) => void;
 }
 
 interface VideoData {
@@ -16,7 +17,7 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVideo, playlistUrl, currentVideo, onError }) => {
+const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVideo, playlistUrl, currentVideo, onError, onVideosLoaded }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -29,6 +30,13 @@ const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVide
   const playerRef = useRef<any>(null);
   const playlistLoadingTriesRef = useRef<number>(0);
   const maxLoadingTriesRef = useRef<number>(3);
+
+  // Notify parent when playlist videos are loaded
+  useEffect(() => {
+    if (videos.length > 0 && onVideosLoaded) {
+      onVideosLoaded(videos.map(v => ({ videoId: v.videoId, title: v.title })));
+    }
+  }, [videos, onVideosLoaded]);
 
   // Extract playlist ID from URL
   const getPlaylistId = (url: string): string => {

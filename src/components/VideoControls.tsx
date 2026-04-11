@@ -52,6 +52,9 @@ interface VideoControlsProps {
   clips?: VideoClip[];
   currentClipIndex?: number;
   isClipModeActive?: boolean;
+  currentVideoId?: string;
+  isPlaybackMode?: boolean;
+  videoTitles?: Record<string, string>;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -85,6 +88,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   clips,
   currentClipIndex,
   isClipModeActive,
+  currentVideoId,
+  isPlaybackMode,
+  videoTitles,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -228,6 +234,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             clips={clips}
             currentClipIndex={currentClipIndex}
             isClipModeActive={isClipModeActive}
+            currentVideoId={currentVideoId}
+            isPlaybackMode={isPlaybackMode}
+            videoTitles={videoTitles}
           />
         </Box>
       )}

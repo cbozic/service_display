@@ -7,6 +7,7 @@ interface ClipPlaylistContextType {
   isClipModeActive: boolean;
   isTransitioningBetweenClips: boolean;
   clipInPoint: number | null;
+  videoTitles: Record<string, string>;
   addClip: (clip: VideoClip) => void;
   removeClip: (id: string) => void;
   updateClip: (id: string, updates: Partial<VideoClip>) => void;
@@ -16,9 +17,11 @@ interface ClipPlaylistContextType {
   setIsTransitioningBetweenClips: (value: boolean) => void;
   setClipInPoint: (time: number | null) => void;
   importClips: (json: string, currentVideoId?: string) => { success: boolean; warning?: string };
-  exportClips: (videoId: string) => string;
+  exportClips: () => string;
   isPlaybackMode: boolean;
   setIsPlaybackMode: (value: boolean) => void;
+  registerVideoTitle: (videoId: string, title: string) => void;
+  registerVideoTitles: (entries: { videoId: string; title: string }[]) => void;
 }
 
 const ClipPlaylistContext = createContext<ClipPlaylistContextType | undefined>(undefined);
@@ -41,6 +44,7 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
   const [isTransitioningBetweenClips, setIsTransitioningBetweenClips] = useState(false);
   const [clipInPoint, setClipInPoint] = useState<number | null>(null);
   const [isPlaybackMode, setIsPlaybackMode] = useState(false);
+  const [videoTitles, setVideoTitles] = useState<Record<string, string>>({});
 
   const isClipModeActive = clips.length > 0;
 
@@ -102,12 +106,32 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
       }
 
       let warning: string | undefined;
-      if (currentVideoId && data.videoId && data.videoId !== currentVideoId) {
-        warning = `Clip playlist was created for video ${data.videoId} but current video is ${currentVideoId}. Times may not match.`;
+      const version = data.version || 1;
+
+      if (version === 1) {
+        // v1 migration: copy top-level videoId onto each clip
+        const legacyVideoId = data.videoId || currentVideoId || '';
+        const migratedClips: VideoClip[] = data.clips.map(c => ({
+          ...c,
+          videoId: c.videoId || legacyVideoId,
+        }));
+
+        if (currentVideoId && data.videoId && data.videoId !== currentVideoId) {
+          warning = `Clip playlist was created for video ${data.videoId} but current video is ${currentVideoId}. Times may not match.`;
+        }
+
+        setClips(migratedClips);
+        setCurrentClipIndex(migratedClips.length > 0 ? 0 : -1);
+      } else {
+        // v2: clips already have videoId, merge imported videoTitles
+        setClips(data.clips);
+        setCurrentClipIndex(data.clips.length > 0 ? 0 : -1);
+
+        if (data.videoTitles) {
+          setVideoTitles(prev => ({ ...prev, ...data.videoTitles }));
+        }
       }
 
-      setClips(data.clips);
-      setCurrentClipIndex(data.clips.length > 0 ? 0 : -1);
       setIsPlaybackMode(false);
       return { success: true, warning };
     } catch {
@@ -115,14 +139,46 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
     }
   }, []);
 
-  const exportClips = useCallback((videoId: string): string => {
+  const exportClips = useCallback((): string => {
+    // Collect unique videoIds from clips and build filtered title map
+    const usedVideoIds = Array.from(new Set(clips.map(c => c.videoId)));
+    const filteredTitles: Record<string, string> = {};
+    for (const id of usedVideoIds) {
+      if (videoTitles[id]) {
+        filteredTitles[id] = videoTitles[id];
+      }
+    }
+
     const playlist: ClipPlaylist = {
-      version: 1,
-      videoId,
+      version: 2,
+      videoTitles: filteredTitles,
       clips,
     };
     return JSON.stringify(playlist, null, 2);
-  }, [clips]);
+  }, [clips, videoTitles]);
+
+  const registerVideoTitle = useCallback((videoId: string, title: string) => {
+    if (!videoId || !title) return;
+    setVideoTitles(prev => {
+      if (prev[videoId] === title) return prev;
+      return { ...prev, [videoId]: title };
+    });
+  }, []);
+
+  const registerVideoTitles = useCallback((entries: { videoId: string; title: string }[]) => {
+    if (entries.length === 0) return;
+    setVideoTitles(prev => {
+      const updates: Record<string, string> = {};
+      let hasChanges = false;
+      for (const { videoId, title } of entries) {
+        if (videoId && title && prev[videoId] !== title) {
+          updates[videoId] = title;
+          hasChanges = true;
+        }
+      }
+      return hasChanges ? { ...prev, ...updates } : prev;
+    });
+  }, []);
 
   return (
     <ClipPlaylistContext.Provider value={{
@@ -131,6 +187,7 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
       isClipModeActive,
       isTransitioningBetweenClips,
       clipInPoint,
+      videoTitles,
       addClip,
       removeClip,
       updateClip,
@@ -143,6 +200,8 @@ export const ClipPlaylistProvider: React.FC<ClipPlaylistProviderProps> = ({ chil
       exportClips,
       isPlaybackMode,
       setIsPlaybackMode,
+      registerVideoTitle,
+      registerVideoTitles,
     }}>
       {children}
     </ClipPlaylistContext.Provider>

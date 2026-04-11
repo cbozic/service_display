@@ -1,5 +1,6 @@
 export interface VideoClip {
   id: string;
+  videoId: string;      // YouTube video ID this clip belongs to
   startTime: number;    // seconds (absolute YouTube time)
   endTime: number;      // seconds
   label?: string;
@@ -7,7 +8,8 @@ export interface VideoClip {
 }
 
 export interface ClipPlaylist {
-  version: number;
-  videoId: string;
+  version: number;                          // 1 = legacy single-video, 2 = multi-video
+  videoTitles?: Record<string, string>;     // videoId -> display title (v2)
   clips: VideoClip[];
+  videoId?: string;                         // v1 backward compat: single video for all clips
 }

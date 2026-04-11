@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Slider, Box, Tooltip } from '@mui/material';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Slider, Box, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTimeEvents } from '../contexts/TimeEventsContext';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
@@ -20,6 +20,9 @@ interface VideoTimelineProps {
   clips?: VideoClip[];
   currentClipIndex?: number;
   isClipModeActive?: boolean;
+  currentVideoId?: string;
+  isPlaybackMode?: boolean;
+  videoTitles?: Record<string, string>;
 }
 
 // Custom styled slider for the timeline with minimal height
@@ -84,26 +87,26 @@ const EventMarker = styled(Box, {
     width: 16, // Smaller
     height: 16, // Smaller
     borderRadius: '50%',
-    backgroundColor: actionType === 'enable' ? 'rgba(76, 175, 80, 0.25)' : 
-                    actionType === 'disable' ? 'rgba(244, 67, 54, 0.25)' : 
+    backgroundColor: actionType === 'enable' ? 'rgba(76, 175, 80, 0.25)' :
+                    actionType === 'disable' ? 'rgba(244, 67, 54, 0.25)' :
                     'rgba(255, 152, 0, 0.25)',
-    border: actionType === 'enable' ? '1px solid rgba(76, 175, 80, 0.6)' : 
-            actionType === 'disable' ? '1px solid rgba(244, 67, 54, 0.6)' : 
+    border: actionType === 'enable' ? '1px solid rgba(76, 175, 80, 0.6)' :
+            actionType === 'disable' ? '1px solid rgba(244, 67, 54, 0.6)' :
             '1px solid rgba(255, 152, 0, 0.6)',
     pointerEvents: 'auto',
     zIndex: 10,
     boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
     '&:hover': {
-      backgroundColor: actionType === 'enable' ? 'rgba(76, 175, 80, 0.4)' : 
-                       actionType === 'disable' ? 'rgba(244, 67, 54, 0.4)' : 
+      backgroundColor: actionType === 'enable' ? 'rgba(76, 175, 80, 0.4)' :
+                       actionType === 'disable' ? 'rgba(244, 67, 54, 0.4)' :
                        'rgba(255, 152, 0, 0.4)',
       boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
     },
     '& svg': {
       width: 9, // Even smaller icons
       height: 9, // Even smaller icons
-      color: actionType === 'enable' ? '#4caf50' : 
-             actionType === 'disable' ? '#f44336' : 
+      color: actionType === 'enable' ? '#4caf50' :
+             actionType === 'disable' ? '#f44336' :
              '#ff9800',
     }
   })
@@ -127,6 +130,14 @@ const ClipRegion = styled(Box, {
   })
 );
 
+// Palette of subtle colors for different videos in sequential timeline
+const videoColors = [
+  { bg: 'rgba(25, 118, 210, 0.2)', border: 'rgba(25, 118, 210, 0.5)', activeBg: 'rgba(25, 118, 210, 0.35)' },
+  { bg: 'rgba(76, 175, 80, 0.2)', border: 'rgba(76, 175, 80, 0.5)', activeBg: 'rgba(76, 175, 80, 0.35)' },
+  { bg: 'rgba(255, 152, 0, 0.2)', border: 'rgba(255, 152, 0, 0.5)', activeBg: 'rgba(255, 152, 0, 0.35)' },
+  { bg: 'rgba(156, 39, 176, 0.2)', border: 'rgba(156, 39, 176, 0.5)', activeBg: 'rgba(156, 39, 176, 0.35)' },
+];
+
 const VideoTimeline: React.FC<VideoTimelineProps> = ({
   currentTime,
   duration,
@@ -134,10 +145,13 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   clips,
   currentClipIndex,
   isClipModeActive,
+  currentVideoId,
+  isPlaybackMode,
+  videoTitles,
 }) => {
   // Get time events from context
   const { events } = useTimeEvents();
-  
+
   // State to track if the slider is being interacted with
   const [isInteracting, setIsInteracting] = useState(false);
   // State to track the current hover position
@@ -152,11 +166,11 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const prevCurrentTimeRef = useRef<number>(0);
   // Ref for the slider container to calculate marker positions
   const sliderContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Log render info with useful debugging
-  console.log('[VideoTimeline] Rendering with:', { 
-    currentTime, 
-    duration, 
+  console.log('[VideoTimeline] Rendering with:', {
+    currentTime,
+    duration,
     eventCount: events.length,
     containerWidth: sliderContainerRef.current?.clientWidth
   });
@@ -169,7 +183,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
       setIsTransitioning(false);
       sliderValueRef.current = null;
     }
-    
+
     // Update the previous currentTime ref
     prevCurrentTimeRef.current = currentTime;
   }, [currentTime, isTransitioning]);
@@ -184,11 +198,37 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     }
   }, []);
 
+  // Compute sequential timeline data for playback mode
+  const sequentialData = useMemo(() => {
+    if (!isPlaybackMode || !clips || clips.length === 0) return null;
+
+    const clipDurations = clips.map(c => c.endTime - c.startTime);
+    const totalDuration = clipDurations.reduce((sum, d) => sum + d, 0);
+    if (totalDuration <= 0) return null;
+
+    // Build cumulative offsets for each clip
+    const cumulativeOffsets: number[] = [];
+    let cumulative = 0;
+    for (const d of clipDurations) {
+      cumulativeOffsets.push(cumulative);
+      cumulative += d;
+    }
+
+    // Assign a color index per unique videoId
+    const uniqueVideoIds = Array.from(new Set(clips.map(c => c.videoId)));
+    const videoColorMap: Record<string, number> = {};
+    uniqueVideoIds.forEach((vid, i) => {
+      videoColorMap[vid] = i % videoColors.length;
+    });
+
+    return { clipDurations, totalDuration, cumulativeOffsets, videoColorMap };
+  }, [isPlaybackMode, clips]);
+
   // Use a non-linear scale that emphasizes the first 5 seconds
   const valueTransform = (value: number) => {
     if (value <= 5) {
       // More granular control in first 5 seconds (50x)
-      return value * 50; 
+      return value * 50;
     } else {
       // Linear scale for the rest
       return 250 + (value - 5);
@@ -233,24 +273,64 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const handleChangeCommitted = (_event: Event | React.SyntheticEvent, newValue: number | number[]) => {
     // This will be called when the user releases the mouse button
     const value = Array.isArray(newValue) ? newValue[0] : newValue;
-    
+
     // Store the last committed value
     lastCommittedValueRef.current = value;
-    
+
     // Set transitioning state to true
     setIsTransitioning(true);
-    
+
     // Update the video time to the new position
     onTimeChange(inverseTransform(value));
-    
+
     // Clear interaction state but keep the slider at the released position
     setHoverPosition(null);
     setIsInteracting(false);
   };
 
+  // Sequential timeline handlers
+  const handleSequentialChange = (_event: Event, newValue: number | number[]) => {
+    const value = Array.isArray(newValue) ? newValue[0] : newValue;
+    setHoverPosition(value);
+    setIsInteracting(true);
+    sliderValueRef.current = value;
+  };
+
+  const handleSequentialChangeCommitted = (_event: Event | React.SyntheticEvent, newValue: number | number[]) => {
+    if (!sequentialData || !clips) return;
+    const virtualPos = Array.isArray(newValue) ? newValue[0] : newValue;
+
+    lastCommittedValueRef.current = virtualPos;
+    setIsTransitioning(true);
+    setHoverPosition(null);
+    setIsInteracting(false);
+
+    // Find which clip this virtual position falls into
+    const { cumulativeOffsets, clipDurations } = sequentialData;
+    let targetClipIndex = clips.length - 1;
+    for (let i = 0; i < clips.length; i++) {
+      if (virtualPos < cumulativeOffsets[i] + clipDurations[i]) {
+        targetClipIndex = i;
+        break;
+      }
+    }
+
+    // Calculate the actual time within that clip
+    const offsetInClip = virtualPos - cumulativeOffsets[targetClipIndex];
+    const actualTime = clips[targetClipIndex].startTime + offsetInClip;
+    onTimeChange(actualTime);
+  };
+
   // Format time for display
   const formatTime = (value: number) => {
     const time = inverseTransform(value);
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Format seconds directly
+  const formatSeconds = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -264,19 +344,30 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const currentSliderValue = (isInteracting || isTransitioning) && sliderValueRef.current !== null
     ? sliderValueRef.current
     : valueTransform(Math.min(currentTime, safeDuration));
-    
+
+  // Compute virtual position for sequential timeline
+  const sequentialSliderValue = useMemo(() => {
+    if (!sequentialData || !clips || currentClipIndex == null || currentClipIndex < 0) return 0;
+    if ((isInteracting || isTransitioning) && sliderValueRef.current !== null) return sliderValueRef.current;
+
+    const clipIndex = Math.min(currentClipIndex, clips.length - 1);
+    const clip = clips[clipIndex];
+    const offsetInClip = Math.max(0, Math.min(currentTime - clip.startTime, clip.endTime - clip.startTime));
+    return sequentialData.cumulativeOffsets[clipIndex] + offsetInClip;
+  }, [sequentialData, clips, currentClipIndex, currentTime, isInteracting, isTransitioning]);
+
   // Calculate the percentage position for each event marker
   const getEventMarkerPosition = (time: number) => {
     // We need to use the same transformation as the slider
     const transformedTime = valueTransform(Math.min(time, safeDuration));
     const maxValue = valueTransform(safeDuration);
     const percentPosition = (transformedTime / maxValue) * 100;
-    
+
     console.log(`[Timeline Debug] Event at ${time}s: transformed=${transformedTime}, maxValue=${maxValue}, position=${percentPosition}%`);
-    
+
     return `${percentPosition}%`;
   };
-  
+
   // Helper function to get the appropriate icon based on event type and action
   const getEventIcon = (eventType: string, actionType: string) => {
     switch (eventType) {
@@ -294,11 +385,11 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
         return <InfoIcon />;
     }
   };
-  
+
   // Generate tooltip text for each event
   const getEventTooltipText = (eventType: string, actionType: string, time: number) => {
     const timeStr = `${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}`;
-    
+
     switch (eventType) {
       case 'fullscreen':
         return actionType === 'enable' ? `Enable fullscreen at ${timeStr}` : `Exit fullscreen at ${timeStr}`;
@@ -314,6 +405,128 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
         return `Event at ${timeStr}`;
     }
   };
+
+  // --- Sequential Playback Mode Timeline ---
+  if (isPlaybackMode && sequentialData && clips && clips.length > 0) {
+    const { totalDuration, cumulativeOffsets, clipDurations, videoColorMap } = sequentialData;
+
+    // Generate marks for the sequential timeline
+    const seqMarks: { value: number; label: string }[] = [];
+    const markInterval = totalDuration > 600 ? 300 : totalDuration > 120 ? 60 : 30;
+    for (let t = 0; t <= totalDuration; t += markInterval) {
+      seqMarks.push({ value: t, label: formatSeconds(t) });
+    }
+
+    return (
+      <Box sx={{ width: '100%', px: 1, py: 1, mt: 1, position: 'relative' }} ref={sliderContainerRef}>
+        {/* Clip indicator */}
+        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', mb: 0.5, display: 'block' }}>
+          Clip {(currentClipIndex ?? 0) + 1} of {clips.length}
+          {currentClipIndex != null && currentClipIndex >= 0 && currentClipIndex < clips.length && (
+            <Typography component="span" variant="caption" sx={{ ml: 1, color: 'rgba(144, 202, 249, 0.8)' }}>
+              {videoTitles?.[clips[currentClipIndex].videoId]
+                ? `- ${videoTitles[clips[currentClipIndex].videoId]}`
+                : ''}
+            </Typography>
+          )}
+        </Typography>
+
+        <Box sx={{ position: 'relative' }}>
+          {/* Sequential clip segments */}
+          {clips.map((clip, index) => {
+            const leftPct = (cumulativeOffsets[index] / totalDuration) * 100;
+            const widthPct = (clipDurations[index] / totalDuration) * 100;
+            const colorIdx = videoColorMap[clip.videoId];
+            const colors = videoColors[colorIdx];
+            const isCurrent = index === currentClipIndex;
+
+            return (
+              <Tooltip
+                key={clip.id}
+                title={`#${index + 1}: ${formatSeconds(clip.startTime)}-${formatSeconds(clip.endTime)} ${videoTitles?.[clip.videoId] || clip.videoId}`}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: `${leftPct}%`,
+                    width: `${widthPct}%`,
+                    top: 0,
+                    bottom: 0,
+                    backgroundColor: isCurrent ? colors.activeBg : colors.bg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '2px',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {widthPct > 5 && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.6rem',
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {index + 1}
+                    </Typography>
+                  )}
+                </Box>
+              </Tooltip>
+            );
+          })}
+
+          <CustomSlider
+            value={sequentialSliderValue}
+            min={0}
+            max={totalDuration}
+            onChange={handleSequentialChange}
+            onChangeCommitted={handleSequentialChangeCommitted}
+            marks={seqMarks.length > 8 ? seqMarks.filter((_, i) => i % 2 === 0) : seqMarks}
+            aria-label="Clip playlist timeline"
+            valueLabelDisplay="off"
+          />
+
+          {/* Hover tooltip */}
+          {isInteracting && hoverPosition !== null && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -30,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                zIndex: 99999,
+                pointerEvents: 'none',
+                textAlign: 'center',
+                width: 'auto',
+                minWidth: '60px',
+              }}
+            >
+              {formatSeconds(hoverPosition)}
+            </Box>
+          )}
+        </Box>
+      </Box>
+    );
+  }
+
+  // --- Standard Video Timeline (Find Clips mode or no clips) ---
+
+  // Filter clips to only show those from the currently loaded video
+  const filteredClips = (clips && currentVideoId)
+    ? clips.filter(c => c.videoId === currentVideoId)
+    : clips;
 
   return (
     <Box sx={{ width: '100%', px: 1, py: 1, mt: 1, position: 'relative' }} ref={sliderContainerRef}>
@@ -351,21 +564,23 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
             });
         })()}
       </MarkerContainer>
-      
+
       <Box sx={{ position: 'relative' }}>
-        {/* Clip range indicators */}
-        {isClipModeActive && clips && clips.map((clip, index) => {
+        {/* Clip range indicators — filtered to current video */}
+        {isClipModeActive && filteredClips && filteredClips.map((clip, filteredIndex) => {
           const maxValue = valueTransform(safeDuration);
           const leftTransformed = valueTransform(Math.min(clip.startTime, safeDuration));
           const rightTransformed = valueTransform(Math.min(clip.endTime, safeDuration));
           const leftPct = (leftTransformed / maxValue) * 100;
           const widthPct = ((rightTransformed - leftTransformed) / maxValue) * 100;
+          // Find the real index of this clip in the full clips array
+          const realIndex = clips ? clips.findIndex(c => c.id === clip.id) : filteredIndex;
           return (
             <ClipRegion
               key={clip.id}
               leftPos={`${leftPct}%`}
               widthPct={`${widthPct}%`}
-              isCurrent={index === currentClipIndex}
+              isCurrent={realIndex === currentClipIndex}
             />
           );
         })}
@@ -379,7 +594,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
           aria-label="Video timeline"
           valueLabelDisplay="off" // Disable the built-in tooltip
         />
-        
+
         {/* Simple fixed-position tooltip below the slider */}
         {isInteracting && hoverPosition !== null && (
           <Box
@@ -409,4 +624,4 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   );
 };
 
-export default VideoTimeline; 
+export default VideoTimeline;
