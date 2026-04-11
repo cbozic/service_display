@@ -235,6 +235,7 @@ const AppContent: React.FC = () => {
   const clipModeFirstPlayRef = useRef<boolean>(true);
   const loadedFromShareLinkRef = useRef<boolean>(false);
   const pendingCrossVideoSeekRef = useRef<{ videoId: string; startTime: number; autoResume: boolean } | null>(null);
+  const clipFadingRef = useRef(false);
 
   // Parse URL parameters on startup for shared clip links
   // Legacy format: ?v=VIDEO_ID&c=start.end,start.end.0
@@ -304,6 +305,11 @@ const AppContent: React.FC = () => {
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
 
+      // If user is explicitly resuming, clear any clip fade guard
+      if (newPlayState) {
+        clipFadingRef.current = false;
+      }
+
       // When unpausing, check if we need to seek to a clip position
       if (newPlayState && player) {
         if (pendingSeekOnUnpauseRef.current !== null) {
@@ -336,6 +342,13 @@ const AppContent: React.FC = () => {
       // The background player will respond to isMainPlayerPlaying state changes
     }
   }, [isPlayerReady, isPlaying, player, videoMonitorPlayer, isPlaybackMode, clips, video]);
+
+  // Force-pause for clip boundary monitor — not a toggle, and guards against
+  // handleStateChange re-enabling isPlaying while the fade is in progress
+  const handleClipPause = useCallback(() => {
+    clipFadingRef.current = true;
+    setIsPlaying(false);
+  }, []);
 
   const handleSkipForward = useCallback(() => {
     if (player && isPlayerReady) {
@@ -488,26 +501,40 @@ const AppContent: React.FC = () => {
 
     // Handle pending cross-video clip seek
     if ((stateNumber === 1 || stateNumber === 5) && pendingCrossVideoSeekRef.current) {
-      const pendingVideoId = videoId || (player ? player.getVideoData()?.video_id : null);
-      if (pendingVideoId && pendingCrossVideoSeekRef.current.videoId === pendingVideoId) {
-        const { startTime, autoResume } = pendingCrossVideoSeekRef.current;
-        pendingCrossVideoSeekRef.current = null;
-        console.log(`[App] Cross-video seek: seeking to ${startTime}s, autoResume=${autoResume}`);
-        player?.seekTo(startTime, true);
-        videoMonitorPlayer?.seekTo(startTime, true);
-        setIsTransitioningBetweenClips(false);
-        if (autoResume) {
-          setIsPlaying(true);
-          return; // Skip the normal isPlaying update below
+      try {
+        const pendingVideoId = videoId || (player ? player.getVideoData()?.video_id : null);
+        if (pendingVideoId && pendingCrossVideoSeekRef.current.videoId === pendingVideoId) {
+          const { startTime, autoResume } = pendingCrossVideoSeekRef.current;
+          pendingCrossVideoSeekRef.current = null;
+          console.log(`[App] Cross-video seek: seeking to ${startTime}s, autoResume=${autoResume}`);
+          player?.seekTo(startTime, true);
+          videoMonitorPlayer?.seekTo(startTime, true);
+          setIsTransitioningBetweenClips(false);
+          if (autoResume) {
+            setIsPlaying(true);
+            return; // Skip the normal isPlaying update below
+          }
         }
+      } catch (error) {
+        console.error('[App] Error handling cross-video seek:', error);
       }
     }
 
-    // Only update playing state if it's different from current state
-    const shouldBePlaying = stateNumber === 1;
-    if (shouldBePlaying !== isPlaying) {
-      console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
-      setIsPlaying(shouldBePlaying);
+    // Clear clip fading flag once the player actually pauses
+    if (stateNumber === 2 && clipFadingRef.current) {
+      clipFadingRef.current = false;
+    }
+
+    // Only update playing state if it's different from current state.
+    // Skip sync while a clip fade-to-pause is in progress — the YouTube player
+    // is still in state 1 (playing) during the fade, but we've intentionally
+    // set isPlaying=false to trigger the overlay/volume fade.
+    if (!clipFadingRef.current) {
+      const shouldBePlaying = stateNumber === 1;
+      if (shouldBePlaying !== isPlaying) {
+        console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
+        setIsPlaying(shouldBePlaying);
+      }
     }
   }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, videoMonitorPlayer, registerVideoTitle, setIsTransitioningBetweenClips]);
 
@@ -1732,7 +1759,7 @@ const AppContent: React.FC = () => {
             player={player}
             videoMonitorPlayer={videoMonitorPlayer}
             isPlaying={isPlaying && !showStartOverlay}
-            onPause={handlePlayPause}
+            onPause={handleClipPause}
             pendingSeekOnUnpauseRef={pendingSeekOnUnpauseRef}
             currentVideoId={video}
             onLoadVideo={handleLoadVideoForClip}

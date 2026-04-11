@@ -107,31 +107,35 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
             // Schedule clip advancement for when the fade completes (at endTime)
             const remainingMs = Math.max(0, (currentClip.endTime - currentTime) * 1000);
             fadeAdvanceTimerRef.current = window.setTimeout(() => {
-              fadeAdvanceTimerRef.current = null;
+              try {
+                fadeAdvanceTimerRef.current = null;
 
-              if (isLastClip) {
-                const firstClip = clips[0];
-                setCurrentClipIndex(0);
+                if (isLastClip) {
+                  const firstClip = clips[0];
+                  setCurrentClipIndex(0);
 
-                if (firstClip.videoId !== currentVideoId) {
-                  onCrossVideoSeek(firstClip.videoId, firstClip.startTime, false);
-                  onLoadVideo(firstClip.videoId);
+                  if (firstClip.videoId !== currentVideoId) {
+                    onCrossVideoSeek(firstClip.videoId, firstClip.startTime, false);
+                    onLoadVideo(firstClip.videoId);
+                  } else {
+                    pendingSeekOnUnpauseRef.current = firstClip.startTime;
+                  }
                 } else {
-                  pendingSeekOnUnpauseRef.current = firstClip.startTime;
-                }
-              } else {
-                const nextClip = clips[currentClipIndex + 1];
-                const isCrossVideo = nextClip.videoId !== currentVideoId;
+                  const nextClip = clips[currentClipIndex + 1];
+                  const isCrossVideo = nextClip.videoId !== currentVideoId;
 
-                if (isCrossVideo) {
-                  setIsTransitioningBetweenClips(true);
-                  setCurrentClipIndex(currentClipIndex + 1);
-                  onCrossVideoSeek(nextClip.videoId, nextClip.startTime, false);
-                  onLoadVideo(nextClip.videoId);
-                } else {
-                  setCurrentClipIndex(currentClipIndex + 1);
-                  pendingSeekOnUnpauseRef.current = nextClip.startTime;
+                  if (isCrossVideo) {
+                    setIsTransitioningBetweenClips(true);
+                    setCurrentClipIndex(currentClipIndex + 1);
+                    onCrossVideoSeek(nextClip.videoId, nextClip.startTime, false);
+                    onLoadVideo(nextClip.videoId);
+                  } else {
+                    setCurrentClipIndex(currentClipIndex + 1);
+                    pendingSeekOnUnpauseRef.current = nextClip.startTime;
+                  }
                 }
+              } catch (error) {
+                console.error('[ClipBoundaryMonitor] Error advancing clip:', error);
               }
             }, remainingMs);
 
