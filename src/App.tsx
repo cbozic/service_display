@@ -781,68 +781,13 @@ const AppContent: React.FC = () => {
             attemptBackgroundAudioUnpause();
           });
         }
-
-        // Check if current time is eligible for PiP events
-        // Saturday is day 6, Sunday is day 0
-        const now = new Date();
-        const day = now.getDay();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const isPipTimeAllowed = (
-          // Saturday (day 6) after or at 2:00 PM (14:00)
-          (day === 6 && hours >= 14) || 
-          // Sunday (day 0) before 11:45 PM (23:45)
-          (day === 0 && (hours < 23 || (hours === 23 && minutes < 45)))
-        );
-
-        // Only register PiP events if video/playlist duration is over 65 minutes
-        const effectiveDuration = sequentialTimeData ? sequentialTimeData.totalDuration : videoDuration;
-        if (isPipTimeAllowed && effectiveDuration > 3900) {
-          // Only register enable event if we're before 5 seconds
-          if (currentTime < 5) {
-            console.log('[App] Re-registering PiP enable event for 5s');
-            timeEventsRef.current.registerEvent(5, () => {
-              console.log(`[App] Checking PiP enable event at 5s (current PiP state: ${isPipMode})`);
-              if (!isPipMode) {
-                console.log('[App] Auto-enabling PiP mode at 5s');
-                handleEnablePip();
-              } else {
-                console.log('[App] PiP mode already enabled, skipping enable event');
-              }
-            });
-          } else {
-            console.log('[App] Skipping PiP enable event registration (current time > 5s)');
-          }
-
-          // Only register disable event if we're before 6.5 minutes
-          if (currentTime < 390) {
-            console.log('[App] Re-registering PiP disable event for 6.5 minutes');
-            timeEventsRef.current.registerEvent(390, () => {
-              console.log(`[App] Checking PiP disable event at 6.5 minutes (current PiP state: ${isPipMode})`);
-              if (isPipMode) {
-                console.log('[App] Auto-disabling PiP mode at 6.5 minutes');
-                handleDisablePip();
-              } else {
-                console.log('[App] PiP mode already disabled, skipping disable event');
-              }
-            });
-          } else {
-            console.log('[App] Skipping PiP disable event registration (current time > 6.5 minutes)');
-          }
-        } else {
-          if (!isPipTimeAllowed) {
-            console.log('[App] PiP events not re-registered - not within allowed time window (Sat after 2pm or Sun before 11:45pm)');
-          } else {
-            console.log('[App] PiP events not re-registered - video duration is not over 65 minutes');
-          }
-        }
       } else {
         console.log('[App] Automatic events are disabled, not re-registering events');
       }
     } else {
       console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
     }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef, videoDuration, currentClipIndex, clips, sequentialTimeData]);
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleFullscreen, isFullscreen, timeEventsRef, userExitedFullscreen, backgroundPlayerRef, currentClipIndex, clips, sequentialTimeData]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
@@ -858,6 +803,16 @@ const AppContent: React.FC = () => {
         setVideo(clips[0].videoId);
       } else {
         player.seekTo(seekTarget, true);
+        // Directly start the player. The seekTo-then-state-update chain is
+        // fragile when the player is in cued (5) or unstarted (-1) state
+        // — the MainVideoFrame useEffect is scheduled after the React batch,
+        // leaving the player idle until buffering coincidentally resumes.
+        try {
+          player.unMute();
+          player.playVideo();
+        } catch (e) {
+          console.log('[App] Error starting player in handleRestart:', e);
+        }
         if (!isPlaying) {
           setIsPlaying(true);
         }
