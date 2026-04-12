@@ -76,7 +76,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           '07-APromiseFulfilled-mono.m4a'
         ];
         
-        const instrumentalFolder = `${process.env.PUBLIC_URL || ''}/default_content/music/instrumental/`;
+        const instrumentalFolder = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/default_content/music/instrumental/`;
         console.log('[BackgroundMusicPlayer] Loading tracks from folder:', instrumentalFolder);
         
         const tracksList = trackPaths.map(filename => ({
@@ -1021,7 +1021,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
               '06-HopeDeferred-mono.m4a',
               '07-APromiseFulfilled-mono.m4a'
             ].map(filename => ({
-              path: `${process.env.PUBLIC_URL || ''}/default_content/music/instrumental/${filename}`,
+              path: `${import.meta.env.BASE_URL.replace(/\/$/, '')}/default_content/music/instrumental/${filename}`,
               filename
             }));
             

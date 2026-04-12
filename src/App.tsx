@@ -197,8 +197,8 @@ const AppContent: React.FC = () => {
         return `/${pathParts[1]}`;
       }
     }
-    // Default to process.env.PUBLIC_URL or empty string
-    return process.env.PUBLIC_URL || '';
+    // Default to Vite's BASE_URL (trim trailing slash to match prior CRA PUBLIC_URL shape)
+    return import.meta.env.BASE_URL.replace(/\/$/, '');
   };
   
   const [gifPath, setGifPath] = useState<string>(`${getBasePath()}/default_content/slides/default_slides.gif`);

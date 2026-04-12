@@ -1,11 +1,10 @@
+@import './DarkTheme.css';
+
 .App {
   text-align: center;
   background-color: var(--dark-bg);
   min-height: 100vh;
 }
-
-/* Import dark theme */
-@import './DarkTheme.css';
 
 /* Video container styles */
 .video-container {
