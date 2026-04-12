@@ -340,6 +340,7 @@ const AppContent: React.FC = () => {
           const firstClip = clips[0];
           if (firstClip.videoId !== video) {
             // First clip is on a different video — load it, then auto-seek+play
+            setIsTransitioningBetweenClips(true);
             pendingCrossVideoSeekRef.current = { videoId: firstClip.videoId, startTime: firstClip.startTime, autoResume: true };
             setVideo(firstClip.videoId);
             return; // Don't toggle play yet — the cross-video handler will resume
@@ -516,11 +517,16 @@ const AppContent: React.FC = () => {
     // Skip sync while a clip fade-to-pause is in progress — the YouTube player
     // is still in state 1 (playing) during the fade, but we've intentionally
     // set isPlaying=false to trigger the overlay/volume fade.
-    if (!clipFadingRef.current) {
-      const shouldBePlaying = stateNumber === 1;
-      if (shouldBePlaying !== isPlaying) {
-        console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
-        setIsPlaying(shouldBePlaying);
+    // Also skip sync during cross-video transitions (pending seek not yet applied)
+    // and for transient states like buffering (3) or cued (5) which would
+    // incorrectly toggle isPlaying and fight with programmatic play commands.
+    if (!clipFadingRef.current && !pendingCrossVideoSeekRef.current) {
+      if (stateNumber === 1 || stateNumber === 2) {
+        const shouldBePlaying = stateNumber === 1;
+        if (shouldBePlaying !== isPlaying) {
+          console.log('[App] Updating isPlaying from', isPlaying, 'to', shouldBePlaying);
+          setIsPlaying(shouldBePlaying);
+        }
       }
     }
   }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, registerVideoTitle, setIsTransitioningBetweenClips]);
@@ -906,13 +912,14 @@ const AppContent: React.FC = () => {
     pendingSeekOnUnpauseRef.current = null;
 
     if (targetClip.videoId !== video) {
+      setIsTransitioningBetweenClips(true);
       handleCrossVideoSeek(targetClip.videoId, seekTime, isPlaying);
       handleLoadVideoForClip(targetClip.videoId);
     } else {
       player.seekTo(seekTime, true);
     }
   }, [player, isPlayerReady, clips, video, isPlaying, setCurrentClipIndex,
-      handleCrossVideoSeek, handleLoadVideoForClip]);
+      handleCrossVideoSeek, handleLoadVideoForClip, setIsTransitioningBetweenClips]);
 
   // Skip forward/back in playback mode, aware of cumulative timeline and clip boundaries
   const handlePlaybackModeSkip = useCallback((skipSeconds: number) => {
