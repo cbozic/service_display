@@ -38,6 +38,7 @@ interface VideoControlsProps {
   onToggleMute: () => void;
   onHelpClick?: () => void;
   onTimeChange?: (newTime: number) => void;
+  onSequentialSeek?: (clipIndex: number, seekTime: number) => void;
   onTimedEventsToggle?: () => void;
   onPopoutClick?: () => void;
   isPlaying: boolean;
@@ -74,6 +75,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onToggleMute,
   onHelpClick,
   onTimeChange,
+  onSequentialSeek,
   onTimedEventsToggle,
   onPopoutClick,
   isPlaying,
@@ -231,6 +233,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             currentTime={currentTime}
             duration={duration}
             onTimeChange={handleTimeChange}
+            onSequentialSeek={onSequentialSeek}
             clips={clips}
             currentClipIndex={currentClipIndex}
             isClipModeActive={isClipModeActive}

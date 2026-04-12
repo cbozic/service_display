@@ -361,21 +361,6 @@ const AppContent: React.FC = () => {
     setIsPlaying(false);
   }, []);
 
-  const handleSkipForward = useCallback(() => {
-    if (player && isPlayerReady) {
-      const currentTime = player.getCurrentTime();
-      player.seekTo(currentTime + 15, true);
-      
-    }
-  }, [player, isPlayerReady]);
-
-  const handleSkipBack = useCallback(() => {
-    if (player && isPlayerReady) {
-      const currentTime = player.getCurrentTime();
-      player.seekTo(currentTime - 5, true);
-    }
-  }, [player, isPlayerReady]);
-
   const handleFullscreen = useCallback(() => {
     console.log('[App] Manually toggling fullscreen, resetting userExitedFullscreen flag');
     setUserExitedFullscreen(false);
@@ -910,6 +895,70 @@ const AppContent: React.FC = () => {
   const handleCrossVideoSeek = useCallback((targetVideoId: string, startTime: number, autoResume: boolean) => {
     pendingCrossVideoSeekRef.current = { videoId: targetVideoId, startTime, autoResume };
   }, []);
+
+  // Seek to a specific clip (handles cross-video transitions)
+  const handleSequentialSeek = useCallback((targetClipIndex: number, seekTime: number) => {
+    if (!player || !isPlayerReady) return;
+    if (targetClipIndex < 0 || targetClipIndex >= clips.length) return;
+
+    const targetClip = clips[targetClipIndex];
+    setCurrentClipIndex(targetClipIndex);
+    pendingSeekOnUnpauseRef.current = null;
+
+    if (targetClip.videoId !== video) {
+      handleCrossVideoSeek(targetClip.videoId, seekTime, isPlaying);
+      handleLoadVideoForClip(targetClip.videoId);
+    } else {
+      player.seekTo(seekTime, true);
+    }
+  }, [player, isPlayerReady, clips, video, isPlaying, setCurrentClipIndex,
+      handleCrossVideoSeek, handleLoadVideoForClip]);
+
+  // Skip forward/back in playback mode, aware of cumulative timeline and clip boundaries
+  const handlePlaybackModeSkip = useCallback((skipSeconds: number) => {
+    if (!player || !isPlayerReady) return;
+
+    // Non-playback mode: original behavior
+    if (!isPlaybackMode || clips.length === 0 || currentClipIndex < 0 || !sequentialTimeData) {
+      const currentTime = player.getCurrentTime();
+      player.seekTo(currentTime + skipSeconds, true);
+      return;
+    }
+
+    // Compute current cumulative position
+    const currentTime = player.getCurrentTime();
+    const cumulativeNow = getCumulativeElapsedTime(currentTime, currentClipIndex, clips, sequentialTimeData);
+
+    // Compute target cumulative position, clamped to [0, totalDuration)
+    const targetCumulative = Math.max(0, Math.min(
+      cumulativeNow + skipSeconds,
+      sequentialTimeData.totalDuration - 0.1
+    ));
+
+    // Find which clip the target falls into
+    let targetClipIndex = clips.length - 1;
+    for (let i = 0; i < clips.length; i++) {
+      if (targetCumulative < sequentialTimeData.cumulativeOffsets[i] + sequentialTimeData.clipDurations[i]) {
+        targetClipIndex = i;
+        break;
+      }
+    }
+
+    // Calculate the actual YouTube time within the target clip
+    const offsetInClip = targetCumulative - sequentialTimeData.cumulativeOffsets[targetClipIndex];
+    const seekTime = clips[targetClipIndex].startTime + offsetInClip;
+
+    handleSequentialSeek(targetClipIndex, seekTime);
+  }, [player, isPlayerReady, isPlaybackMode, clips, currentClipIndex, sequentialTimeData,
+      handleSequentialSeek]);
+
+  const handleSkipForward = useCallback(() => {
+    handlePlaybackModeSkip(15);
+  }, [handlePlaybackModeSkip]);
+
+  const handleSkipBack = useCallback(() => {
+    handlePlaybackModeSkip(-5);
+  }, [handlePlaybackModeSkip]);
 
   const handleDuckingToggle = useCallback(() => {
     if (!isDucking) {
@@ -1787,6 +1836,7 @@ const AppContent: React.FC = () => {
             onToggleMute={handleToggleMute}
             onHelpClick={() => setIsHelpOpen(true)}
             onTimeChange={handleTimeChange}
+            onSequentialSeek={handleSequentialSeek}
             onTimedEventsToggle={handleTimedEventsToggle}
             onPopoutClick={handlePopoutDisplay}
             isPlaying={isPlaying}

@@ -24,6 +24,7 @@ interface VideoTimelineProps {
   currentVideoId?: string;
   isPlaybackMode?: boolean;
   videoTitles?: Record<string, string>;
+  onSequentialSeek?: (clipIndex: number, seekTime: number) => void;
 }
 
 // Custom styled slider for the timeline with minimal height
@@ -149,6 +150,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   currentVideoId,
   isPlaybackMode,
   videoTitles,
+  onSequentialSeek,
 }) => {
   // Get time events from context
   const { events } = useTimeEvents();
@@ -310,7 +312,12 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     // Calculate the actual time within that clip
     const offsetInClip = virtualPos - cumulativeOffsets[targetClipIndex];
     const actualTime = clips[targetClipIndex].startTime + offsetInClip;
-    onTimeChange(actualTime);
+
+    if (onSequentialSeek) {
+      onSequentialSeek(targetClipIndex, actualTime);
+    } else {
+      onTimeChange(actualTime);
+    }
   };
 
   // Format time for display
