@@ -53,14 +53,9 @@ npm install
 ```bash
 # Start the web development server
 npm start
-
-# Start the Electron app in development mode
-npm run electron:start
 ```
 
 The web app runs in development mode at [http://localhost:3000](http://localhost:3000).
-
-The Electron app will launch as a native desktop application using the development web server.
 
 ## Building for Production
 
@@ -70,19 +65,9 @@ npm run build
 
 # Build for GitHub Pages (puts files in docs/ folder)
 npm run build:docs
-
-# Build Electron app for your current platform
-npm run electron:build
-
-# Platform-specific Electron builds
-npm run electron:build:win   # Windows
-npm run electron:build:mac   # macOS
-npm run electron:build:linux # Linux
 ```
 
 The standard web build creates files in the `build` folder, while the GitHub Pages build places them in the `docs` folder.
-
-Electron builds are placed in the `dist` folder.
 
 ## Deployment
 
@@ -109,9 +94,6 @@ Launches the test runner in interactive watch mode. See the [running tests](http
 
 ## To Do
 - Start The Service button doesn't start from 0:00 if the video is a live stream
-- Add electron self update functionality
-- Add electron icon and favicon
-- Add electron popup support
 - Add ability to show youtube video on the overlay and have it PiP and start at a defined time
 - Stop YouTube Background Player from restarting from timed event with ANY volume (it's distracting)
 - Stop earlier timed events from removing themselves (they should be either all on or all off)

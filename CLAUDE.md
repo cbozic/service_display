@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Service Display is a React-based application for managing worship services and presentations. It combines YouTube video playback, slide presentations, and background music into a synchronized experience. The app runs both as a web application and as an Electron desktop app.
+Service Display is a React-based application for managing worship services and presentations. It combines YouTube video playback, slide presentations, and background music into a synchronized experience. The app runs as a web application.
 
 ## Development Commands
 
@@ -14,15 +14,6 @@ npm start                # Start development server at http://localhost:3000
 npm test                 # Run tests in watch mode
 npm run build            # Production build to build/
 npm run build:docs       # Build for GitHub Pages (outputs to docs/)
-```
-
-### Electron Development
-```bash
-npm run electron:start   # Start Electron app with hot-reload
-npm run electron:build   # Build for current platform
-npm run electron:build:win
-npm run electron:build:mac
-npm run electron:build:linux
 ```
 
 ## Architecture
@@ -118,19 +109,6 @@ Events only trigger if `isAutomaticEventsEnabled` is true. Events are cleared an
 - Slides fade in when video pauses
 - Slides fade out when video plays
 - Transition timing controlled by CSS fade duration (default 2 seconds)
-
-### Electron Integration
-
-**Main Process** (`electron/main.js`):
-- Creates BrowserWindow with security settings (no nodeIntegration, contextIsolation)
-- Loads from dev server (ELECTRON_START_URL) or built files
-- Opens external links in system browser
-- Custom application menu with standard roles
-
-**Build Process**:
-- `electron:prepare` script copies electron/ files to build/ before packaging
-- electron-builder handles platform-specific packaging
-- Icons located in public/logo512.png
 
 ### Keyboard Shortcuts
 
