@@ -3,7 +3,6 @@ import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
 
 interface ClipBoundaryMonitorProps {
   player: any;
-  videoMonitorPlayer: any;
   isPlaying: boolean;
   onPause: () => void;
   pendingSeekOnUnpauseRef: React.MutableRefObject<number | null>;
@@ -15,7 +14,6 @@ interface ClipBoundaryMonitorProps {
 
 const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   player,
-  videoMonitorPlayer,
   isPlaying,
   onPause,
   pendingSeekOnUnpauseRef,
@@ -160,9 +158,6 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
             setCurrentClipIndex(currentClipIndex + 1);
 
             player.seekTo(nextClip.startTime, true);
-            if (videoMonitorPlayer) {
-              videoMonitorPlayer.seekTo(nextClip.startTime, true);
-            }
 
             // Clear transition flag after a brief delay
             setTimeout(() => {
@@ -184,7 +179,7 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
       }
     };
   }, [
-    isPlaying, isPlaybackMode, player, videoMonitorPlayer,
+    isPlaying, isPlaybackMode, player,
     clips, currentClipIndex, isTransitioningBetweenClips,
     onPause, pendingSeekOnUnpauseRef, currentVideoId,
     onLoadVideo, onCrossVideoSeek, fadeDurationInSeconds,

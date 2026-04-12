@@ -12,6 +12,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import InfoIcon from '@mui/icons-material/Info';
 import { VideoClip } from '../types/clipPlaylist';
+import { computeSequentialTimeData, getCumulativeElapsedTime } from '../utils/clipTimeUtils';
 
 interface VideoTimelineProps {
   currentTime: number;
@@ -202,17 +203,8 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   const sequentialData = useMemo(() => {
     if (!isPlaybackMode || !clips || clips.length === 0) return null;
 
-    const clipDurations = clips.map(c => c.endTime - c.startTime);
-    const totalDuration = clipDurations.reduce((sum, d) => sum + d, 0);
-    if (totalDuration <= 0) return null;
-
-    // Build cumulative offsets for each clip
-    const cumulativeOffsets: number[] = [];
-    let cumulative = 0;
-    for (const d of clipDurations) {
-      cumulativeOffsets.push(cumulative);
-      cumulative += d;
-    }
+    const timeData = computeSequentialTimeData(clips);
+    if (!timeData) return null;
 
     // Assign a color index per unique videoId
     const uniqueVideoIds = Array.from(new Set(clips.map(c => c.videoId)));
@@ -221,7 +213,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
       videoColorMap[vid] = i % videoColors.length;
     });
 
-    return { clipDurations, totalDuration, cumulativeOffsets, videoColorMap };
+    return { ...timeData, videoColorMap };
   }, [isPlaybackMode, clips]);
 
   // Use a non-linear scale that emphasizes the first 5 seconds
@@ -351,9 +343,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     if ((isInteracting || isTransitioning) && sliderValueRef.current !== null) return sliderValueRef.current;
 
     const clipIndex = Math.min(currentClipIndex, clips.length - 1);
-    const clip = clips[clipIndex];
-    const offsetInClip = Math.max(0, Math.min(currentTime - clip.startTime, clip.endTime - clip.startTime));
-    return sequentialData.cumulativeOffsets[clipIndex] + offsetInClip;
+    return getCumulativeElapsedTime(currentTime, clipIndex, clips, sequentialData);
   }, [sequentialData, clips, currentClipIndex, currentTime, isInteracting, isTransitioning]);
 
   // Calculate the percentage position for each event marker

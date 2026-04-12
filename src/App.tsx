@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, FormEvent, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 import MainVideoFrame from './components/MainVideoFrame';
 import SettingsForm from './components/SettingsForm';
@@ -25,6 +25,7 @@ import ClipEditor from './components/ClipEditor';
 import ClipBoundaryMonitor from './components/ClipBoundaryMonitor';
 import { TimeEventsProvider } from './contexts/TimeEventsContext';
 import { ClipPlaylistProvider, useClipPlaylist } from './contexts/ClipPlaylistContext';
+import { computeSequentialTimeData, getCumulativeElapsedTime } from './utils/clipTimeUtils';
 
 // System-wide constants
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
@@ -207,7 +208,6 @@ const AppContent: React.FC = () => {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
-  const [videoMonitorPlayer, setVideoMonitorPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
   const preDuckVolume = useRef<number>(100);
@@ -230,12 +230,29 @@ const AppContent: React.FC = () => {
   const [isLiveStream, setIsLiveStream] = useState<boolean>(false);
 
   // Clip playlist state
-  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips, registerVideoTitle, registerVideoTitles, videoTitles, setIsTransitioningBetweenClips } = useClipPlaylist();
+  const { clips, currentClipIndex, isClipModeActive, isPlaybackMode, setIsPlaybackMode, setCurrentClipIndex, importClips, registerVideoTitle, registerVideoTitles, videoTitles, isTransitioningBetweenClips, setIsTransitioningBetweenClips } = useClipPlaylist();
   const pendingSeekOnUnpauseRef = useRef<number | null>(null);
   const clipModeFirstPlayRef = useRef<boolean>(true);
   const loadedFromShareLinkRef = useRef<boolean>(false);
   const pendingCrossVideoSeekRef = useRef<{ videoId: string; startTime: number; autoResume: boolean } | null>(null);
   const clipFadingRef = useRef(false);
+
+  // Compute cumulative time data for clip playlists
+  const sequentialTimeData = useMemo(
+    () => (isPlaybackMode && clips.length > 0) ? computeSequentialTimeData(clips) : null,
+    [isPlaybackMode, clips]
+  );
+
+  // Returns cumulative elapsed time across all clips (for timed events in playlist mode)
+  const getElapsedTime = useCallback((): number => {
+    if (!player || !sequentialTimeData) return player?.getCurrentTime?.() ?? 0;
+    return getCumulativeElapsedTime(
+      player.getCurrentTime(),
+      currentClipIndex,
+      clips,
+      sequentialTimeData
+    );
+  }, [player, sequentialTimeData, currentClipIndex, clips]);
 
   // Parse URL parameters on startup for shared clip links
   // Legacy format: ?v=VIDEO_ID&c=start.end,start.end.0
@@ -317,9 +334,6 @@ const AppContent: React.FC = () => {
           const seekTime = pendingSeekOnUnpauseRef.current;
           pendingSeekOnUnpauseRef.current = null;
           player.seekTo(seekTime, true);
-          if (videoMonitorPlayer) {
-            videoMonitorPlayer.seekTo(seekTime, true);
-          }
         } else if (isPlaybackMode && clipModeFirstPlayRef.current && clips.length > 0) {
           // First play in clip playback mode: seek to first clip's start
           clipModeFirstPlayRef.current = false;
@@ -331,9 +345,6 @@ const AppContent: React.FC = () => {
             return; // Don't toggle play yet — the cross-video handler will resume
           }
           player.seekTo(firstClip.startTime, true);
-          if (videoMonitorPlayer) {
-            videoMonitorPlayer.seekTo(firstClip.startTime, true);
-          }
         }
       }
 
@@ -341,7 +352,7 @@ const AppContent: React.FC = () => {
       // No longer directly control background player here
       // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying, player, videoMonitorPlayer, isPlaybackMode, clips, video]);
+  }, [isPlayerReady, isPlaying, player, isPlaybackMode, clips, video]);
 
   // Force-pause for clip boundary monitor — not a toggle, and guards against
   // handleStateChange re-enabling isPlaying while the fade is in progress
@@ -355,22 +366,15 @@ const AppContent: React.FC = () => {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime + 15, true);
       
-      if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(currentTime + 15, true);
-      }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+  }, [player, isPlayerReady]);
 
   const handleSkipBack = useCallback(() => {
     if (player && isPlayerReady) {
       const currentTime = player.getCurrentTime();
       player.seekTo(currentTime - 5, true);
-      
-      if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(currentTime - 5, true);
-      }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+  }, [player, isPlayerReady]);
 
   const handleFullscreen = useCallback(() => {
     console.log('[App] Manually toggling fullscreen, resetting userExitedFullscreen flag');
@@ -493,7 +497,6 @@ const AppContent: React.FC = () => {
     if (stateNumber === 1 && shouldSeekToStart && currentIsLive) {
       console.log('[App] Live stream starting - seeking to beginning');
       player?.seekTo(0, true);
-      videoMonitorPlayer?.seekTo(0, true);
       setNeedsLiveStreamSeekToStart(false);
     } else if (stateNumber === 1) {
       console.log('[App] State 1 but NOT seeking. shouldSeekToStart:', shouldSeekToStart, 'currentIsLive:', currentIsLive);
@@ -508,7 +511,6 @@ const AppContent: React.FC = () => {
           pendingCrossVideoSeekRef.current = null;
           console.log(`[App] Cross-video seek: seeking to ${startTime}s, autoResume=${autoResume}`);
           player?.seekTo(startTime, true);
-          videoMonitorPlayer?.seekTo(startTime, true);
           setIsTransitioningBetweenClips(false);
           if (autoResume) {
             setIsPlaying(true);
@@ -536,7 +538,7 @@ const AppContent: React.FC = () => {
         setIsPlaying(shouldBePlaying);
       }
     }
-  }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, videoMonitorPlayer, registerVideoTitle, setIsTransitioningBetweenClips]);
+  }, [isPlaying, isPlayerReady, video, player, isLiveStream, needsLiveStreamSeekToStart, registerVideoTitle, setIsTransitioningBetweenClips]);
 
   const handleSlideTransitionsToggle = useCallback(() => {
     setIsSlideTransitionsEnabled(prev => !prev);
@@ -595,8 +597,10 @@ const AppContent: React.FC = () => {
 
       // Only register events if automatic events are enabled
       if (isAutomaticEventsEnabled) {
-        const currentTime = player.getCurrentTime();
-        console.log('[App] Automatic events are enabled, re-registering events (current time:', currentTime, 's)');
+        const currentTime = sequentialTimeData
+          ? getCumulativeElapsedTime(player.getCurrentTime(), currentClipIndex, clips, sequentialTimeData)
+          : player.getCurrentTime();
+        console.log('[App] Automatic events are enabled, re-registering events (current time:', currentTime, 's', sequentialTimeData ? '(cumulative)' : '', ')');
 
         // Register fullscreen enable event at 1 second
         if (currentTime < 1) {
@@ -800,8 +804,9 @@ const AppContent: React.FC = () => {
           (day === 0 && (hours < 23 || (hours === 23 && minutes < 45)))
         );
 
-        // Only register PiP events if video duration is over 65 minutes
-        if (isPipTimeAllowed && videoDuration > 3900) {
+        // Only register PiP events if video/playlist duration is over 65 minutes
+        const effectiveDuration = sequentialTimeData ? sequentialTimeData.totalDuration : videoDuration;
+        if (isPipTimeAllowed && effectiveDuration > 3900) {
           // Only register enable event if we're before 5 seconds
           if (currentTime < 5) {
             console.log('[App] Re-registering PiP enable event for 5s');
@@ -846,7 +851,7 @@ const AppContent: React.FC = () => {
     } else {
       console.log('[App] Player not ready or timeEventsRef not available, skipping event reset');
     }
-  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef, videoDuration]);
+  }, [isPlayerReady, player, isAutomaticEventsEnabled, handleEnablePip, handleDisablePip, handleFullscreen, isFullscreen, timeEventsRef, isPipMode, isDucking, isMuted, userExitedFullscreen, backgroundPlayerRef, videoDuration, currentClipIndex, clips, sequentialTimeData]);
 
   const handleRestart = useCallback(() => {
     if (player && isPlayerReady) {
@@ -864,13 +869,6 @@ const AppContent: React.FC = () => {
         player.seekTo(seekTarget, true);
         if (!isPlaying) {
           setIsPlaying(true);
-        }
-
-        if (videoMonitorPlayer) {
-          videoMonitorPlayer.seekTo(seekTarget, true);
-          if (!isPlaying) {
-            videoMonitorPlayer.playVideo();
-          }
         }
 
         // Reset clip state on restart
@@ -899,7 +897,7 @@ const AppContent: React.FC = () => {
         }, 500);
       }
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen, video]);
+  }, [player, isPlayerReady, isPlaying, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen, video]);
 
   // Load a different video for clip playback
   const handleLoadVideoForClip = useCallback((newVideoId: string) => {
@@ -911,10 +909,6 @@ const AppContent: React.FC = () => {
   // Schedule a seek after a cross-video transition completes
   const handleCrossVideoSeek = useCallback((targetVideoId: string, startTime: number, autoResume: boolean) => {
     pendingCrossVideoSeekRef.current = { videoId: targetVideoId, startTime, autoResume };
-  }, []);
-
-  const handleMonitorPlayerReady = useCallback((playerInstance: YouTubeEvent['target']) => {
-    setVideoMonitorPlayer(playerInstance);
   }, []);
 
   const handleDuckingToggle = useCallback(() => {
@@ -1013,16 +1007,11 @@ const AppContent: React.FC = () => {
       try {
         const currentTime = player.getCurrentTime();
         player.seekTo(currentTime);
-        
-        // Also sync the monitor player if it exists
-        if (videoMonitorPlayer) {
-          videoMonitorPlayer.seekTo(currentTime);
-        }
       } catch (error) {
         console.error('[App] Error during Quick Seek Resync:', error);
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer]);
+  }, [player, isPlayerReady]);
 
   const handleRapidPausePlay = useCallback(() => {
     if (player && isPlayerReady) {
@@ -1041,18 +1030,11 @@ const AppContent: React.FC = () => {
           }
         }, 50);
         
-        // Do the same for monitor player if it exists
-        if (videoMonitorPlayer) {
-          videoMonitorPlayer.pauseVideo();
-          if (wasPlaying) {
-            setTimeout(() => videoMonitorPlayer.playVideo(), 50);
-          }
-        }
       } catch (error) {
         console.error('[App] Error during Rapid Pause/Play Resync:', error);
       }
     }
-  }, [player, isPlayerReady, isPlaying, videoMonitorPlayer]);
+  }, [player, isPlayerReady, isPlaying]);
 
   const handleQualityToggleResync = useCallback(() => {
     if (player && isPlayerReady) {
@@ -1108,20 +1090,6 @@ const AppContent: React.FC = () => {
             }
           }, 100);
 
-          // Also handle the monitor player if it exists
-          if (videoMonitorPlayer) {
-            videoMonitorPlayer.stopVideo();
-            videoMonitorPlayer.cueVideoById({
-              videoId: video,
-              startSeconds: currentTime
-            });
-
-            // Monitor player should always be muted
-            setTimeout(() => {
-              videoMonitorPlayer.mute();
-            }, 100);
-          }
-
           // Resume playback if it was playing
           if (wasPlaying) {
             setTimeout(() => {
@@ -1140,15 +1108,11 @@ const AppContent: React.FC = () => {
         console.error('[App] Error during Player Reload Resync:', error);
       }
     }
-  }, [player, isPlayerReady, video, videoMonitorPlayer, videoVolume, isMuted]);
+  }, [player, isPlayerReady, video, videoVolume, isMuted]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     if (player && isPlayerReady) {
       player.seekTo(newTime, true);
-
-      if (videoMonitorPlayer) {
-        videoMonitorPlayer.seekTo(newTime, true);
-      }
 
       // In clip playback mode, update currentClipIndex to match the seeked position
       if (isPlaybackMode) {
@@ -1162,7 +1126,7 @@ const AppContent: React.FC = () => {
         pendingSeekOnUnpauseRef.current = null;
       }
     }
-  }, [player, isPlayerReady, videoMonitorPlayer, isPlaybackMode, clips, setCurrentClipIndex, video]);
+  }, [player, isPlayerReady, isPlaybackMode, clips, setCurrentClipIndex, video]);
 
   const handleTimedEventsToggle = useCallback(() => {
     setIsAutomaticEventsEnabled(prev => !prev);
@@ -1349,9 +1313,6 @@ const AppContent: React.FC = () => {
             setVideo(firstClip.videoId);
           } else if (player && isPlayerReady) {
             player.seekTo(firstClip.startTime, true);
-            if (videoMonitorPlayer) {
-              videoMonitorPlayer.seekTo(firstClip.startTime, true);
-            }
           }
           setCurrentClipIndex(0);
           setIsPlaybackMode(true);
@@ -1372,7 +1333,7 @@ const AppContent: React.FC = () => {
       setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
       // Add these new dependencies:
       handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle,
-      isClipModeActive, isPlaybackMode, clips, setIsPlaybackMode, setCurrentClipIndex, player, videoMonitorPlayer
+      isClipModeActive, isPlaybackMode, clips, setIsPlaybackMode, setCurrentClipIndex, player
   ]);
 
   // Handle fullscreen changes from external sources
@@ -1529,12 +1490,6 @@ const AppContent: React.FC = () => {
           console.log('[App] Start service clicked - setting needsLiveStreamSeekToStart for live stream');
         }
         handleRestart(); // Call the restart handler directly
-
-        // Also restart monitor player if it exists
-        if (videoMonitorPlayer) {
-          videoMonitorPlayer.seekTo(0, true);
-          videoMonitorPlayer.playVideo();
-        }
       }
     };
 
@@ -1545,7 +1500,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('openControlsOnly', handleOpenControlsOnly as EventListener);
     };
-  }, [player, videoMonitorPlayer, backgroundPlayerRef, setBackgroundMuted, handleRestart, isLiveStream]);
+  }, [player, backgroundPlayerRef, setBackgroundMuted, handleRestart, isLiveStream]);
 
   const handleStartService = () => {
     setShowStartOverlay(false);
@@ -1754,10 +1709,11 @@ const AppContent: React.FC = () => {
             ref={timeEventsRef}
             player={player}
             isPlaying={isPlaying && !showStartOverlay}
+            getElapsedTime={sequentialTimeData ? getElapsedTime : undefined}
+            isTransitioning={isTransitioningBetweenClips}
           />
           <ClipBoundaryMonitor
             player={player}
-            videoMonitorPlayer={videoMonitorPlayer}
             isPlaying={isPlaying && !showStartOverlay}
             onPause={handleClipPause}
             pendingSeekOnUnpauseRef={pendingSeekOnUnpauseRef}

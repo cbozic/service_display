@@ -10,6 +10,8 @@ interface TimeEventWithCallback extends Omit<TimeEvent, 'triggered'> {
 interface VideoTimeEventsProps {
   player: any;
   isPlaying: boolean;
+  getElapsedTime?: () => number;
+  isTransitioning?: boolean;
 }
 
 interface VideoTimeEventsRef {
@@ -17,7 +19,7 @@ interface VideoTimeEventsRef {
   clearEvents: () => void;
 }
 
-const VideoTimeEvents = React.forwardRef<VideoTimeEventsRef, VideoTimeEventsProps>(({ player, isPlaying }, ref) => {
+const VideoTimeEvents = React.forwardRef<VideoTimeEventsRef, VideoTimeEventsProps>(({ player, isPlaying, getElapsedTime, isTransitioning }, ref) => {
   const eventsRef = useRef<TimeEventWithCallback[]>([]);
   const intervalRef = useRef<number | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
@@ -92,9 +94,16 @@ const VideoTimeEvents = React.forwardRef<VideoTimeEventsRef, VideoTimeEventsProp
     }
 
     try {
-      const currentTime = player.getCurrentTime();
+      const currentTime = getElapsedTime ? getElapsedTime() : player.getCurrentTime();
       console.log(`[VideoTimeEvents] Current time: ${currentTime.toFixed(2)}s`);
-      
+
+      // During clip transitions, track time but don't trigger or re-enable events
+      if (isTransitioning) {
+        console.log('[VideoTimeEvents] Skipping event check during clip transition');
+        lastCheckTimeRef.current = currentTime;
+        return;
+      }
+
       // If we've moved backwards in time, re-enable events that should trigger
       if (currentTime < lastCheckTimeRef.current) {
         console.log(`[VideoTimeEvents] Time moved backwards from ${lastCheckTimeRef.current.toFixed(2)}s to ${currentTime.toFixed(2)}s`);
@@ -106,10 +115,10 @@ const VideoTimeEvents = React.forwardRef<VideoTimeEventsRef, VideoTimeEventsProp
           }
         });
       }
-      
+
       // Sort events by time to ensure they trigger in order
       const sortedEvents = [...eventsRef.current].sort((a, b) => a.time - b.time);
-      
+
       // Check each event in order
       sortedEvents.forEach(event => {
         if (!event.triggered && currentTime >= event.time) {
