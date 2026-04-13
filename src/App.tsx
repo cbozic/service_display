@@ -163,9 +163,48 @@ const getInitialLayoutModel = () => {
 
 const model = getInitialLayoutModel();
 
+// Parse the first clip's videoId and start time from the URL so the player
+// can be cued at the clip's position from the very first render. Running this
+// in a lazy useState initializer (instead of a useEffect) is essential:
+// MainVideoFrame mounts during the first render, and the YouTube player only
+// reads startSeconds during onReady. If we deferred this to useEffect, the
+// player would initialize at 0 and the first click would need to seek — which
+// leaves the player in a buffering state from which playVideo cannot resume.
+const parseUrlInitialPosition = (): { videoId: string | null; startTime: string | null } => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlVideo = params.get('v');
+    const urlClips = params.get('c');
+
+    let firstClipVideoId: string | null = null;
+    let firstClipStartTime: number | null = null;
+
+    if (urlClips) {
+      const firstSegment = urlClips.split(',')[0];
+      const colonIndex = firstSegment.indexOf(':');
+      if (colonIndex !== -1) {
+        firstClipVideoId = firstSegment.substring(0, colonIndex);
+        firstClipStartTime = parseInt(firstSegment.substring(colonIndex + 1).split('.')[0], 10);
+      } else {
+        firstClipVideoId = urlVideo;
+        firstClipStartTime = parseInt(firstSegment.split('.')[0], 10);
+      }
+    }
+
+    return {
+      videoId: firstClipVideoId || urlVideo,
+      startTime: firstClipStartTime != null && !isNaN(firstClipStartTime) && firstClipStartTime > 0
+        ? String(firstClipStartTime)
+        : null,
+    };
+  } catch {
+    return { videoId: null, startTime: null };
+  }
+};
+
 const AppContent: React.FC = () => {
-  const [video, setVideo] = useState<string>('oQYRNeM-awo');
-  const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>('0');
+  const [video, setVideo] = useState<string>(() => parseUrlInitialPosition().videoId || 'oQYRNeM-awo');
+  const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>(() => parseUrlInitialPosition().startTime || '0');
   const [overlaySlide, setOverlaySlide] = useState<string>();
   const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
@@ -236,6 +275,8 @@ const AppContent: React.FC = () => {
   const loadedFromShareLinkRef = useRef<boolean>(false);
   const pendingCrossVideoSeekRef = useRef<{ videoId: string; startTime: number; autoResume: boolean } | null>(null);
   const clipFadingRef = useRef(false);
+  const pendingClipStartRef = useRef<boolean>(false);
+  const pendingClipStartTimeoutRef = useRef<number | null>(null);
 
   // Compute cumulative time data for clip playlists
   const sequentialTimeData = useMemo(
@@ -254,17 +295,18 @@ const AppContent: React.FC = () => {
     );
   }, [player, sequentialTimeData, currentClipIndex, clips]);
 
-  // Parse URL parameters on startup for shared clip links
+  // Parse URL parameters on startup for shared clip links.
   // Legacy format: ?v=VIDEO_ID&c=start.end,start.end.0
   // Multi-video format: ?v=INITIAL_VID&c=VID:start.end,VID:start.end.0
+  //
+  // Note: the `video` and `startTimeInSeconds` state are initialized
+  // synchronously via parseUrlInitialPosition() in their useState calls so
+  // MainVideoFrame mounts with the correct cue position. This effect handles
+  // the remaining clip state (clips list, playback mode, share-link flag).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlVideo = params.get('v');
     const urlClips = params.get('c');
-
-    if (urlVideo) {
-      setVideo(urlVideo);
-    }
 
     if (urlClips) {
       try {
@@ -296,11 +338,6 @@ const AppContent: React.FC = () => {
           setIsPlaybackMode(true);
           setCurrentClipIndex(0);
           loadedFromShareLinkRef.current = true;
-
-          // If first clip is a different video than urlVideo, switch to it
-          if (parsedClips.length > 0 && parsedClips[0].videoId !== (urlVideo || video)) {
-            setVideo(parsedClips[0].videoId);
-          }
         }
       } catch (e) {
         console.error('[App] Failed to parse clip URL parameters:', e);
@@ -318,7 +355,26 @@ const AppContent: React.FC = () => {
   const [needsLiveStreamSeekToStart, setNeedsLiveStreamSeekToStart] = useState<boolean>(false);
   const lastLiveStreamSeekVideoIdRef = useRef<string | null>(null); // Track which video we've set the seek flag for
 
+  // Seek-from-cued to a non-zero clip start emits a transient state 2 (paused)
+  // before the subsequent state 1 (playing). Without this guard, handleStateChange
+  // would interpret that transient 2 as a real pause and flip isPlaying back to
+  // false, causing the "needs three clicks to start" bug. Cleared on state 1 or
+  // by the safety-net timeout (in case state 1 never arrives).
+  const markClipStartPending = useCallback(() => {
+    console.log('[ClipStartDebug] markClipStartPending: guard SET');
+    pendingClipStartRef.current = true;
+    if (pendingClipStartTimeoutRef.current) {
+      window.clearTimeout(pendingClipStartTimeoutRef.current);
+    }
+    pendingClipStartTimeoutRef.current = window.setTimeout(() => {
+      console.log('[ClipStartDebug] guard cleared by 2s timeout (state 1 never arrived)');
+      pendingClipStartRef.current = false;
+      pendingClipStartTimeoutRef.current = null;
+    }, 2000);
+  }, []);
+
   const handlePlayPause = useCallback(() => {
+    console.log('[ClipStartDebug] handlePlayPause entry isPlaying=', isPlaying, 'isPlayerReady=', isPlayerReady, 'clipModeFirstPlay=', clipModeFirstPlayRef.current, 'isPlaybackMode=', isPlaybackMode);
     if (isPlayerReady) {
       const newPlayState = !isPlaying;
 
@@ -335,7 +391,10 @@ const AppContent: React.FC = () => {
           pendingSeekOnUnpauseRef.current = null;
           player.seekTo(seekTime, true);
         } else if (isPlaybackMode && clipModeFirstPlayRef.current && clips.length > 0) {
-          // First play in clip playback mode: seek to first clip's start
+          // First play in clip playback mode. The player was initialized with
+          // startSeconds = firstClip.startTime (see URL parser), so it's
+          // already cued at the correct position. No seek needed — playVideo
+          // from state 5 cued works reliably (same as non-clip case).
           clipModeFirstPlayRef.current = false;
           const firstClip = clips[0];
           if (firstClip.videoId !== video) {
@@ -345,7 +404,6 @@ const AppContent: React.FC = () => {
             setVideo(firstClip.videoId);
             return; // Don't toggle play yet — the cross-video handler will resume
           }
-          player.seekTo(firstClip.startTime, true);
         }
       }
 
@@ -353,7 +411,7 @@ const AppContent: React.FC = () => {
       // No longer directly control background player here
       // The background player will respond to isMainPlayerPlaying state changes
     }
-  }, [isPlayerReady, isPlaying, player, isPlaybackMode, clips, video]);
+  }, [isPlayerReady, isPlaying, player, isPlaybackMode, clips, video, markClipStartPending]);
 
   // Force-pause for clip boundary monitor — not a toggle, and guards against
   // handleStateChange re-enabling isPlaying while the fade is in progress
@@ -406,11 +464,11 @@ const AppContent: React.FC = () => {
 
   const handleStateChange = useCallback((state: number | { data: number, videoId: string }) => {
     if (!isPlayerReady) return;
-    
+
     // Extract state data
     let stateNumber: number;
     let videoId: string | undefined;
-    
+
     // Check if we received a custom event with videoId
     if (typeof state === 'object' && 'videoId' in state) {
       // Direct update of video ID from the player
@@ -419,13 +477,19 @@ const AppContent: React.FC = () => {
         console.log(`[App] Updating video ID from player event: ${videoId}`);
         setVideo(videoId);
       }
-      
+
       // Continue with regular state handling using the data property
       stateNumber = state.data;
     } else {
       // Handle the numeric state
       stateNumber = state;
     }
+
+    console.log('[ClipStartDebug] handleStateChange state=', stateNumber,
+      'isPlaying=', isPlaying,
+      'pendingClipStart=', pendingClipStartRef.current,
+      'clipFading=', clipFadingRef.current,
+      'pendingCrossVideo=', !!pendingCrossVideoSeekRef.current);
     
     // Track if we should seek to start (local variable to handle async state updates)
     let shouldSeekToStart = needsLiveStreamSeekToStart;
@@ -513,14 +577,23 @@ const AppContent: React.FC = () => {
       clipFadingRef.current = false;
     }
 
+    // Real playback has begun — lift the pending clip-start guard.
+    if (stateNumber === 1 && pendingClipStartRef.current) {
+      pendingClipStartRef.current = false;
+      if (pendingClipStartTimeoutRef.current) {
+        window.clearTimeout(pendingClipStartTimeoutRef.current);
+        pendingClipStartTimeoutRef.current = null;
+      }
+    }
+
     // Only update playing state if it's different from current state.
     // Skip sync while a clip fade-to-pause is in progress — the YouTube player
     // is still in state 1 (playing) during the fade, but we've intentionally
     // set isPlaying=false to trigger the overlay/volume fade.
     // Also skip sync during cross-video transitions (pending seek not yet applied)
-    // and for transient states like buffering (3) or cued (5) which would
-    // incorrectly toggle isPlaying and fight with programmatic play commands.
-    if (!clipFadingRef.current && !pendingCrossVideoSeekRef.current) {
+    // and during a pending clip start (seek-from-cued emits a transient state 2
+    // that would otherwise flip isPlaying false before playback actually begins).
+    if (!clipFadingRef.current && !pendingCrossVideoSeekRef.current && !pendingClipStartRef.current) {
       if (stateNumber === 1 || stateNumber === 2) {
         const shouldBePlaying = stateNumber === 1;
         if (shouldBePlaying !== isPlaying) {
@@ -790,9 +863,11 @@ const AppContent: React.FC = () => {
   }, [isPlayerReady, player, isAutomaticEventsEnabled, handleFullscreen, isFullscreen, timeEventsRef, userExitedFullscreen, backgroundPlayerRef, currentClipIndex, clips, sequentialTimeData]);
 
   const handleRestart = useCallback(() => {
+    console.log('[ClipStartDebug] handleRestart entry player=', !!player, 'isPlayerReady=', isPlayerReady, 'isPlaybackMode=', isPlaybackMode, 'clips.length=', clips.length);
     if (player && isPlayerReady) {
       // In clip playback mode, restart to first clip's start time
       const seekTarget = (isPlaybackMode && clips.length > 0) ? clips[0].startTime : 0;
+      console.log('[ClipStartDebug] handleRestart seekTarget=', seekTarget, 'first clip videoId=', clips[0]?.videoId, 'current video=', video);
 
       // If first clip is from a different video, switch to it
       if (isPlaybackMode && clips.length > 0 && clips[0].videoId !== video) {
@@ -802,13 +877,12 @@ const AppContent: React.FC = () => {
         pendingCrossVideoSeekRef.current = { videoId: clips[0].videoId, startTime: seekTarget, autoResume: true };
         setVideo(clips[0].videoId);
       } else {
-        player.seekTo(seekTarget, true);
-        // Directly start the player. The seekTo-then-state-update chain is
-        // fragile when the player is in cued (5) or unstarted (-1) state
-        // — the MainVideoFrame useEffect is scheduled after the React batch,
-        // leaving the player idle until buffering coincidentally resumes.
         try {
           player.unMute();
+          // The player is either already at position 0 (no-clip case) or was
+          // cued at the clip start position via startSeconds (clip case). Both
+          // put the player in state 5 (cued) where playVideo works reliably.
+          player.seekTo(seekTarget, true);
           player.playVideo();
         } catch (e) {
           console.log('[App] Error starting player in handleRestart:', e);
@@ -843,7 +917,7 @@ const AppContent: React.FC = () => {
         }, 500);
       }
     }
-  }, [player, isPlayerReady, isPlaying, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen, video]);
+  }, [player, isPlayerReady, isPlaying, resetTimeEvents, isPlaybackMode, clips, setCurrentClipIndex, isFullscreen, handleFullscreen, video, markClipStartPending]);
 
   // Load a different video for clip playback
   const handleLoadVideoForClip = useCallback((newVideoId: string) => {

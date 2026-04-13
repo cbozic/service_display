@@ -334,6 +334,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, currentVideoId, isClipModeActive]);
 
   useEffect(() => {
+    console.log('[ClipStartDebug] MainVideoFrame play effect isPlaying=', isPlaying, 'player=', !!player, 'isPlayerReady=', isPlayerReady);
     if (player && isPlayerReady) {
       if (isPlaying) {
         try {
@@ -342,6 +343,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           player.unMute();
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, volume, fadeDurationInSeconds);
+          console.log('[ClipStartDebug] MainVideoFrame calling player.playVideo()');
           player.playVideo();
           setIsMainPlayerPlaying(true);
 
@@ -355,10 +357,12 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           // Show overlay immediately when pausing
           setShowOverlay(true);
           setIsMainPlayerPlaying(false);
+          console.log('[ClipStartDebug] MainVideoFrame running pause branch');
           // Use the imported fadeToVolume function instead
           const cleanup = fadeToVolume(player, 0, fadeDurationInSeconds, () => {
             if (player && isPlayerReady) {
               try {
+                console.log('[ClipStartDebug] MainVideoFrame pause-fade callback: calling pauseVideo()');
                 player.pauseVideo();
               } catch (e) {
                 console.log('Error pausing video:', e);
