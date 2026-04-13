@@ -277,6 +277,11 @@ const AppContent: React.FC = () => {
   const clipFadingRef = useRef(false);
   const pendingClipStartRef = useRef<boolean>(false);
   const pendingClipStartTimeoutRef = useRef<number | null>(null);
+  // Clip-start seek to apply once the player reaches state 1 (playing).
+  // Seeking a playing video transitions cleanly through buffering back to
+  // playing — unlike seeking a cued (state 5) video, which leaves the player
+  // in state 3 where playVideo cannot transition out.
+  const pendingClipStartSeekRef = useRef<number | null>(null);
 
   // Compute cumulative time data for clip playlists
   const sequentialTimeData = useMemo(
@@ -391,10 +396,11 @@ const AppContent: React.FC = () => {
           pendingSeekOnUnpauseRef.current = null;
           player.seekTo(seekTime, true);
         } else if (isPlaybackMode && clipModeFirstPlayRef.current && clips.length > 0) {
-          // First play in clip playback mode. The player was initialized with
-          // startSeconds = firstClip.startTime (see URL parser), so it's
-          // already cued at the correct position. No seek needed — playVideo
-          // from state 5 cued works reliably (same as non-clip case).
+          // First play in clip playback mode. Don't seek here — the YouTube
+          // player will get stuck in state 3 (buffering) if we seek on a cued
+          // (state 5) player before playVideo. Instead, let playVideo run from
+          // the cued position (0), and seek to the clip start once the player
+          // reaches state 1 (playing) via pendingClipStartSeekRef below.
           clipModeFirstPlayRef.current = false;
           const firstClip = clips[0];
           if (firstClip.videoId !== video) {
@@ -403,6 +409,9 @@ const AppContent: React.FC = () => {
             pendingCrossVideoSeekRef.current = { videoId: firstClip.videoId, startTime: firstClip.startTime, autoResume: true };
             setVideo(firstClip.videoId);
             return; // Don't toggle play yet — the cross-video handler will resume
+          }
+          if (firstClip.startTime > 0) {
+            pendingClipStartSeekRef.current = firstClip.startTime;
           }
         }
       }
@@ -583,6 +592,19 @@ const AppContent: React.FC = () => {
       if (pendingClipStartTimeoutRef.current) {
         window.clearTimeout(pendingClipStartTimeoutRef.current);
         pendingClipStartTimeoutRef.current = null;
+      }
+    }
+
+    // Apply the deferred clip-start seek now that the player is actually
+    // playing. A seek while playing transitions 1 → 3 → 1 cleanly, unlike a
+    // seek while cued (5) which gets stuck in 3.
+    if (stateNumber === 1 && pendingClipStartSeekRef.current !== null && player) {
+      const target = pendingClipStartSeekRef.current;
+      pendingClipStartSeekRef.current = null;
+      try {
+        player.seekTo(target, true);
+      } catch (e) {
+        console.log('[App] Error applying pending clip-start seek:', e);
       }
     }
 
@@ -879,11 +901,17 @@ const AppContent: React.FC = () => {
       } else {
         try {
           player.unMute();
-          // The player is either already at position 0 (no-clip case) or was
-          // cued at the clip start position via startSeconds (clip case). Both
-          // put the player in state 5 (cued) where playVideo works reliably.
-          player.seekTo(seekTarget, true);
-          player.playVideo();
+          if (isPlaybackMode && clips.length > 0 && seekTarget > 0) {
+            // Clip mode: don't seek the cued (state 5) player — it'll get
+            // stuck in state 3 (buffering) and playVideo won't transition it
+            // out. Instead, play from the current cued position, and defer
+            // the seek to the clip start until after state 1 is reached.
+            pendingClipStartSeekRef.current = seekTarget;
+            player.playVideo();
+          } else {
+            player.seekTo(seekTarget, true);
+            player.playVideo();
+          }
         } catch (e) {
           console.log('[App] Error starting player in handleRestart:', e);
         }
