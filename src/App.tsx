@@ -210,6 +210,10 @@ const AppContent: React.FC = () => {
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  // Suppresses the slide image inside the main video overlay so a clip's
+  // "fade to black" transition shows only the solid-black backdrop.
+  const [clipBlackoutMode, setClipBlackoutMode] = useState<boolean>(false);
+  const blackoutResetTimerRef = useRef<number | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [userExitedFullscreen, setUserExitedFullscreen] = useState<boolean>(false);
@@ -318,23 +322,29 @@ const AppContent: React.FC = () => {
         const parsedClips = urlClips.split(',').map((segment, i) => {
           const colonIndex = segment.indexOf(':');
 
+          // Transition suffix: 'f' = fadeToSlide, 'b' = fadeToBlack, anything else = none.
+          const decodeTransition = (suffix: string | undefined): 'none' | 'fadeToSlide' | 'fadeToBlack' => {
+            if (suffix === 'f') return 'fadeToSlide';
+            if (suffix === 'b') return 'fadeToBlack';
+            return 'none';
+          };
           if (colonIndex !== -1) {
-            // Multi-video format: VID:start.end[.0[.f]]
+            // Multi-video format: VID:start.end[.0[.f|.b]]
             const clipVideoId = segment.substring(0, colonIndex);
             const timePart = segment.substring(colonIndex + 1);
             const parts = timePart.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
-            const transitionType: 'fadeToSlide' | 'none' = parts[3] === 'f' ? 'fadeToSlide' : 'none';
+            const transitionType = decodeTransition(parts[3]);
             return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd, transitionType };
           } else {
-            // Legacy format: start.end[.0[.f]] — all clips use ?v= video
+            // Legacy format: start.end[.0[.f|.b]] — all clips use ?v= video
             const parts = segment.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
-            const transitionType: 'fadeToSlide' | 'none' = parts[3] === 'f' ? 'fadeToSlide' : 'none';
+            const transitionType = decodeTransition(parts[3]);
             return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd, transitionType };
           }
         });
@@ -390,6 +400,14 @@ const AppContent: React.FC = () => {
         clipFadingRef.current = false;
       }
 
+      // User-initiated play/pause always shows the slide overlay, never the
+      // blackout backdrop left over from a previous fade-to-black transition.
+      if (blackoutResetTimerRef.current) {
+        window.clearTimeout(blackoutResetTimerRef.current);
+        blackoutResetTimerRef.current = null;
+      }
+      setClipBlackoutMode(false);
+
       // When unpausing, check if we need to seek to a clip position
       if (newPlayState && player) {
         if (pendingSeekOnUnpauseRef.current !== null) {
@@ -425,15 +443,24 @@ const AppContent: React.FC = () => {
   }, [isPlayerReady, isPlaying, player, isPlaybackMode, clips, video, markClipStartPending]);
 
   // Force-pause for clip boundary monitor — not a toggle, and guards against
-  // handleStateChange re-enabling isPlaying while the fade is in progress
-  const handleClipPause = useCallback(() => {
+  // handleStateChange re-enabling isPlaying while the fade is in progress.
+  // `mode` selects what the overlay shows during the fade: the slide deck
+  // ('slide', default) or a solid-black backdrop ('black').
+  const handleClipPause = useCallback((mode: 'slide' | 'black' = 'slide') => {
     clipFadingRef.current = true;
+    if (blackoutResetTimerRef.current) {
+      window.clearTimeout(blackoutResetTimerRef.current);
+      blackoutResetTimerRef.current = null;
+    }
+    setClipBlackoutMode(mode === 'black');
     setIsPlaying(false);
   }, []);
 
-  // Auto-resume into the next clip after a same-video fadeToSlide transition.
-  // Mirrors the play branch of handlePlayPause: seek first, then flip isPlaying
-  // so MainVideoFrame's effect plays + fades the audio/overlay back in.
+  // Auto-resume into the next clip after a same-video fadeToSlide / fadeToBlack
+  // transition. Mirrors the play branch of handlePlayPause: seek first, then
+  // flip isPlaying so MainVideoFrame's effect plays + fades the audio/overlay
+  // back in. Blackout mode is cleared after the overlay's CSS opacity fade-out
+  // completes (~0.5s) so the slide doesn't pop in mid-fade.
   const handleClipAutoResume = useCallback((seekTime: number) => {
     if (!player || !isPlayerReady) return;
     clipFadingRef.current = false;
@@ -444,6 +471,13 @@ const AppContent: React.FC = () => {
       console.log('[App] handleClipAutoResume seek error:', e);
     }
     setIsPlaying(true);
+    if (blackoutResetTimerRef.current) {
+      window.clearTimeout(blackoutResetTimerRef.current);
+    }
+    blackoutResetTimerRef.current = window.setTimeout(() => {
+      setClipBlackoutMode(false);
+      blackoutResetTimerRef.current = null;
+    }, 600);
   }, [player, isPlayerReady]);
 
   const handleFullscreen = useCallback(() => {
@@ -1819,9 +1853,9 @@ const AppContent: React.FC = () => {
     } else if (component === "video") {
       return (
         <div ref={videoPlayerRef} style={{ position: 'relative', height: '100%' }}>
-          <MainVideoFrame 
-            video={video} 
-            startSeconds={parseInt(startTimeInSeconds)} 
+          <MainVideoFrame
+            video={video}
+            startSeconds={parseInt(startTimeInSeconds)}
             overlaySlide={overlaySlide}
             onPlayerReady={handlePlayerReady}
             onStateChange={handleStateChange}
@@ -1834,6 +1868,7 @@ const AppContent: React.FC = () => {
             usePlaylistMode={usePlaylistMode}
             onFullscreenChange={setIsFullscreen}
             isClipModeActive={isClipModeActive}
+            hideSlide={clipBlackoutMode}
           />
           <VideoTimeEvents
             ref={timeEventsRef}

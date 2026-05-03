@@ -18,6 +18,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
+import Brightness2Icon from '@mui/icons-material/Brightness2';
 import SearchIcon from '@mui/icons-material/Search';
 import LinkIcon from '@mui/icons-material/Link';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
@@ -290,7 +291,7 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
 
   const handleCopyShareLink = () => {
     // Multi-video format: VID:start.end (pause), VID:start.end.0 (continue/cut),
-    // VID:start.end.0.f (continue/fade-to-slide).
+    // VID:start.end.0.f (continue/fade-to-slide), VID:start.end.0.b (continue/fade-to-black).
     const clipsParam = clips.map(c => {
       const s = Math.round(c.startTime);
       const e = Math.round(c.endTime);
@@ -299,6 +300,8 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
         timeStr = `${s}.${e}`;
       } else if (c.transitionType === 'fadeToSlide') {
         timeStr = `${s}.${e}.0.f`;
+      } else if (c.transitionType === 'fadeToBlack') {
+        timeStr = `${s}.${e}.0.b`;
       } else {
         timeStr = `${s}.${e}.0`;
       }
@@ -606,8 +609,34 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                     {(() => {
                       const isLastClip = index === clips.length - 1;
                       const showPause = clip.pauseAtEnd || isLastClip;
-                      const isFadeTransition = clip.transitionType === 'fadeToSlide';
+                      const transition = clip.transitionType ?? 'none';
                       const showTransitionToggle = !showPause;
+                      const transitionMeta: Record<'none' | 'fadeToSlide' | 'fadeToBlack', {
+                        next: 'none' | 'fadeToSlide' | 'fadeToBlack';
+                        tooltip: string;
+                        icon: React.ReactElement;
+                        color: string;
+                      }> = {
+                        none: {
+                          next: 'fadeToSlide',
+                          tooltip: 'Hard cut to next clip (click for fade to slide)',
+                          icon: <ContentCutIcon sx={{ fontSize: 16 }} />,
+                          color: 'rgba(255, 255, 255, 0.5)',
+                        },
+                        fadeToSlide: {
+                          next: 'fadeToBlack',
+                          tooltip: 'Fade to slide between clips (click for fade to black)',
+                          icon: <BlurOnIcon sx={{ fontSize: 16 }} />,
+                          color: 'rgba(144, 202, 249, 0.9)',
+                        },
+                        fadeToBlack: {
+                          next: 'none',
+                          tooltip: 'Fade to black between clips (click for hard cut)',
+                          icon: <Brightness2Icon sx={{ fontSize: 16 }} />,
+                          color: 'rgba(206, 147, 216, 0.9)',
+                        },
+                      };
+                      const meta = transitionMeta[transition];
                       return (
                         <>
                           <Tooltip title={isLastClip ? 'Last clip always pauses' : (clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)')}>
@@ -629,18 +658,18 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                             </span>
                           </Tooltip>
                           {showTransitionToggle && (
-                            <Tooltip title={isFadeTransition ? 'Fade to slide between clips (click for hard cut)' : 'Hard cut to next clip (click for fade to slide)'}>
+                            <Tooltip title={meta.tooltip}>
                               <IconButton
                                 size="small"
-                                onClick={() => updateClip(clip.id, { transitionType: isFadeTransition ? 'none' : 'fadeToSlide' })}
+                                onClick={() => updateClip(clip.id, { transitionType: meta.next })}
                                 sx={{
                                   ...iconBtnSx,
                                   width: 28,
                                   height: 28,
-                                  color: isFadeTransition ? 'rgba(144, 202, 249, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                                  color: meta.color,
                                 }}
                               >
-                                {isFadeTransition ? <BlurOnIcon sx={{ fontSize: 16 }} /> : <ContentCutIcon sx={{ fontSize: 16 }} />}
+                                {meta.icon}
                               </IconButton>
                             </Tooltip>
                           )}

@@ -1,4 +1,4 @@
-export type ClipTransitionType = 'none' | 'fadeToSlide';
+export type ClipTransitionType = 'none' | 'fadeToSlide' | 'fadeToBlack';
 
 export interface VideoClip {
   id: string;

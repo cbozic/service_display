@@ -26,6 +26,9 @@ interface MainVideoFrameProps {
   usePlaylistMode?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   isClipModeActive?: boolean;
+  // When true, the slide image is suppressed inside the overlay, so the overlay
+  // shows only its solid black backdrop. Used for clip "fade to black" transitions.
+  hideSlide?: boolean;
 }
 
 const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
@@ -46,7 +49,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   playlistUrl,
   usePlaylistMode = false,
   onFullscreenChange,
-  isClipModeActive = false
+  isClipModeActive = false,
+  hideSlide = false
 }) => {
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -717,11 +721,12 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         </div>
       </div>
       {useOverlay && !isPipMode && (
-        <MainVideoOverlay 
-          showOverlay={showOverlay} 
-          slide={overlaySlide} 
+        <MainVideoOverlay
+          showOverlay={showOverlay}
+          slide={overlaySlide}
           fadeDurationInSeconds={fadeDurationInSeconds}
           style={overlayStyle}
+          hideSlide={hideSlide}
         />
       )}
       <button 
