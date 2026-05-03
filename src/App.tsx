@@ -213,7 +213,6 @@ const AppContent: React.FC = () => {
   // Suppresses the slide image inside the main video overlay so a clip's
   // "fade to black" transition shows only the solid-black backdrop.
   const [clipBlackoutMode, setClipBlackoutMode] = useState<boolean>(false);
-  const blackoutResetTimerRef = useRef<number | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [userExitedFullscreen, setUserExitedFullscreen] = useState<boolean>(false);
@@ -402,10 +401,6 @@ const AppContent: React.FC = () => {
 
       // User-initiated play/pause always shows the slide overlay, never the
       // blackout backdrop left over from a previous fade-to-black transition.
-      if (blackoutResetTimerRef.current) {
-        window.clearTimeout(blackoutResetTimerRef.current);
-        blackoutResetTimerRef.current = null;
-      }
       setClipBlackoutMode(false);
 
       // When unpausing, check if we need to seek to a clip position
@@ -448,10 +443,6 @@ const AppContent: React.FC = () => {
   // ('slide', default) or a solid-black backdrop ('black').
   const handleClipPause = useCallback((mode: 'slide' | 'black' = 'slide') => {
     clipFadingRef.current = true;
-    if (blackoutResetTimerRef.current) {
-      window.clearTimeout(blackoutResetTimerRef.current);
-      blackoutResetTimerRef.current = null;
-    }
     setClipBlackoutMode(mode === 'black');
     setIsPlaying(false);
   }, []);
@@ -459,8 +450,16 @@ const AppContent: React.FC = () => {
   // Auto-resume into the next clip after a same-video fadeToSlide / fadeToBlack
   // transition. Mirrors the play branch of handlePlayPause: seek first, then
   // flip isPlaying so MainVideoFrame's effect plays + fades the audio/overlay
-  // back in. Blackout mode is cleared after the overlay's CSS opacity fade-out
-  // completes (~0.5s) so the slide doesn't pop in mid-fade.
+  // back in.
+  //
+  // Note: we do NOT reset clipBlackoutMode here. Doing so on a timer races with
+  // setShowOverlay(false) (which is delayed by React rendering and the
+  // pause-fade callback's pauseVideo state 2 emission) and can cause the slide
+  // image to pop into a still-opaque overlay. Instead, blackout mode persists
+  // until the next slide-mode action — handlePlayPause or the next clip's
+  // handleClipPause('slide') — both of which explicitly clear it. While
+  // blackout mode is true, the overlay container fades from opaque-black to
+  // transparent (slide image suppressed), which is the desired visual.
   const handleClipAutoResume = useCallback((seekTime: number) => {
     if (!player || !isPlayerReady) return;
     clipFadingRef.current = false;
@@ -471,13 +470,6 @@ const AppContent: React.FC = () => {
       console.log('[App] handleClipAutoResume seek error:', e);
     }
     setIsPlaying(true);
-    if (blackoutResetTimerRef.current) {
-      window.clearTimeout(blackoutResetTimerRef.current);
-    }
-    blackoutResetTimerRef.current = window.setTimeout(() => {
-      setClipBlackoutMode(false);
-      blackoutResetTimerRef.current = null;
-    }, 600);
   }, [player, isPlayerReady]);
 
   const handleFullscreen = useCallback(() => {
