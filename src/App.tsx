@@ -319,21 +319,23 @@ const AppContent: React.FC = () => {
           const colonIndex = segment.indexOf(':');
 
           if (colonIndex !== -1) {
-            // Multi-video format: VID:start.end[.0]
+            // Multi-video format: VID:start.end[.0[.f]]
             const clipVideoId = segment.substring(0, colonIndex);
             const timePart = segment.substring(colonIndex + 1);
             const parts = timePart.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
-            return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd };
+            const transitionType: 'fadeToSlide' | 'none' = parts[3] === 'f' ? 'fadeToSlide' : 'none';
+            return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd, transitionType };
           } else {
-            // Legacy format: start.end[.0] — all clips use ?v= video
+            // Legacy format: start.end[.0[.f]] — all clips use ?v= video
             const parts = segment.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
-            return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd };
+            const transitionType: 'fadeToSlide' | 'none' = parts[3] === 'f' ? 'fadeToSlide' : 'none';
+            return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd, transitionType };
           }
         });
 
@@ -428,6 +430,21 @@ const AppContent: React.FC = () => {
     clipFadingRef.current = true;
     setIsPlaying(false);
   }, []);
+
+  // Auto-resume into the next clip after a same-video fadeToSlide transition.
+  // Mirrors the play branch of handlePlayPause: seek first, then flip isPlaying
+  // so MainVideoFrame's effect plays + fades the audio/overlay back in.
+  const handleClipAutoResume = useCallback((seekTime: number) => {
+    if (!player || !isPlayerReady) return;
+    clipFadingRef.current = false;
+    pendingSeekOnUnpauseRef.current = null;
+    try {
+      player.seekTo(seekTime, true);
+    } catch (e) {
+      console.log('[App] handleClipAutoResume seek error:', e);
+    }
+    setIsPlaying(true);
+  }, [player, isPlayerReady]);
 
   const handleFullscreen = useCallback(() => {
     console.log('[App] Manually toggling fullscreen, resetting userExitedFullscreen flag');
@@ -1833,6 +1850,7 @@ const AppContent: React.FC = () => {
             currentVideoId={video}
             onLoadVideo={handleLoadVideoForClip}
             onCrossVideoSeek={handleCrossVideoSeek}
+            onAutoResume={handleClipAutoResume}
           />
           {showStartOverlay && (
             <div style={{ 

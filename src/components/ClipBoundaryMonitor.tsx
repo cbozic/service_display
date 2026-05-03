@@ -9,6 +9,7 @@ interface ClipBoundaryMonitorProps {
   currentVideoId: string;
   onLoadVideo: (videoId: string) => void;
   onCrossVideoSeek: (videoId: string, startTime: number, autoResume: boolean) => void;
+  onAutoResume: (seekTime: number) => void;
   fadeDurationInSeconds?: number;
 }
 
@@ -20,6 +21,7 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   currentVideoId,
   onLoadVideo,
   onCrossVideoSeek,
+  onAutoResume,
   fadeDurationInSeconds = 2,
 }) => {
   const {
@@ -89,12 +91,19 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
 
         const isLastClip = currentClipIndex >= clips.length - 1;
         const willPause = currentClip.pauseAtEnd || isLastClip;
+        const nextClipPreview = !isLastClip ? clips[currentClipIndex + 1] : null;
+        const nextClipSameVideo = nextClipPreview ? nextClipPreview.videoId === currentVideoId : false;
+        // Per design: cross-video continuing clips already fade through onPause()+autoResume
+        // in the auto-continue branch below, so transitionType is honored only same-video.
+        const isFadeToSlide = !willPause && nextClipSameVideo
+          && currentClip.transitionType === 'fadeToSlide';
+        const fadesOut = willPause || isFadeToSlide;
 
-        // For clips that will pause: start the overlay/audio fade early so
-        // the transition completes right at the clip's end time. The video
-        // keeps playing during the fade (MainVideoFrame only calls
-        // pauseVideo() after the fade finishes).
-        if (willPause && !fadeStartedRef.current) {
+        // For clips that fade out (pause OR same-video fadeToSlide): start the
+        // overlay/audio fade early so the transition completes right at the
+        // clip's end time. The video keeps playing during the fade
+        // (MainVideoFrame only calls pauseVideo() after the fade finishes).
+        if (fadesOut && !fadeStartedRef.current) {
           const fadeStartTime = currentClip.endTime - fadeDurationInSeconds;
           if (currentTime >= fadeStartTime) {
             fadeStartedRef.current = true;
@@ -127,6 +136,12 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
                     setCurrentClipIndex(currentClipIndex + 1);
                     onCrossVideoSeek(nextClip.videoId, nextClip.startTime, false);
                     onLoadVideo(nextClip.videoId);
+                  } else if (isFadeToSlide) {
+                    // Same-video fadeToSlide: advance and immediately auto-resume
+                    // playback at the next clip's start (slide fades back out as
+                    // audio fades back in via the play branch in MainVideoFrame).
+                    setCurrentClipIndex(currentClipIndex + 1);
+                    onAutoResume(nextClip.startTime);
                   } else {
                     setCurrentClipIndex(currentClipIndex + 1);
                     pendingSeekOnUnpauseRef.current = nextClip.startTime;
@@ -182,7 +197,7 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
     isPlaying, isPlaybackMode, player,
     clips, currentClipIndex, isTransitioningBetweenClips,
     onPause, pendingSeekOnUnpauseRef, currentVideoId,
-    onLoadVideo, onCrossVideoSeek, fadeDurationInSeconds,
+    onLoadVideo, onCrossVideoSeek, onAutoResume, fadeDurationInSeconds,
     setCurrentClipIndex, setIsTransitioningBetweenClips,
   ]);
 

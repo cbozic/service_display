@@ -1,3 +1,5 @@
+export type ClipTransitionType = 'none' | 'fadeToSlide';
+
 export interface VideoClip {
   id: string;
   videoId: string;      // YouTube video ID this clip belongs to
@@ -5,6 +7,7 @@ export interface VideoClip {
   endTime: number;      // seconds
   label?: string;
   pauseAtEnd: boolean;  // true = pause at clip end; false = auto-continue to next
+  transitionType?: ClipTransitionType; // only meaningful when pauseAtEnd === false
 }
 
 export interface ClipPlaylist {
