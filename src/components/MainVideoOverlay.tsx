@@ -6,13 +6,18 @@ interface MainVideoOverlayProps {
   slide?: string;
   fadeDurationInSeconds: number;
   style?: CSSProperties;
+  // When true, the overlay still fades in/out but the slide image is suppressed,
+  // so the user sees only the solid black backdrop. Used for clip "fade to black"
+  // transitions.
+  hideSlide?: boolean;
 }
 
-const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({ 
-  showOverlay, 
-  slide, 
+const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
+  showOverlay,
+  slide,
   fadeDurationInSeconds,
-  style = {}
+  style = {},
+  hideSlide = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -86,10 +91,10 @@ const MainVideoOverlay: React.FC<MainVideoOverlayProps> = ({
   return (
     <div className="overlay" style={overlayStyle} ref={containerRef}>
       <div className="overlay-image-container">
-        {slide && (
-          <img 
+        {slide && !hideSlide && (
+          <img
             ref={imageRef}
-            src={slide} 
+            src={slide}
             alt="Overlay"
             style={imageStyle}
           />

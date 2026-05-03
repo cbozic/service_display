@@ -4,7 +4,9 @@ import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
 interface ClipBoundaryMonitorProps {
   player: any;
   isPlaying: boolean;
-  onPause: () => void;
+  // mode selects what the overlay shows during the fade: the slide deck
+  // ('slide', default) or a solid-black backdrop ('black').
+  onPause: (mode?: 'slide' | 'black') => void;
   pendingSeekOnUnpauseRef: React.MutableRefObject<number | null>;
   currentVideoId: string;
   onLoadVideo: (videoId: string) => void;
@@ -97,19 +99,24 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
         // in the auto-continue branch below, so transitionType is honored only same-video.
         const isFadeToSlide = !willPause && nextClipSameVideo
           && currentClip.transitionType === 'fadeToSlide';
-        const fadesOut = willPause || isFadeToSlide;
+        const isFadeToBlack = !willPause && nextClipSameVideo
+          && currentClip.transitionType === 'fadeToBlack';
+        const isAutoResumeFade = isFadeToSlide || isFadeToBlack;
+        const fadesOut = willPause || isAutoResumeFade;
 
-        // For clips that fade out (pause OR same-video fadeToSlide): start the
-        // overlay/audio fade early so the transition completes right at the
-        // clip's end time. The video keeps playing during the fade
+        // For clips that fade out (pause OR same-video fadeToSlide/fadeToBlack):
+        // start the overlay/audio fade early so the transition completes right
+        // at the clip's end time. The video keeps playing during the fade
         // (MainVideoFrame only calls pauseVideo() after the fade finishes).
         if (fadesOut && !fadeStartedRef.current) {
           const fadeStartTime = currentClip.endTime - fadeDurationInSeconds;
           if (currentTime >= fadeStartTime) {
             fadeStartedRef.current = true;
 
-            // Start the visual/audio fade — video keeps playing
-            onPause();
+            // Start the visual/audio fade — video keeps playing.
+            // Tell the overlay to show the slide for fadeToSlide/pause clips
+            // and a solid-black backdrop for fadeToBlack clips.
+            onPause(isFadeToBlack ? 'black' : 'slide');
 
             // Schedule clip advancement for when the fade completes (at endTime)
             const remainingMs = Math.max(0, (currentClip.endTime - currentTime) * 1000);
@@ -136,10 +143,11 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
                     setCurrentClipIndex(currentClipIndex + 1);
                     onCrossVideoSeek(nextClip.videoId, nextClip.startTime, false);
                     onLoadVideo(nextClip.videoId);
-                  } else if (isFadeToSlide) {
-                    // Same-video fadeToSlide: advance and immediately auto-resume
-                    // playback at the next clip's start (slide fades back out as
-                    // audio fades back in via the play branch in MainVideoFrame).
+                  } else if (isAutoResumeFade) {
+                    // Same-video fadeToSlide / fadeToBlack: advance and
+                    // immediately auto-resume playback at the next clip's start
+                    // (overlay fades back out as audio fades back in via the
+                    // play branch in MainVideoFrame).
                     setCurrentClipIndex(currentClipIndex + 1);
                     onAutoResume(nextClip.startTime);
                   } else {
