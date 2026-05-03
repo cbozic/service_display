@@ -16,6 +16,8 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
+import BlurOnIcon from '@mui/icons-material/BlurOn';
 import SearchIcon from '@mui/icons-material/Search';
 import LinkIcon from '@mui/icons-material/Link';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
@@ -287,11 +289,19 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   };
 
   const handleCopyShareLink = () => {
-    // Multi-video format: VID:start.end or VID:start.end.0 for continue
+    // Multi-video format: VID:start.end (pause), VID:start.end.0 (continue/cut),
+    // VID:start.end.0.f (continue/fade-to-slide).
     const clipsParam = clips.map(c => {
       const s = Math.round(c.startTime);
       const e = Math.round(c.endTime);
-      const timeStr = c.pauseAtEnd ? `${s}.${e}` : `${s}.${e}.0`;
+      let timeStr: string;
+      if (c.pauseAtEnd) {
+        timeStr = `${s}.${e}`;
+      } else if (c.transitionType === 'fadeToSlide') {
+        timeStr = `${s}.${e}.0.f`;
+      } else {
+        timeStr = `${s}.${e}.0`;
+      }
       return `${c.videoId}:${timeStr}`;
     }).join(',');
     const url = new URL(window.location.href.split('?')[0]);
@@ -596,25 +606,45 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                     {(() => {
                       const isLastClip = index === clips.length - 1;
                       const showPause = clip.pauseAtEnd || isLastClip;
+                      const isFadeTransition = clip.transitionType === 'fadeToSlide';
+                      const showTransitionToggle = !showPause;
                       return (
-                        <Tooltip title={isLastClip ? 'Last clip always pauses' : (clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)')}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={isLastClip}
-                              onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
-                              sx={{
-                                ...iconBtnSx,
-                                fontSize: '0.65rem',
-                                width: 28,
-                                height: 28,
-                                color: showPause ? 'rgba(255, 255, 255, 0.5)' : 'rgba(76, 175, 80, 0.8)',
-                              }}
-                            >
-                              {showPause ? <PauseIcon sx={{ fontSize: 16 }} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        <>
+                          <Tooltip title={isLastClip ? 'Last clip always pauses' : (clip.pauseAtEnd ? 'Pauses at end (click to continue)' : 'Continues to next (click to pause)')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={isLastClip}
+                                onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
+                                sx={{
+                                  ...iconBtnSx,
+                                  fontSize: '0.65rem',
+                                  width: 28,
+                                  height: 28,
+                                  color: showPause ? 'rgba(255, 255, 255, 0.5)' : 'rgba(76, 175, 80, 0.8)',
+                                }}
+                              >
+                                {showPause ? <PauseIcon sx={{ fontSize: 16 }} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          {showTransitionToggle && (
+                            <Tooltip title={isFadeTransition ? 'Fade to slide between clips (click for hard cut)' : 'Hard cut to next clip (click for fade to slide)'}>
+                              <IconButton
+                                size="small"
+                                onClick={() => updateClip(clip.id, { transitionType: isFadeTransition ? 'none' : 'fadeToSlide' })}
+                                sx={{
+                                  ...iconBtnSx,
+                                  width: 28,
+                                  height: 28,
+                                  color: isFadeTransition ? 'rgba(144, 202, 249, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                                }}
+                              >
+                                {isFadeTransition ? <BlurOnIcon sx={{ fontSize: 16 }} /> : <ContentCutIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </>
                       );
                     })()}
 
