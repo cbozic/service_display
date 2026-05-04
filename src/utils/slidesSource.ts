@@ -1,5 +1,5 @@
 export const SLIDES_ALIASES: Record<string, string> = {
-  current: 'https://github.com/cbozic/service_display/releases/download/slides-current/slides.gif',
+  current: 'https://github.com/cbozic/service_display/releases/download/slides-current/BGGSlides.gif',
 };
 
 export const DEFAULT_REMOTE_ALIAS = 'current';
