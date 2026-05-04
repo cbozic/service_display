@@ -255,23 +255,28 @@ const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({
       backgroundColor: '#111111',
       transition: 'background-color 0.3s ease'
     }}>
-      <div style={{ 
-        padding: '20px', 
-        display: 'flex', 
-        flexDirection: 'row', 
+      <div style={{
+        padding: '12px',
+        display: 'flex',
+        flexDirection: 'row',
         justifyContent: 'center',
         gap: '20px',
         backgroundColor: '#111111',
         transition: 'background-color 0.3s ease'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          gap: '10px', 
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '8px',
+          rowGap: '8px',
           alignItems: 'center',
+          justifyContent: 'flex-start',
           backgroundColor: 'rgba(0, 0, 0, 0.7)',
           backdropFilter: 'blur(10px)',
           borderRadius: '10px',
-          padding: '10px',
+          padding: '8px',
+          minWidth: 0,
+          maxWidth: '100%',
           transition: 'background-color 0.3s ease'
         }}>
           <input
@@ -332,7 +337,9 @@ const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({
             size="small"
             variant="outlined"
             sx={{
-              width: 220,
+              flex: '1 1 120px',
+              minWidth: 80,
+              maxWidth: 260,
               '& .MuiOutlinedInput-root': {
                 color: 'white',
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
