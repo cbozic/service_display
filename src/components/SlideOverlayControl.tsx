@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, List, ListItem, Paper, CircularProgress, Typography, Button, IconButton, Tooltip } from '@mui/material';
+import { Box, List, ListItem, Paper, CircularProgress, Typography, Button, IconButton, Tooltip, TextField } from '@mui/material';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import CountdownOverlay from './CountdownOverlay';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
+import LinkIcon from '@mui/icons-material/Link';
 
 interface SlideOverlayControlProps {
   gifPath: string;
@@ -11,21 +12,24 @@ interface SlideOverlayControlProps {
   onFramesUpdate?: (frames: string[]) => void;
   currentFrameIndex?: number;
   isAnimationEnabled?: boolean;
-  setGifPath: (path: string) => void;
+  onLoadFile?: (dataUrl: string) => void;
+  onLoadFromUrl?: (url: string) => void;
   onAnimationToggle?: (enabled: boolean) => void;
   onError?: () => void;
 }
 
-const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({ 
-  gifPath, 
+const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({
+  gifPath,
   onFrameSelect,
   onFramesUpdate,
   currentFrameIndex = -1,
   isAnimationEnabled = false,
-  setGifPath,
+  onLoadFile,
+  onLoadFromUrl,
   onAnimationToggle,
   onError
 }) => {
+  const [urlInput, setUrlInput] = useState<string>('');
   const [frames, setFrames] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,12 +158,20 @@ const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        setGifPath(result);
+        onLoadFile?.(result);
         // Disable transitions after loading new slides
         onAnimationToggle?.(false);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleUrlSubmit = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    onLoadFromUrl?.(trimmed);
+    onAnimationToggle?.(false);
+    setUrlInput('');
   };
 
   const handleAnimationToggle = () => {
@@ -300,12 +312,59 @@ const SlideOverlayControl: React.FC<SlideOverlayControlProps> = ({
             }}
             PopperProps={tooltipPopperProps}
           >
-            <IconButton 
-              onClick={handleAnimationToggle} 
+            <IconButton
+              onClick={handleAnimationToggle}
               sx={slideTransitionsButtonStyle}
             >
               <SlideshowOutlinedIcon />
             </IconButton>
+          </Tooltip>
+          <TextField
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleUrlSubmit();
+              }
+            }}
+            placeholder="Slides GIF URL"
+            size="small"
+            variant="outlined"
+            sx={{
+              width: 220,
+              '& .MuiOutlinedInput-root': {
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                '&.Mui-focused fieldset': { borderColor: 'rgba(255, 255, 255, 0.7)' },
+              },
+              '& .MuiOutlinedInput-input::placeholder': {
+                color: 'rgba(255, 255, 255, 0.5)',
+                opacity: 1,
+              },
+            }}
+          />
+          <Tooltip
+            title="Load Slides from URL"
+            placement="top"
+            arrow
+            componentsProps={{ tooltip: { sx: tooltipSx } }}
+            PopperProps={tooltipPopperProps}
+          >
+            <span>
+              <IconButton
+                onClick={handleUrlSubmit}
+                disabled={!urlInput.trim()}
+                sx={{
+                  ...buttonStyle,
+                  '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' },
+                }}
+              >
+                <LinkIcon />
+              </IconButton>
+            </span>
           </Tooltip>
         </div>
       </div>

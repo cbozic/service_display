@@ -26,6 +26,7 @@ import ClipBoundaryMonitor from './components/ClipBoundaryMonitor';
 import { TimeEventsProvider } from './contexts/TimeEventsContext';
 import { ClipPlaylistProvider, useClipPlaylist } from './contexts/ClipPlaylistContext';
 import { computeSequentialTimeData, getCumulativeElapsedTime } from './utils/clipTimeUtils';
+import { SLIDES_ALIASES, DEFAULT_REMOTE_ALIAS, resolveSlidesParam, SlidesSource } from './utils/slidesSource';
 
 // System-wide constants
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
@@ -243,7 +244,32 @@ const AppContent: React.FC = () => {
     return import.meta.env.BASE_URL.replace(/\/$/, '');
   };
   
-  const [gifPath, setGifPath] = useState<string>(`${getBasePath()}/default_content/slides/default_slides.gif`);
+  // Resolve the initial slides source from `?slides=` (alias or full URL).
+  // Falls back to auto-fetching DEFAULT_REMOTE_ALIAS, then to the bundled GIF on fetch failure.
+  const getInitialSlides = (): { source: SlidesSource; gifPath: string; isAutoFallback: boolean } => {
+    const params = new URLSearchParams(window.location.search);
+    const resolved = resolveSlidesParam(params.get('slides'));
+    if (resolved && (resolved.kind === 'alias' || resolved.kind === 'remote')) {
+      return { source: resolved, gifPath: resolved.url, isAutoFallback: false };
+    }
+    const aliasUrl = SLIDES_ALIASES[DEFAULT_REMOTE_ALIAS];
+    if (aliasUrl) {
+      return {
+        source: { kind: 'alias', alias: DEFAULT_REMOTE_ALIAS, url: aliasUrl },
+        gifPath: aliasUrl,
+        isAutoFallback: true,
+      };
+    }
+    return {
+      source: { kind: 'bundled' },
+      gifPath: `${getBasePath()}/default_content/slides/default_slides.gif`,
+      isAutoFallback: false,
+    };
+  };
+  const initialSlides = useMemo(getInitialSlides, []);
+  const [gifPath, setGifPath] = useState<string>(initialSlides.gifPath);
+  const [slidesSource, setSlidesSource] = useState<SlidesSource>(initialSlides.source);
+  const pendingAutoFallbackRef = useRef<boolean>(initialSlides.isAutoFallback);
   
   const [isSlideTransitionsEnabled, setIsSlideTransitionsEnabled] = useState<boolean>(false);
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -689,6 +715,28 @@ const AppContent: React.FC = () => {
       setCurrentFrameIndex(0);
       // Enable slide transitions when frames are first loaded
       setIsSlideTransitionsEnabled(true);
+    }
+  }, []);
+
+  const handleLoadSlidesFromFile = useCallback((dataUrl: string) => {
+    setGifPath(dataUrl);
+    setSlidesSource({ kind: 'upload' });
+    pendingAutoFallbackRef.current = false;
+  }, []);
+
+  const handleLoadSlidesFromUrl = useCallback((url: string) => {
+    setGifPath(url);
+    setSlidesSource({ kind: 'remote', url });
+    pendingAutoFallbackRef.current = false;
+  }, []);
+
+  // Silently revert to bundled GIF when the auto-fetched alias fails (e.g. offline,
+  // CORS, 404). Explicit user-selected URLs keep the visible error from the loader.
+  const handleSlidesError = useCallback(() => {
+    if (pendingAutoFallbackRef.current) {
+      pendingAutoFallbackRef.current = false;
+      setGifPath(`${getBasePath()}/default_content/slides/default_slides.gif`);
+      setSlidesSource({ kind: 'bundled' });
     }
   }, []);
 
@@ -1578,21 +1626,23 @@ const AppContent: React.FC = () => {
       console.log('[App] Initializing slides');
       const slidesComponent = document.createElement('div');
       const slidesInstance = (
-        <SlideOverlayControl 
-          gifPath={gifPath} 
-          onFrameSelect={handleFrameSelect} 
+        <SlideOverlayControl
+          gifPath={gifPath}
+          onFrameSelect={handleFrameSelect}
           onFramesUpdate={handleFramesUpdate}
           currentFrameIndex={currentFrameIndex}
           isAnimationEnabled={isSlideTransitionsEnabled}
-          setGifPath={setGifPath}
+          onLoadFile={handleLoadSlidesFromFile}
+          onLoadFromUrl={handleLoadSlidesFromUrl}
           onAnimationToggle={setIsSlideTransitionsEnabled}
+          onError={handleSlidesError}
         />
       );
       const root = createRoot(slidesComponent);
       root.render(slidesInstance);
       slidesInitializedRef.current = true;
     }
-  }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled]);
+  }, [gifPath, handleFrameSelect, handleFramesUpdate, currentFrameIndex, isSlideTransitionsEnabled, handleLoadSlidesFromFile, handleLoadSlidesFromUrl, handleSlidesError]);
 
   // Initialize video list when app loads
   useEffect(() => {
@@ -1985,14 +2035,16 @@ const AppContent: React.FC = () => {
       return <ChromaticTuner />;
     } else if (component === "slides") {
       return (
-        <SlideOverlayControl 
-          gifPath={gifPath} 
-          onFrameSelect={handleFrameSelect} 
+        <SlideOverlayControl
+          gifPath={gifPath}
+          onFrameSelect={handleFrameSelect}
           onFramesUpdate={handleFramesUpdate}
           currentFrameIndex={currentFrameIndex}
           isAnimationEnabled={isSlideTransitionsEnabled}
-          setGifPath={setGifPath}
+          onLoadFile={handleLoadSlidesFromFile}
+          onLoadFromUrl={handleLoadSlidesFromUrl}
           onAnimationToggle={setIsSlideTransitionsEnabled}
+          onError={handleSlidesError}
         />
       );
     } else if (component === "clips") {
@@ -2003,6 +2055,7 @@ const AppContent: React.FC = () => {
           videoDuration={videoDuration}
           onSeekToTime={handleTimeChange}
           onLoadVideo={handleLoadVideoForClip}
+          slidesSource={slidesSource}
         />
       );
     } else if (component === "videoMonitor") {

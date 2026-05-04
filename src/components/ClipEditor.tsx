@@ -23,6 +23,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import LinkIcon from '@mui/icons-material/Link';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
 import { VideoClip } from '../types/clipPlaylist';
+import { SlidesSource, toShareParam } from '../utils/slidesSource';
 
 interface ClipEditorProps {
   currentVideoTime: number;
@@ -30,6 +31,7 @@ interface ClipEditorProps {
   videoDuration: number;
   onSeekToTime?: (time: number) => void;
   onLoadVideo?: (videoId: string) => void;
+  slidesSource?: SlidesSource;
 }
 
 // Generate a simple unique ID
@@ -82,7 +84,7 @@ interface VideoOption {
   title: string;
 }
 
-const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime, onLoadVideo }) => {
+const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime, onLoadVideo, slidesSource }) => {
   const {
     clips, clipInPoint, isClipModeActive, isPlaybackMode, videoTitles, currentClipIndex,
     addClip, removeClip, updateClip, reorderClips, clearClips,
@@ -313,6 +315,12 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       url.searchParams.set('v', clips[0].videoId);
     }
     url.searchParams.set('c', clipsParam);
+    if (slidesSource) {
+      const slidesParam = toShareParam(slidesSource);
+      if (slidesParam !== null) {
+        url.searchParams.set('slides', slidesParam);
+      }
+    }
     navigator.clipboard.writeText(url.toString()).then(() => {
       setSnackbar({ message: 'Share link copied to clipboard', severity: 'success' });
     }).catch(() => {
