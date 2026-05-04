@@ -1,5 +1,9 @@
+// Hosted on a force-pushed `slides-assets` orphan branch in the same repo.
+// raw.githubusercontent.com sets `Access-Control-Allow-Origin: *`, which
+// release-download URLs do not (their redirects to release-assets.githubusercontent.com
+// are blocked by browser CORS). See scripts/update-slides.sh for the push workflow.
 export const SLIDES_ALIASES: Record<string, string> = {
-  current: 'https://github.com/cbozic/service_display/releases/download/slides-current/BGGSlides.gif',
+  current: 'https://raw.githubusercontent.com/cbozic/service_display/slides-assets/slides.gif',
 };
 
 export const DEFAULT_REMOTE_ALIAS = 'current';
