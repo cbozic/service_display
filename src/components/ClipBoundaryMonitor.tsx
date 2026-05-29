@@ -7,6 +7,7 @@ interface ClipBoundaryMonitorProps {
   // mode selects what the overlay shows during the fade: the slide deck
   // ('slide', default) or a solid-black backdrop ('black').
   onPause: (mode?: 'slide' | 'black') => void;
+  onSelectSlide?: (index: number) => void;
   pendingSeekOnUnpauseRef: React.MutableRefObject<number | null>;
   currentVideoId: string;
   onLoadVideo: (videoId: string) => void;
@@ -19,6 +20,7 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   player,
   isPlaying,
   onPause,
+  onSelectSlide,
   pendingSeekOnUnpauseRef,
   currentVideoId,
   onLoadVideo,
@@ -116,6 +118,9 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
             // Start the visual/audio fade — video keeps playing.
             // Tell the overlay to show the slide for fadeToSlide/pause clips
             // and a solid-black backdrop for fadeToBlack clips.
+            if (willPause && currentClip.pauseSlide !== undefined && onSelectSlide) {
+              onSelectSlide(currentClip.pauseSlide);
+            }
             onPause(isFadeToBlack ? 'black' : 'slide');
 
             // Schedule clip advancement for when the fade completes (at endTime)
@@ -204,7 +209,7 @@ const ClipBoundaryMonitor: React.FC<ClipBoundaryMonitorProps> = ({
   }, [
     isPlaying, isPlaybackMode, player,
     clips, currentClipIndex, isTransitioningBetweenClips,
-    onPause, pendingSeekOnUnpauseRef, currentVideoId,
+    onPause, onSelectSlide, pendingSeekOnUnpauseRef, currentVideoId,
     onLoadVideo, onCrossVideoSeek, onAutoResume, fadeDurationInSeconds,
     setCurrentClipIndex, setIsTransitioningBetweenClips,
   ]);

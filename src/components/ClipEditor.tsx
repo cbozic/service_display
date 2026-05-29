@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box, Button, IconButton, List, ListItem, Typography, TextField,
   Tooltip, Alert, Snackbar, Menu, MenuItem,
-  Autocomplete
+  Autocomplete, Popover
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
@@ -21,6 +21,8 @@ import BlurOnIcon from '@mui/icons-material/BlurOn';
 import Brightness2Icon from '@mui/icons-material/Brightness2';
 import SearchIcon from '@mui/icons-material/Search';
 import LinkIcon from '@mui/icons-material/Link';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import ClearIcon from '@mui/icons-material/Clear';
 import { useClipPlaylist } from '../contexts/ClipPlaylistContext';
 import { VideoClip } from '../types/clipPlaylist';
 import { SlidesSource, toShareParam } from '../utils/slidesSource';
@@ -32,6 +34,7 @@ interface ClipEditorProps {
   onSeekToTime?: (time: number) => void;
   onLoadVideo?: (videoId: string) => void;
   slidesSource?: SlidesSource;
+  slideThumbnails?: string[];
 }
 
 // Generate a simple unique ID
@@ -84,7 +87,7 @@ interface VideoOption {
   title: string;
 }
 
-const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime, onLoadVideo, slidesSource }) => {
+const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, videoDuration, onSeekToTime, onLoadVideo, slidesSource, slideThumbnails = [] }) => {
   const {
     clips, clipInPoint, isClipModeActive, isPlaybackMode, videoTitles, currentClipIndex,
     addClip, removeClip, updateClip, reorderClips, clearClips,
@@ -100,6 +103,7 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [reorderMenuAnchor, setReorderMenuAnchor] = useState<{ el: HTMLElement; index: number } | null>(null);
   const [selectedVideoId, setSelectedVideoId] = useState<string>(videoId);
+  const [slidePickerAnchor, setSlidePickerAnchor] = useState<{ el: HTMLElement; clipId: string } | null>(null);
 
   // Sync selectedVideoId when the player video changes externally
   useEffect(() => {
@@ -299,7 +303,8 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
       const e = Math.round(c.endTime);
       let timeStr: string;
       if (c.pauseAtEnd) {
-        timeStr = `${s}.${e}`;
+        // Append slide token only when a slide is pinned (1-based in URL)
+        timeStr = c.pauseSlide !== undefined ? `${s}.${e}.s${c.pauseSlide + 1}` : `${s}.${e}`;
       } else if (c.transitionType === 'fadeToSlide') {
         timeStr = `${s}.${e}.0.f`;
       } else if (c.transitionType === 'fadeToBlack') {
@@ -665,6 +670,22 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                               </IconButton>
                             </span>
                           </Tooltip>
+                          {showPause && slideThumbnails.length > 0 && (
+                            <Tooltip title={clip.pauseSlide !== undefined ? `Pause slide: ${clip.pauseSlide + 1} (click to change)` : 'No pause slide set (click to select)'}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => setSlidePickerAnchor({ el: e.currentTarget, clipId: clip.id })}
+                                sx={{
+                                  ...iconBtnSx,
+                                  width: 28,
+                                  height: 28,
+                                  color: clip.pauseSlide !== undefined ? 'rgba(144, 202, 249, 0.9)' : 'rgba(255, 255, 255, 0.3)',
+                                }}
+                              >
+                                <PhotoLibraryIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                           {showTransitionToggle && (
                             <Tooltip title={meta.tooltip}>
                               <IconButton
@@ -758,6 +779,67 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
           </Alert>
         ) : undefined}
       </Snackbar>
+
+      {/* Slide picker popover */}
+      <Popover
+        open={slidePickerAnchor !== null}
+        anchorEl={slidePickerAnchor?.el}
+        onClose={() => setSlidePickerAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { bgcolor: '#1e1e1e', p: 1, maxWidth: 320 } }}
+      >
+        {slidePickerAnchor && (() => {
+          const pickerClip = clips.find(c => c.id === slidePickerAnchor.clipId);
+          return (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Select pause slide
+                </Typography>
+                {pickerClip?.pauseSlide !== undefined && (
+                  <Tooltip title="Clear slide selection">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        updateClip(slidePickerAnchor.clipId, { pauseSlide: undefined });
+                        setSlidePickerAnchor(null);
+                      }}
+                      sx={{ color: 'rgba(255,255,255,0.5)', p: 0.25 }}
+                    >
+                      <ClearIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight: 240, overflowY: 'auto' }}>
+                {slideThumbnails.map((thumb, idx) => (
+                  <Box
+                    key={idx}
+                    component="img"
+                    src={thumb}
+                    onClick={() => {
+                      updateClip(slidePickerAnchor.clipId, { pauseSlide: idx });
+                      setSlidePickerAnchor(null);
+                    }}
+                    sx={{
+                      width: 72,
+                      height: 54,
+                      objectFit: 'cover',
+                      cursor: 'pointer',
+                      borderRadius: 0.5,
+                      border: pickerClip?.pauseSlide === idx
+                        ? '2px solid rgba(144, 202, 249, 0.9)'
+                        : '2px solid transparent',
+                      '&:hover': { border: '2px solid rgba(255,255,255,0.5)' },
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          );
+        })()}
+      </Popover>
     </Box>
   );
 };
