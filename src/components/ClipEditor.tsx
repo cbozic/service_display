@@ -657,7 +657,11 @@ const ClipEditor: React.FC<ClipEditorProps> = ({ currentVideoTime, videoId, vide
                               <IconButton
                                 size="small"
                                 disabled={isLastClip}
-                                onClick={() => updateClip(clip.id, { pauseAtEnd: !clip.pauseAtEnd })}
+                                onClick={() => updateClip(clip.id, {
+                                  pauseAtEnd: !clip.pauseAtEnd,
+                                  // Clear pinned slide when switching to continue mode
+                                  ...(!clip.pauseAtEnd ? {} : { pauseSlide: undefined }),
+                                })}
                                 sx={{
                                   ...iconBtnSx,
                                   fontSize: '0.65rem',
