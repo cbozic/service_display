@@ -8,6 +8,7 @@ export interface VideoClip {
   label?: string;
   pauseAtEnd: boolean;  // true = pause at clip end; false = auto-continue to next
   transitionType?: ClipTransitionType; // only meaningful when pauseAtEnd === false
+  pauseSlide?: number;  // 0-based frame index to show when pausing; undefined = no selection
 }
 
 export interface ClipPlaylist {

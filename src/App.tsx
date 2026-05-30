@@ -275,6 +275,7 @@ const AppContent: React.FC = () => {
   const slideAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const framesRef = useRef<string[]>([]);
+  const [frames, setFrames] = useState<string[]>([]);
   const [isPipMode, setIsPipMode] = useState<boolean>(false);
   const [videoVolume, setVideoVolume] = useState<number>(100);
   const [isDucking, setIsDucking] = useState<boolean>(false);
@@ -353,24 +354,34 @@ const AppContent: React.FC = () => {
             if (suffix === 'b') return 'fadeToBlack';
             return 'none';
           };
+          // Decode optional pauseSlide from a "sN" token (1-based in URL, 0-based in model)
+          const decodePauseSlide = (token: string | undefined): number | undefined => {
+            if (token?.startsWith('s')) {
+              const n = parseInt(token.slice(1), 10);
+              return isNaN(n) ? undefined : n - 1;
+            }
+            return undefined;
+          };
           if (colonIndex !== -1) {
-            // Multi-video format: VID:start.end[.0[.f|.b]]
+            // Multi-video format: VID:start.end[.sN] (pause) or VID:start.end.0[.f|.b] (continue)
             const clipVideoId = segment.substring(0, colonIndex);
             const timePart = segment.substring(colonIndex + 1);
             const parts = timePart.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
+            const pauseSlide = pauseAtEnd ? decodePauseSlide(parts[2]) : undefined;
             const transitionType = decodeTransition(parts[3]);
-            return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd, transitionType };
+            return { id: `u${i}`, videoId: clipVideoId, startTime, endTime, pauseAtEnd, pauseSlide, transitionType };
           } else {
-            // Legacy format: start.end[.0[.f|.b]] — all clips use ?v= video
+            // Legacy format: start.end[.sN] (pause) or start.end.0[.f|.b] (continue)
             const parts = segment.split('.');
             const startTime = parseInt(parts[0], 10);
             const endTime = parseInt(parts[1], 10);
             const pauseAtEnd = parts[2] !== '0';
+            const pauseSlide = pauseAtEnd ? decodePauseSlide(parts[2]) : undefined;
             const transitionType = decodeTransition(parts[3]);
-            return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd, transitionType };
+            return { id: `u${i}`, videoId: urlVideo || video, startTime, endTime, pauseAtEnd, pauseSlide, transitionType };
           }
         });
 
@@ -708,15 +719,22 @@ const AppContent: React.FC = () => {
     }
   }, [isSlideTransitionsEnabled]);
 
-  const handleFramesUpdate = useCallback((frames: string[]) => {
-    framesRef.current = frames;
-    if (frames.length > 0) {
-      setOverlaySlide(frames[0]);
+  const handleFramesUpdate = useCallback((newFrames: string[]) => {
+    framesRef.current = newFrames;
+    setFrames(newFrames);
+    if (newFrames.length > 0) {
+      setOverlaySlide(newFrames[0]);
       setCurrentFrameIndex(0);
       // Enable slide transitions when frames are first loaded
       setIsSlideTransitionsEnabled(true);
     }
   }, []);
+
+  const handleSelectSlide = useCallback((index: number) => {
+    if (framesRef.current[index] !== undefined) {
+      handleFrameSelect(framesRef.current[index], index);
+    }
+  }, [handleFrameSelect]);
 
   const handleLoadSlidesFromFile = useCallback((dataUrl: string) => {
     setGifPath(dataUrl);
@@ -1923,6 +1941,7 @@ const AppContent: React.FC = () => {
             player={player}
             isPlaying={isPlaying && !showStartOverlay}
             onPause={handleClipPause}
+            onSelectSlide={handleSelectSlide}
             pendingSeekOnUnpauseRef={pendingSeekOnUnpauseRef}
             currentVideoId={video}
             onLoadVideo={handleLoadVideoForClip}
@@ -2056,6 +2075,7 @@ const AppContent: React.FC = () => {
           onSeekToTime={handleTimeChange}
           onLoadVideo={handleLoadVideoForClip}
           slidesSource={slidesSource}
+          slideThumbnails={frames}
         />
       );
     } else if (component === "videoMonitor") {
