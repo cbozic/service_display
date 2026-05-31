@@ -17,6 +17,7 @@ interface MainVideoFrameProps {
   minWidth?: string;
   onPlayerReady?: (player: any) => void;
   onStateChange?: (state: number) => void;
+  onPlayPause?: () => void;
   isPlaying?: boolean;
   isFullscreen?: boolean;
   isPipMode?: boolean;
@@ -41,6 +42,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   minWidth = '100%',
   onPlayerReady,
   onStateChange,
+  onPlayPause,
   isPlaying = false,
   isFullscreen = false,
   isPipMode = false,
@@ -115,10 +117,17 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
 
   const handleClick = () => {
     if (player && isPlayerReady) {
-      // Toggle play/pause state by sending appropriate state code
-      // YouTube API: 1 = playing, 2 = paused
-      const newState = isPlaying ? 2 : 1;
-      onStateChange?.(newState);
+      // Route the click through the same play/pause handler used by the space
+      // bar and the play button. This ensures clip advancement (seeking to the
+      // next clip on unpause) works identically across all unpause paths.
+      // Fall back to a direct state toggle if no handler was provided.
+      if (onPlayPause) {
+        onPlayPause();
+      } else {
+        // YouTube API: 1 = playing, 2 = paused
+        const newState = isPlaying ? 2 : 1;
+        onStateChange?.(newState);
+      }
     }
   };
 
