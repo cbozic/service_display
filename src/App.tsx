@@ -1919,6 +1919,7 @@ const AppContent: React.FC = () => {
             overlaySlide={overlaySlide}
             onPlayerReady={handlePlayerReady}
             onStateChange={handleStateChange}
+            onPlayPause={handlePlayPause}
             isPlaying={isPlaying && !showStartOverlay}
             isFullscreen={isFullscreen}
             isPipMode={isPipMode}
