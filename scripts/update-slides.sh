@@ -24,8 +24,17 @@ SOURCE=$(cd "$(dirname "$SOURCE")" && pwd)/$(basename "$SOURCE")
 
 ORIG=$(pwd)
 ORIGIN_URL=$(git -C "$ORIG" remote get-url origin)
-USER_EMAIL=$(git -C "$ORIG" config user.email)
-USER_NAME=$(git -C "$ORIG" config user.name)
+
+# Account = repo owner from the origin URL (e.g. github.com/cbozic/... -> cbozic).
+# This avoids using whichever gh account happens to be "active" in the shell.
+# Override with SLIDES_GH_USER if the owner != your gh account name.
+GH_ACCOUNT="${SLIDES_GH_USER:-$(printf '%s' "$ORIGIN_URL" | sed -E 's#.*github\.com[:/]([^/]+)/.*#\1#')}"
+
+if ! gh auth token --user "$GH_ACCOUNT" >/dev/null 2>&1; then
+  echo "No gh account '$GH_ACCOUNT' is logged in. Run: gh auth login --hostname github.com" >&2
+  echo "(or set SLIDES_GH_USER to the correct gh account name)" >&2
+  exit 1
+fi
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -36,10 +45,19 @@ git remote add origin "$ORIGIN_URL"
 cp "$SOURCE" slides.gif
 git add slides.gif
 git \
-  -c user.email="$USER_EMAIL" \
-  -c user.name="$USER_NAME" \
+  -c user.name="$GH_ACCOUNT" \
+  -c user.email="${GH_ACCOUNT}@users.noreply.github.com" \
   commit -q -m "Update slides asset"
-git push -f origin HEAD:slides-assets
+
+# Push as $GH_ACCOUNT regardless of the active gh account. The leading empty
+# credential.helper resets the inherited global helper (which returns the active
+# account's token); our helper then fetches the token for $GH_ACCOUNT. The token
+# is produced inside the helper and written only on git's credential protocol, so
+# it never appears in the process list.
+git \
+  -c credential.helper= \
+  -c credential.helper="!f() { test \"\$1\" = get && { echo username=x-access-token; echo \"password=\$(gh auth token --user $GH_ACCOUNT)\"; }; }; f" \
+  push -f origin HEAD:slides-assets
 
 echo
 echo "Pushed $(basename "$SOURCE") to the slides-assets branch."
