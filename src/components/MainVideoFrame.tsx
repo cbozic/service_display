@@ -3,6 +3,7 @@ import './MainVideoFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { fadeToVolume } from '../utils/audioUtils';
 import { enableStorageAccess } from '../utils/youtubeUtils';
+import { disableCaptions } from '../utils/youtubeAPI';
 
 import MainVideoOverlay from './MainVideoOverlay';
 import { useYouTube } from '../contexts/YouTubeContext';
@@ -170,6 +171,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         playerInstance.seekTo(startSeconds);
         playerInstance.mute();
         playerInstance.pauseVideo();
+        disableCaptions(playerInstance);
         setPlayer(playerInstance);
         setIsPlayerReady(true);
         enableStorageAccess(playerInstance);
@@ -283,7 +285,10 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     if (!isPlayerReady || !player) return;
 
     console.log('Player State Changed: ' + event.data);
-    
+
+    // Captions can reload when a new video is cued/played, so keep them off.
+    disableCaptions(event.target);
+
     // Parse the video ID from the current video URL
     try {
       const videoUrl = event.target.getVideoUrl();
@@ -690,6 +695,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
       iv_load_policy: 3,
       fs: 0,
       modestbranding: 1,
+      cc_load_policy: 0,
+      cc_lang_pref: 'none',
       ...(usePlaylistMode && playlistUrl && {
         listType: 'playlist',
         list: getPlaylistId(playlistUrl)

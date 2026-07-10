@@ -32,6 +32,8 @@ declare module 'react-youtube' {
       getOptions: () => string[];
       getOption: (module: string, option: string) => any;
       setOption: (module: string, option: string, value: any) => void;
+      loadModule: (module: string) => void;
+      unloadModule: (module: string) => void;
       destroy: () => void;
       getPlaybackQuality: () => string;
       setPlaybackQuality: (quality: string) => void;
@@ -52,7 +54,8 @@ declare module 'react-youtube' {
       height?: string | number;
       playerVars?: {
         autoplay?: 0 | 1;
-        cc_load_policy?: 1;
+        cc_load_policy?: 0 | 1;
+        cc_lang_pref?: string;
         color?: 'red' | 'white';
         controls?: 0 | 1;
         disablekb?: 0 | 1;

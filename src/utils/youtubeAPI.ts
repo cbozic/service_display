@@ -78,4 +78,38 @@ export const loadYouTubeAPI = (): Promise<void> => {
   });
 
   return apiLoadPromise;
-}; 
+};
+
+/**
+ * Forcefully disable closed captions on a YouTube player instance.
+ *
+ * The `cc_load_policy=0` player var only sets the default; YouTube can still
+ * auto-load captions from the viewer's account/device preferences. Unloading
+ * the captions module (both the legacy AS3 `captions` name and the HTML5 `cc`
+ * name) and clearing the active track reliably keeps captions off. The player
+ * only accepts these calls once it has fully initialized, so we retry a few
+ * times after readiness.
+ */
+export const disableCaptions = (player: any): void => {
+  if (!player) {
+    return;
+  }
+
+  const turnOff = () => {
+    try {
+      player.unloadModule?.('captions');
+    } catch (e) { /* module may not be present yet */ }
+    try {
+      player.unloadModule?.('cc');
+    } catch (e) { /* module may not be present yet */ }
+    try {
+      player.setOption?.('captions', 'track', {});
+    } catch (e) { /* option may not be available yet */ }
+  };
+
+  turnOff();
+  // Captions are sometimes loaded slightly after the player reports ready,
+  // so retry a couple of times to catch that late load.
+  setTimeout(turnOff, 500);
+  setTimeout(turnOff, 1500);
+};

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Box, Typography, Button, Dialog, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import OndemandVideoOutlinedIcon from '@mui/icons-material/OndemandVideoOutlined';
-import { loadYouTubeAPI } from '../utils/youtubeAPI';
+import { loadYouTubeAPI, disableCaptions } from '../utils/youtubeAPI';
 import { enableStorageAccess } from '../utils/youtubeUtils';
 import VideoTimeDisplay from './VideoTimeDisplay';
 
@@ -27,6 +27,8 @@ interface YouTubePlayerConfig {
     enablejsapi?: number;
     playsinline?: number;
     vq?: string;
+    cc_load_policy?: number;
+    cc_lang_pref?: string;
     listType?: string;
     list?: string;
   };
@@ -279,6 +281,8 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
             enablejsapi: 1,
             playsinline: 1,
             vq: 'small',
+            cc_load_policy: 0,
+            cc_lang_pref: 'none',
             ...(usePlaylistMode && playlistUrl && {
               listType: 'playlist',
               list: getPlaylistId(playlistUrl)
@@ -300,6 +304,9 @@ const MainVideoMonitor: React.FC<MainVideoMonitorProps> = ({
                 event.target.setPlaybackQuality('small');
                 enableStorageAccess(event.target);
               }
+
+              // Always keep captions off on the monitor
+              disableCaptions(event.target);
               
               // Start sync process if main player exists
               if (mainPlayer) {
