@@ -4,6 +4,8 @@ interface YouTubeContextType {
   mainPlayersReady: boolean;
   setMainPlayersReady: (ready: boolean) => void;
   backgroundPlayerRef: React.MutableRefObject<any>;
+  backgroundPlayerReady: boolean;
+  setBackgroundPlayerReady: (ready: boolean) => void;
   isMainPlayerPlaying: boolean;
   setIsMainPlayerPlaying: (playing: boolean) => void;
   backgroundVolume: number;
@@ -18,6 +20,9 @@ const YouTubeContext = createContext<YouTubeContextType | undefined>(undefined);
 
 export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mainPlayersReady, setMainPlayersReady] = useState(false);
+  // Set once a background player has stored its instance in backgroundPlayerRef.
+  // Ref mutations don't trigger re-renders, so consumers wait on this instead.
+  const [backgroundPlayerReady, setBackgroundPlayerReady] = useState(false);
   const [isMainPlayerPlaying, setIsMainPlayerPlaying] = useState(false);
   const [backgroundVolume, setBackgroundVolume] = useState(1);
   const [backgroundMuted, setBackgroundMuted] = useState(true);
@@ -44,6 +49,8 @@ export const YouTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       mainPlayersReady, 
       setMainPlayersReady,
       backgroundPlayerRef,
+      backgroundPlayerReady,
+      setBackgroundPlayerReady,
       isMainPlayerPlaying,
       setIsMainPlayerPlaying,
       backgroundVolume,

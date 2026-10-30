@@ -25,7 +25,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [displayVolume, setDisplayVolume] = useState<number>(0);
-  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
+  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
   const fadeTimeoutRef = useRef<number | null>(null);
   const initialVolumeSetRef = useRef<boolean>(false);
   const previousVolumeRef = useRef<number>(backgroundVolume);
@@ -449,6 +449,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       if (backgroundPlayerRef) {
         console.log('[BackgroundVideoPlayer] Storing player reference in context');
         backgroundPlayerRef.current = playerInstance;
+        setBackgroundPlayerReady(true);
       }
       
       // Initial playback
@@ -528,7 +529,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('[BackgroundVideoPlayer] Error in onPlayerReady:', error);
     }
-  }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, previousVolumeRef, backgroundMuted, initialPaused]);
+  }, [backgroundVolume, hasInitialized, handleSkipToRandom, backgroundPlayerRef, setBackgroundPlayerReady, previousVolumeRef, backgroundMuted, initialPaused]);
 
   const onStateChange = useCallback((event: YouTubeEvent) => {
     try {

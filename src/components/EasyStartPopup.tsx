@@ -18,8 +18,9 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
   const [displayVolume, setDisplayVolume] = useState<number>(0);
   const { 
     backgroundPlayerRef, 
-    mainPlayersReady, 
-    backgroundVolume, 
+    mainPlayersReady,
+    backgroundPlayerReady,
+    backgroundVolume,
     backgroundMuted,
     setBackgroundVolume,
     setBackgroundMuted,
@@ -152,13 +153,13 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
 
   // Check if all players are ready
   useEffect(() => {
-    if (mainPlayersReady && backgroundPlayerRef.current) {
+    if (mainPlayersReady && backgroundPlayerReady) {
       const timer = setTimeout(() => {
         setIsReady(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [mainPlayersReady, backgroundPlayerRef]);
+  }, [mainPlayersReady, backgroundPlayerReady]);
   
   // Add a fallback timer to show bypass button after 10 seconds
   useEffect(() => {

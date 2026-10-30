@@ -52,7 +52,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [allTrackMetadata, setAllTrackMetadata] = useState<Record<string, { title: string }>>({});
 
-  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
+  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
   
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialVolumeSetRef = useRef<boolean>(false);
@@ -1063,11 +1063,12 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             }
           }
         };
+        setBackgroundPlayerReady(true);
       }
-      
+
       setAudioElement(audio);
     }
-  }, [handleSkipNext, tracks, currentTrackIndex, backgroundPlayerRef]);
+  }, [handleSkipNext, tracks, currentTrackIndex, backgroundPlayerRef, setBackgroundPlayerReady]);
 
   // Load track when currentTrack changes
   useEffect(() => {
