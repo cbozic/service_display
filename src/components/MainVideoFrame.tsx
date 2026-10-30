@@ -66,6 +66,11 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   const userExitedFullscreenRef = useRef<boolean>(false);
   const playlistUrlRef = useRef<string | undefined>(playlistUrl);
   const initializedRef = useRef<boolean>(false);
+  const volumeRef = useRef<number>(volume);
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  const fadeCleanupRef = useRef<(() => void) | null>(null);
+  volumeRef.current = volume;
+  isPlayingRef.current = isPlaying;
   const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
 
   // Define getPlaylistId function before using it in hooks
@@ -360,13 +365,17 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           setShowOverlay(false);
           player.unMute();
           // Use the imported fadeToVolume function instead
-          const cleanup = fadeToVolume(player, volume, fadeDurationInSeconds);
+          const cleanup = fadeToVolume(player, volumeRef.current, fadeDurationInSeconds);
           console.log('[ClipStartDebug] MainVideoFrame calling player.playVideo()');
           player.playVideo();
           setIsMainPlayerPlaying(true);
 
           // Store the cleanup function for later use
-          return cleanup;
+          fadeCleanupRef.current = cleanup;
+          return () => {
+            cleanup();
+            if (fadeCleanupRef.current === cleanup) fadeCleanupRef.current = null;
+          };
         } catch (e) {
           console.log('Error starting playback:', e);
         }
@@ -389,14 +398,18 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           });
 
           // Store the cleanup function for later use
-          return cleanup;
+          fadeCleanupRef.current = cleanup;
+          return () => {
+            cleanup();
+            if (fadeCleanupRef.current === cleanup) fadeCleanupRef.current = null;
+          };
         } catch (e) {
           console.log('Error pausing playback:', e);
           setIsMainPlayerPlaying(false);
         }
       }
     }
-  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, volume, setIsMainPlayerPlaying]);
+  }, [isPlaying, player, fadeDurationInSeconds, isPlayerReady, setIsMainPlayerPlaying]);
 
   // Keep the original openFullscreen as it's used by other parts of the component
   const openFullscreen = useCallback(() => {
@@ -659,10 +672,13 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     }
   }, [isPipMode, player, isPlayerReady]);
 
-  // Make sure to set the volume on the player when it changes
+  // Apply slider volume changes directly. While playing, this cancels any in-flight
+  // play/pause fade so the slider value wins; while paused the player stays faded out.
   useEffect(() => {
-    if (player && isPlayerReady) {
-      player!.setVolume(volume);
+    if (player && isPlayerReady && isPlayingRef.current) {
+      fadeCleanupRef.current?.();
+      fadeCleanupRef.current = null;
+      player.setVolume(volume);
     }
   }, [player, isPlayerReady, volume]);
 
