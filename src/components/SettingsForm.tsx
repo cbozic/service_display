@@ -32,7 +32,7 @@ const SettingsForm: React.FC<SettingFormProps> = ({
   setBackgroundPlaylistUrl,
   isExperimentalFeaturesEnabled = false,
   onExperimentalFeaturesToggle = () => {},
-  useBackgroundVideo = false,
+  useBackgroundVideo = true,
   onBackgroundTypeToggle = () => {},
   audioDuckingPercentage = 66,
   setAudioDuckingPercentage = () => {}

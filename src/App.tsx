@@ -32,7 +32,7 @@ import { SLIDES_ALIASES, DEFAULT_REMOTE_ALIAS, resolveSlidesParam, SlidesSource 
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
 
 // Create a function to generate the flexlayout json based on experimental features flag
-const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean = false): IJsonModel => {
+const createLayoutJson = (showExperimental: boolean, useBackgroundVideo: boolean = true): IJsonModel => {
   return {
     global: {
       tabEnableClose: false,
@@ -286,7 +286,7 @@ const AppContent: React.FC = () => {
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLNc6Yf0WBybl9EfntZafveKMipp8aPq9Y');
   const { backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
-  const [useBackgroundVideo, setUseBackgroundVideo] = useState<boolean>(false);
+  const [useBackgroundVideo, setUseBackgroundVideo] = useState<boolean>(true);
   const [isAutomaticEventsEnabled, setIsAutomaticEventsEnabled] = useState<boolean>(true);
   const timeEventsRef = useRef<any>(null);
   const slidesInitializedRef = useRef<boolean>(false);
