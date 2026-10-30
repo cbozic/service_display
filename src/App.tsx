@@ -207,7 +207,7 @@ const AppContent: React.FC = () => {
   const [video, setVideo] = useState<string>(() => parseUrlInitialPosition().videoId || 'oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>(() => parseUrlInitialPosition().startTime || '0');
   const [overlaySlide, setOverlaySlide] = useState<string>();
-  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLFgcIA8Y9FMBC0J45C3f4izrHSPCiYirL');
+  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLk-gIybirb957FH4Ke_QzRbaxjiOOfCv4');
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -283,7 +283,7 @@ const AppContent: React.FC = () => {
   const [audioDuckingPercentage, setAudioDuckingPercentage] = useState<number>(50);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
-  const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/watch?v=xN054GdfAG4&list=PLZ5F0jn_D3gIbiGiPWzhjQX9AA-emzi2n');
+  const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLNc6Yf0WBybl9EfntZafveKMipp8aPq9Y');
   const { backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
   const [useBackgroundVideo, setUseBackgroundVideo] = useState<boolean>(false);
