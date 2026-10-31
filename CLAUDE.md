@@ -34,10 +34,6 @@ Registered in `resetTimeEvents()`, only trigger if `isAutomaticEventsEnabled` is
 
 ## Important Implementation Details
 
-### Hiding YouTube's On-Play Chrome
-
-YouTube shows its title, pause icon and logo for a few seconds whenever playback starts or seeks, and no player parameter disables this. `startPlaybackBehindCover` (`src/utils/youtubeUtils.ts`) plays muted at 0.25x behind `MainVideoOverlay` for `CHROME_HOLD_MS`, then the overlay and audio fade in, so unpausing has a deliberate delay. There is no cover in PiP mode, and seeks during playback still show the chrome.
-
 ### Preventing Auto-Fullscreen After Manual Exit
 
 The app tracks `userExitedFullscreen` state. When user manually exits fullscreen (Escape key), automatic fullscreen events are suppressed until video restart. The flag resets on `handleRestart()` or manual fullscreen toggle.
