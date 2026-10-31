@@ -4,7 +4,6 @@ import { SkipNext, PlayArrow, Pause } from '@mui/icons-material';
 
 interface BackgroundPlayerControlsProps {
   volume: number;
-  displayVolume: number;
   isPlaying: boolean;
   onPlayPauseToggle: () => void;
   onVolumeChange: (event: Event, value: number | number[]) => void;
@@ -14,7 +13,6 @@ interface BackgroundPlayerControlsProps {
 
 const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
   volume,
-  displayVolume,
   isPlaying,
   onPlayPauseToggle,
   onVolumeChange,
@@ -54,9 +52,8 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
     backgroundColor: '#333333'  // Lighter background
   };
 
-  // Calculate the adjusted display volume
   // This ensures the Slider shows 0 when at the minimum volume of 0.1
-  const adjustedDisplayVolume = Math.max(displayVolume, 0.1);
+  const sliderValue = Math.max(volume, 0.1);
 
   return (
     <Box sx={{ 
@@ -109,7 +106,7 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           }}
         >
           <Slider
-            value={adjustedDisplayVolume}
+            value={sliderValue}
             onChange={handleVolumeChange}
             min={0.1}
             max={100}

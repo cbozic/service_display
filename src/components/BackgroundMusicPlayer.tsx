@@ -40,7 +40,6 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUserPaused, setIsUserPaused] = useState(initialPaused); // Track if user manually paused playback
-  const [displayVolume, setDisplayVolume] = useState<number>(0);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -52,7 +51,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [allTrackMetadata, setAllTrackMetadata] = useState<Record<string, { title: string }>>({});
 
-  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
+  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted } = useYouTube();
   
   const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialVolumeSetRef = useRef<boolean>(false);
@@ -150,20 +149,28 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracks.length]);
 
-  // Custom version of fadeToVolume that updates display volume during transition
-  const fadeToVolumeWithDisplay = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
-    if (!audioElement) return () => {};
-    
-    // Clear any existing fade interval
+  const backgroundVolumeRef = useRef<number>(backgroundVolume);
+  const isMainPlayerPlayingRef = useRef<boolean>(isMainPlayerPlaying);
+  backgroundVolumeRef.current = backgroundVolume;
+  isMainPlayerPlayingRef.current = isMainPlayerPlaying;
+
+  const cancelFade = useCallback(() => {
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
+  }, []);
+
+  // Custom version of fadeToVolume that can be canceled when the volume is changed manually
+  const fadeBackgroundVolume = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
+    if (!audioElement) return () => {};
     
+    // Clear any existing fade interval
+    cancelFade();
+
     try {
       // Get current volume from audio element
       const startVolume = audioElement.volume * 100;
-      setDisplayVolume(startVolume);
       
       // Ensure target volume is at least 0.1
       const minVolume = 0.1;
@@ -180,7 +187,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       
       fadeIntervalRef.current = setInterval(() => {
         if (!audioElement) {
-          if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+          cancelFade();
           return;
         }
         
@@ -190,30 +197,24 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         
         try {
           audioElement.volume = newVolume / 100;
-          setDisplayVolume(newVolume);
           
           if (currentStep >= steps) {
-            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+            cancelFade();
             if (onComplete) onComplete();
           }
         } catch (error) {
           console.error('[BackgroundMusicPlayer] Error in fade interval:', error);
-          if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+          cancelFade();
         }
       }, stepDuration);
       
       // Return cleanup function
-      return () => {
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
-      };
+      return cancelFade;
     } catch (error) {
       console.error('[BackgroundMusicPlayer] Error starting volume fade:', error);
       return () => {};
     }
-  }, [audioElement]);
+  }, [audioElement, cancelFade]);
 
   // Add effect to update volume when initialVolume changes - but only once on initial mount
   useEffect(() => {
@@ -224,7 +225,6 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       
       try {
         audioElement.volume = initialVolume / 100;
-        setDisplayVolume(initialVolume);
         // Only update context if we're using the prop volume
         if (propVolume !== undefined && propVolume !== backgroundVolume) {
           setBackgroundVolume(initialVolume);
@@ -238,24 +238,21 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     }
   }, [audioElement, isPlayerReady, propVolume, backgroundVolume, setBackgroundVolume]);
 
-  // Add effect to handle backgroundVolume changes from context
+  // Apply backgroundVolume changes directly, canceling any fade so the new value wins.
+  // While the main video plays, the background stays faded out and this value is only
+  // the level it fades back in to.
   useEffect(() => {
     console.log('[BackgroundMusicPlayer] Context volume changed:', backgroundVolume, 'Player ready:', isPlayerReady);
-    if (audioElement && isPlayerReady) {
+    effectiveVolumeRef.current = backgroundVolume;
+    if (audioElement && isPlayerReady && !isMainPlayerPlayingRef.current) {
       try {
-        console.log('[BackgroundMusicPlayer] Actually setting player volume to:', backgroundVolume);
-        
-        // Only directly set volume if we're not in a fade transition
-        if (!fadeIntervalRef.current) {
-          audioElement.volume = backgroundVolume / 100;
-          setDisplayVolume(backgroundVolume);
-          effectiveVolumeRef.current = backgroundVolume;
-        }
+        cancelFade();
+        audioElement.volume = backgroundVolume / 100;
       } catch (error) {
         console.error('[BackgroundMusicPlayer] Error setting volume from context:', error);
       }
     }
-  }, [backgroundVolume, audioElement, isPlayerReady]);
+  }, [backgroundVolume, audioElement, isPlayerReady, cancelFade]);
 
   // Add effect to handle backgroundMuted changes from context
   useEffect(() => {
@@ -263,17 +260,12 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
       try {
         console.log('[BackgroundMusicPlayer] Context muted state changed:', backgroundMuted);
         audioElement.muted = backgroundMuted;
-        if (backgroundMuted) {
-          setDisplayVolume(0);
-        } else {
-          setDisplayVolume(backgroundVolume);
-        }
         setIsMuted(backgroundMuted);
       } catch (error) {
         console.error('[BackgroundMusicPlayer] Error setting mute state from context:', error);
       }
     }
-  }, [backgroundMuted, audioElement, isPlayerReady, backgroundVolume]);
+  }, [backgroundMuted, audioElement, isPlayerReady]);
 
   // Track if a song is auto-transitioning from one to the next
   const autoTransitionRef = useRef<boolean>(false);
@@ -292,17 +284,11 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     
     console.log('[BackgroundMusicPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
     
-    // Skip fade if this is a manual volume change from the slider
-    if (isManualVolumeChange.current) {
-      isManualVolumeChange.current = false;
-      return;
-    }
-
     try {
       if (isMainPlayerPlaying) {
         // Main video is playing, fade out background music
         console.log('[BackgroundMusicPlayer] Main video is playing, fading out background to 0');
-        fadeToVolumeWithDisplay(0, 2);
+        fadeBackgroundVolume(0, 2);
       } else {
         // Main video is paused, fade in background music
         console.log('[BackgroundMusicPlayer] Main video is paused, checking audio player state');
@@ -328,14 +314,14 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
                     
                     // Short delay to allow audio to start before beginning fade
                     setTimeout(() => {
-                      console.log('[BackgroundMusicPlayer] Now fading in background to', backgroundVolume);
-                      fadeToVolumeWithDisplay(backgroundVolume, 1);
+                      console.log('[BackgroundMusicPlayer] Now fading in background to', backgroundVolumeRef.current);
+                      fadeBackgroundVolume(backgroundVolumeRef.current, 1);
                     }, 100);
                   })
                   .catch(error => {
                     console.error('[BackgroundMusicPlayer] Error resuming audio playback:', error);
                     // Still attempt to fade in even if play failed
-                    fadeToVolumeWithDisplay(backgroundVolume, 1);
+                    fadeBackgroundVolume(backgroundVolumeRef.current, 1);
                   });
                 return; // Exit early since we're handling the fade in the promise
               }
@@ -346,46 +332,30 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         }
         
         // If no state mismatch or we couldn't check, proceed with normal fade in
-        console.log('[BackgroundMusicPlayer] Fading in background to', backgroundVolume);
-        fadeToVolumeWithDisplay(backgroundVolume, 1);
+        console.log('[BackgroundMusicPlayer] Fading in background to', backgroundVolumeRef.current);
+        fadeBackgroundVolume(backgroundVolumeRef.current, 1);
       }
     } catch (error) {
       console.error('[BackgroundMusicPlayer] Error in main player state effect:', error);
     }
-  }, [isMainPlayerPlaying, audioElement, isPlayerReady, backgroundVolume, isPlaying, isManualVolumeChange, fadeToVolumeWithDisplay]);
+  }, [isMainPlayerPlaying, audioElement, isPlayerReady, isPlaying, fadeBackgroundVolume]);
 
   const handleVolumeChange = useCallback((_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    // The backgroundVolume effect applies the new value to the audio element
     setBackgroundVolume(volumeValue);
     previousVolumeRef.current = volumeValue;
     effectiveVolumeRef.current = volumeValue;
-    setDisplayVolume(volumeValue);
-    
-    // Set flag to indicate this is a manual volume change via the slider
-    setManualVolumeChange(true);
-    
-    if (audioElement) {
+
+    if (audioElement && isMuted) {
       try {
-        // If we're adjusting volume from 0, unmute
-        if (isMuted && volumeValue > 0) {
-          setBackgroundMuted(false);
-          audioElement.muted = false;
-          audioElement.volume = volumeValue / 100;
-        } 
-        // If we're setting volume to 0, mute but don't pause
-        else if (volumeValue === 0) {
-          setBackgroundMuted(true);
-          audioElement.muted = true;
-        }
-        // Normal volume adjustment
-        else if (!isMuted) {
-          audioElement.volume = volumeValue / 100;
-        }
+        setBackgroundMuted(false);
+        audioElement.muted = false;
       } catch (error) {
         console.error('[BackgroundMusicPlayer] Error adjusting volume:', error);
       }
     }
-  }, [audioElement, isMuted, setBackgroundVolume, setBackgroundMuted, setManualVolumeChange]);
+  }, [audioElement, isMuted, setBackgroundVolume, setBackgroundMuted]);
 
   const handlePlayPauseToggle = useCallback(() => {
     if (audioElement) {
@@ -416,12 +386,10 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           // If main video is playing, keep background volume at 0
           if (isMainPlayerPlaying) {
             audioElement.volume = 0;
-            setDisplayVolume(0);
           } else {
             // If main video is paused, set to regular volume
             const volume = effectiveVolumeRef.current;
             audioElement.volume = volume / 100;
-            setDisplayVolume(volume);
           }
         }
       } catch (error) {
@@ -500,11 +468,9 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
                 // Apply volume settings based on main player state
                 if (isMainPlayerPlaying) {
                   audioElement.volume = 0;
-                  setDisplayVolume(0);
                 } else {
                   const volume = effectiveVolumeRef.current;
                   audioElement.volume = volume / 100;
-                  setDisplayVolume(volume);
                 }
                 
                 // Apply mute setting
@@ -572,11 +538,9 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
                 setIsPlaying(true);
                 if (isMainPlayerPlaying) {
                   audioElement.volume = 0;
-                  setDisplayVolume(0);
                 } else {
                   const volume = effectiveVolumeRef.current;
                   audioElement.volume = volume / 100;
-                  setDisplayVolume(volume);
                 }
                 audioElement.muted = backgroundMuted;
               })
@@ -919,11 +883,9 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
                               // Apply volume settings 
                               if (isMainPlayerPlaying) {
                                 audio.volume = 0;
-                                setDisplayVolume(0);
                               } else {
                                 const volume = effectiveVolumeRef.current / 100;
                                 audio.volume = volume;
-                                setDisplayVolume(effectiveVolumeRef.current);
                               }
                               
                               // Apply mute setting if needed
@@ -1154,8 +1116,6 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
           audioElement.muted = false;
           setIsMuted(false);
           
-          // Set display volume
-          setDisplayVolume(volumeToUse);
           
           // Start playback only if initialPaused is false
           if (!initialPaused) {
@@ -1168,7 +1128,6 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
               if (backgroundMuted) {
                 audioElement.muted = true;
                 setIsMuted(true);
-                setDisplayVolume(0);
               }
             } catch (error) {
               console.error('[BackgroundMusicPlayer] Error starting auto-play (user may need to interact first):', error);
@@ -1272,8 +1231,7 @@ const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         padding: { xs: 1, sm: 2 } // Responsive padding
       }}>
         <BackgroundPlayerControls 
-          volume={backgroundVolume}
-          displayVolume={displayVolume}
+          volume={backgroundMuted ? 0 : backgroundVolume}
           isPlaying={isPlaying}
           onPlayPauseToggle={handlePlayPauseToggle}
           onVolumeChange={handleVolumeChange}

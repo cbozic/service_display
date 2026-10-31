@@ -15,7 +15,6 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
   const [animationPhase, setAnimationPhase] = useState<'hidden' | 'expanding' | 'showing'>('hidden');
   const animationTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [displayVolume, setDisplayVolume] = useState<number>(0);
   const { 
     backgroundPlayerRef, 
     mainPlayersReady,
@@ -23,8 +22,7 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
     backgroundVolume,
     backgroundMuted,
     setBackgroundVolume,
-    setBackgroundMuted,
-    setManualVolumeChange
+    setBackgroundMuted
   } = useYouTube();
   const [isReady, setIsReady] = useState<boolean>(false);
   const [showBypassButton, setShowBypassButton] = useState<boolean>(false);
@@ -88,13 +86,11 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
           setBackgroundMuted(false);
           // Make sure we keep the current volume
           backgroundPlayerRef.current.setVolume(backgroundVolume);
-          setDisplayVolume(backgroundVolume);
         } else {
           // Decrease background volume by 5% of total (5 out of 100)
           const newVolume = Math.max(0, backgroundVolume - 5);
           console.log('< key pressed in overlay, decreasing background volume from', backgroundVolume, 'to', newVolume);
           setBackgroundVolume(newVolume);
-          setDisplayVolume(newVolume);
           
           // Update the actual player volume
           if (backgroundPlayerRef.current) {
@@ -111,13 +107,11 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
           setBackgroundMuted(false);
           // Make sure we keep the current volume
           backgroundPlayerRef.current.setVolume(backgroundVolume);
-          setDisplayVolume(backgroundVolume);
         } else {
           // Increase background volume by 5% of total (5 out of 100)
           const newVolume = Math.min(100, backgroundVolume + 5);
           console.log('> key pressed in overlay, increasing background volume from', backgroundVolume, 'to', newVolume);
           setBackgroundVolume(newVolume);
-          setDisplayVolume(newVolume);
           
           // Update the actual player volume
           if (backgroundPlayerRef.current) {
@@ -171,20 +165,6 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
     return () => clearTimeout(bypassTimer);
   }, []);
 
-  const handleMuteToggle = () => {
-    if (backgroundPlayerRef.current) {
-      if (!backgroundMuted) {
-        backgroundPlayerRef.current.mute();
-        setDisplayVolume(0);
-      } else {
-        backgroundPlayerRef.current.unMute();
-        const volume = backgroundVolume;
-        setDisplayVolume(volume);
-      }
-      setBackgroundMuted(!backgroundMuted);
-    }
-  };
-
   const handlePlayPauseToggle = () => {
     if (backgroundPlayerRef.current) {
       if (isPlaying) {
@@ -199,22 +179,12 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
 
   const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
-    
-    // Set flag to indicate this is a manual volume change via the slider
-    setManualVolumeChange(true);
-    
+
     if (backgroundPlayerRef.current) {
       backgroundPlayerRef.current.setVolume(volumeValue);
       setBackgroundVolume(volumeValue);
-      setDisplayVolume(volumeValue);
-      
-      // If volume is 0, mute the player
-      if (volumeValue === 0) {
-        backgroundPlayerRef.current.mute();
-        setBackgroundMuted(true);
-      } 
-      // If we're adjusting from 0, unmute
-      else if (backgroundMuted) {
+
+      if (backgroundMuted) {
         backgroundPlayerRef.current.unMute();
         setBackgroundMuted(false);
       }
@@ -287,7 +257,6 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
         backgroundPlayerRef.current.unMute();
         backgroundPlayerRef.current.setVolume(backgroundVolume);
         setBackgroundMuted(false);
-        setDisplayVolume(backgroundVolume);
         
         console.log('[ServiceStartOverlay] Starting background music playback');
         
@@ -338,7 +307,6 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
         // When disabling music
         backgroundPlayerRef.current.mute(); // Mute the player when disabling music
         setBackgroundMuted(true); // Update the muted state in context
-        setDisplayVolume(0);
         backgroundPlayerRef.current.pauseVideo();
         setIsPlaying(false);
       }
@@ -596,8 +564,7 @@ const EasyStartPopup: React.FC<EasyStartPopupProps> = ({ onStartService }) => {
                   }}
                 >
                   <BackgroundPlayerControls
-                    displayVolume={displayVolume}
-                    volume={backgroundVolume}
+                    volume={backgroundMuted ? 0 : backgroundVolume}
                     isPlaying={isPlaying}
                     onPlayPauseToggle={handlePlayPauseToggle}
                     onVolumeChange={handleVolumeChange}

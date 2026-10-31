@@ -24,8 +24,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isApiReady, setIsApiReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [displayVolume, setDisplayVolume] = useState<number>(0);
-  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted, isManualVolumeChange, setManualVolumeChange } = useYouTube();
+  const { mainPlayersReady, isMainPlayerPlaying, backgroundPlayerRef, setBackgroundPlayerReady, backgroundVolume, setBackgroundVolume, backgroundMuted, setBackgroundMuted } = useYouTube();
   const fadeTimeoutRef = useRef<number | null>(null);
   const initialVolumeSetRef = useRef<boolean>(false);
   const previousVolumeRef = useRef<number>(backgroundVolume);
@@ -35,21 +34,28 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [playlist, setPlaylist] = useState<any[]>([]);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const backgroundVolumeRef = useRef<number>(backgroundVolume);
+  const isMainPlayerPlayingRef = useRef<boolean>(isMainPlayerPlaying);
+  backgroundVolumeRef.current = backgroundVolume;
+  isMainPlayerPlayingRef.current = isMainPlayerPlaying;
 
-  // Custom version of fadeToVolume that updates display volume during transition
-  const fadeToVolumeWithDisplay = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
-    if (!player) return () => {};
-    
-    // Clear any existing fade interval
+  const cancelFade = useCallback(() => {
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
+  }, []);
+
+  // Custom version of fadeToVolume that can be canceled when the volume is changed manually
+  const fadeBackgroundVolume = useCallback((targetVolume: number, durationInSeconds: number, onComplete?: () => void) => {
+    if (!player) return () => {};
     
+    // Clear any existing fade interval
+    cancelFade();
+
     try {
       // Get current volume from player
       const startVolume = player.getVolume();
-      setDisplayVolume(startVolume);
       
       // Ensure target volume is at least 0.1
       const minVolume = 0.1;
@@ -66,7 +72,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       
       fadeIntervalRef.current = setInterval(() => {
         if (!player) {
-          if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+          cancelFade();
           return;
         }
         
@@ -76,30 +82,24 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         
         try {
           player.setVolume(newVolume);
-          setDisplayVolume(newVolume);
           
           if (currentStep >= steps) {
-            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+            cancelFade();
             if (onComplete) onComplete();
           }
         } catch (error) {
           console.error('Error in fade interval:', error);
-          if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+          cancelFade();
         }
       }, stepDuration);
       
       // Return cleanup function
-      return () => {
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
-      };
+      return cancelFade;
     } catch (error) {
       console.error('Error starting volume fade:', error);
       return () => {};
     }
-  }, [player]);
+  }, [player, cancelFade]);
 
   // Add effect to update volume when initialVolume changes - but only once on initial mount
   useEffect(() => {
@@ -110,7 +110,6 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       
       try {
         player.setVolume(initialVolume);
-        setDisplayVolume(initialVolume);
         // Only update context if we're using the prop volume
         if (propVolume !== undefined && propVolume !== backgroundVolume) {
           setBackgroundVolume(initialVolume);
@@ -124,35 +123,21 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
     }
   }, [player, isPlayerReady, propVolume, backgroundVolume, setBackgroundVolume]);
 
-  // Add effect to handle backgroundVolume changes from context
+  // Apply backgroundVolume changes directly, canceling any fade so the new value wins.
+  // While the main video plays, the background stays faded out and this value is only
+  // the level it fades back in to.
   useEffect(() => {
     console.log('[BackgroundVideoPlayer] Context volume changed:', backgroundVolume, 'Player ready:', isPlayerReady, 'Player exists:', !!player);
-    if (player && isPlayerReady && typeof player.setVolume === 'function') {
+    effectiveVolumeRef.current = backgroundVolume;
+    if (player && isPlayerReady && typeof player.setVolume === 'function' && !isMainPlayerPlayingRef.current) {
       try {
-        console.log('[BackgroundVideoPlayer] Actually setting player volume to:', backgroundVolume);
-        
-        // Only directly set volume if we're not in a fade transition
-        if (!fadeIntervalRef.current) {
-          player.setVolume(backgroundVolume);
-          setDisplayVolume(backgroundVolume);
-          effectiveVolumeRef.current = backgroundVolume;
-          
-          // Verify the volume was set
-          setTimeout(() => {
-            try {
-              const currentVolume = player.getVolume();
-              console.log('[BackgroundVideoPlayer] Volume verification - requested:', backgroundVolume, 'actual:', currentVolume);
-              setDisplayVolume(currentVolume);
-            } catch (error) {
-              console.error('[BackgroundVideoPlayer] Error getting volume for verification:', error);
-            }
-          }, 100);
-        }
+        cancelFade();
+        player.setVolume(backgroundVolume);
       } catch (error) {
         console.error('[BackgroundVideoPlayer] Error setting volume from context:', error);
       }
     }
-  }, [backgroundVolume, player, isPlayerReady]);
+  }, [backgroundVolume, player, isPlayerReady, cancelFade]);
 
   // Add effect to handle backgroundMuted changes from context
   useEffect(() => {
@@ -161,18 +146,12 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         console.log('[BackgroundVideoPlayer] Context muted state changed:', backgroundMuted);
         if (backgroundMuted) {
           player.mute();
-          setDisplayVolume(0);
         } else {
           player.unMute();
-          // After unmuting, get and display the actual volume
-          setTimeout(() => {
-            try {
-              const currentVolume = player.getVolume();
-              setDisplayVolume(currentVolume);
-            } catch (error) {
-              console.error('[BackgroundVideoPlayer] Error getting volume after unmute:', error);
-            }
-          }, 50);
+          // Unmuting at volume 0 can raise the volume, so keep it faded out under the main video
+          if (isMainPlayerPlayingRef.current) {
+            player.setVolume(0);
+          }
         }
         setIsMuted(backgroundMuted);
       } catch (error) {
@@ -230,17 +209,11 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
     
     console.log('[BackgroundVideoPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
     
-    // Skip fade if this is a manual volume change from the slider
-    if (isManualVolumeChange.current) {
-      isManualVolumeChange.current = false;
-      return;
-    }
-
     try {
       if (isMainPlayerPlaying) {
         // Main video is playing, fade out background music
         console.log('[BackgroundVideoPlayer] Main video is playing, fading out background to 0');
-        fadeToVolumeWithDisplay(0, 2);
+        fadeBackgroundVolume(0, 2);
       } else {
         // Main video is paused, fade in background music
         console.log('[BackgroundVideoPlayer] Main video is paused, checking background player state');
@@ -263,8 +236,8 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
               
               // Short delay to allow player to start before beginning fade
               setTimeout(() => {
-                console.log('[BackgroundVideoPlayer] Now fading in background to', backgroundVolume);
-                fadeToVolumeWithDisplay(backgroundVolume, 1);
+                console.log('[BackgroundVideoPlayer] Now fading in background to', backgroundVolumeRef.current);
+                fadeBackgroundVolume(backgroundVolumeRef.current, 1);
               }, 100);
               return; // Exit early since we're handling the fade in the timeout
             }
@@ -274,84 +247,30 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         }
         
         // If no state mismatch or we couldn't check, proceed with normal fade in
-        console.log('[BackgroundVideoPlayer] Fading in background to', backgroundVolume);
-        fadeToVolumeWithDisplay(backgroundVolume, 1);
+        console.log('[BackgroundVideoPlayer] Fading in background to', backgroundVolumeRef.current);
+        fadeBackgroundVolume(backgroundVolumeRef.current, 1);
       }
     } catch (error) {
       console.error('[BackgroundVideoPlayer] Error in main player state effect:', error);
     }
-  }, [isMainPlayerPlaying, player, isPlayerReady, backgroundVolume, isPlaying, isManualVolumeChange, fadeToVolumeWithDisplay]);
-
-  // Periodically update the display volume to match actual player volume
-  useEffect(() => {
-    if (!player || !isPlayerReady) return;
-    
-    const volumeUpdateInterval = setInterval(() => {
-      try {
-        // Only update if we're not in a manual volume change
-        if (!isManualVolumeChange.current && !fadeIntervalRef.current) {
-          const actualVolume = player.getVolume();
-          if (backgroundMuted) {
-            setDisplayVolume(0);
-          } else {
-            setDisplayVolume(actualVolume);
-          }
-        }
-      } catch (error) {
-        console.error('[BackgroundVideoPlayer] Error in volume update interval:', error);
-      }
-    }, 1000); // Check once per second
-    
-    return () => clearInterval(volumeUpdateInterval);
-  }, [player, isPlayerReady, backgroundMuted]);
+  }, [isMainPlayerPlaying, player, isPlayerReady, isPlaying, fadeBackgroundVolume]);
 
   const handleVolumeChange = useCallback((_event: Event, newValue: number | number[]) => {
     const volumeValue = Array.isArray(newValue) ? newValue[0] : newValue;
+    // The backgroundVolume effect applies the new value to the player
     setBackgroundVolume(volumeValue);
     previousVolumeRef.current = volumeValue;
     effectiveVolumeRef.current = volumeValue;
-    setDisplayVolume(volumeValue);
-    
-    // Set flag to indicate this is a manual volume change via the slider
-    setManualVolumeChange(true);
-    
-    if (player) {
+
+    if (player && isMuted) {
       try {
-        // If we're adjusting volume from 0, unmute
-        if (isMuted && volumeValue > 0) {
-          setBackgroundMuted(false);
-          player.unMute();
-          player.setVolume(volumeValue);
-        } 
-        // If we're setting volume to 0, mute but don't pause
-        else if (volumeValue === 0) {
-          setBackgroundMuted(true);
-          player.mute();
-        }
-        // Normal volume adjustment
-        else if (!isMuted) {
-          player.setVolume(volumeValue);
-        }
+        setBackgroundMuted(false);
+        player.unMute();
       } catch (error) {
         console.error('Error adjusting volume:', error);
       }
     }
-  }, [player, isMuted, setBackgroundVolume, setBackgroundMuted, setManualVolumeChange]);
-
-  const handleMuteToggle = useCallback(() => {
-    if (player) {
-      if (!isMuted) {
-        player.mute();
-        setDisplayVolume(0);
-      } else {
-        player.unMute();
-        const volume = backgroundVolume;
-        player.setVolume(volume);
-        setDisplayVolume(volume);
-      }
-    }
-    setBackgroundMuted(!isMuted);
-  }, [player, isMuted, backgroundVolume, setBackgroundMuted]);
+  }, [player, isMuted, setBackgroundVolume, setBackgroundMuted]);
 
   const handlePlayPauseToggle = useCallback(() => {
     if (player && isPlayerReady) {
@@ -366,12 +285,10 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
           // If main video is playing, keep background volume at 0
           if (isMainPlayerPlaying) {
             player.setVolume(0);
-            setDisplayVolume(0);
           } else {
             // If main video is paused, set to regular volume
             const volume = effectiveVolumeRef.current;
             player.setVolume(volume);
-            setDisplayVolume(volume);
           }
         }
       } catch (error) {
@@ -436,7 +353,6 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       // Use the volume from context
       const volumeToUse = previousVolumeRef.current || backgroundVolume;
       playerInstance.setVolume(volumeToUse);
-      setDisplayVolume(0); // Start with display showing 0 since we're muted
       effectiveVolumeRef.current = volumeToUse;
       setBackgroundVolume(volumeToUse); // Update the state to match
       playerInstance.setPlaybackQuality('small');
@@ -479,14 +395,8 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
                       // Don't unmute automatically
                       if (!backgroundMuted) {
                         playerInstance.unMute();
-                        // Get the actual volume
-                        setTimeout(() => {
-                          const actualVolume = playerInstance.getVolume();
-                          setDisplayVolume(actualVolume);
-                        }, 50);
                       } else {
                         playerInstance.mute();
-                        setDisplayVolume(0);
                       }
                       // Use the synced volume
                       playerInstance.setVolume(volumeToUse);
@@ -541,14 +451,6 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
       if (state === 1) {
         setIsPlaying(true);
         setIsVideoLoaded(true);
-        
-        // If player started playing, check and update the display volume
-        setTimeout(() => {
-          if (player) {
-            const actualVolume = player.getVolume();
-            setDisplayVolume(isMuted ? 0 : actualVolume);
-          }
-        }, 50);
       } else if (state === 2) {
         setIsPlaying(false);
       } else if (state === 5) { // Video cued
@@ -565,7 +467,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
     } catch (error) {
       console.error('Error in onStateChange:', error);
     }
-  }, [player, isMuted, handleSkipToRandom]);
+  }, [player, handleSkipToRandom]);
 
   const getPlaylistId = useCallback((url: string) => {
     const regex = /[&?]list=([^&]+)/;
@@ -634,8 +536,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         alignItems: 'center'    // Center controls horizontally
       }}>
         <BackgroundPlayerControls 
-          volume={backgroundVolume}
-          displayVolume={displayVolume}
+          volume={backgroundMuted ? 0 : backgroundVolume}
           isPlaying={isPlaying}
           onPlayPauseToggle={handlePlayPauseToggle}
           onVolumeChange={handleVolumeChange}

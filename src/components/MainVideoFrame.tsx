@@ -334,8 +334,10 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           setIsMainPlayerPlaying(false);
         } else {
           onStateChange?.(event.data);
-          const isPlaying = event.data === 1;
-          setIsMainPlayerPlaying(isPlaying);
+          // Buffering (3) and unstarted (-1) are transitions, not a pause
+          if (event.data !== 3 && event.data !== -1) {
+            setIsMainPlayerPlaying(event.data === 1);
+          }
         }
       }
     } catch (e) {
@@ -350,8 +352,10 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         setIsMainPlayerPlaying(false);
       } else {
         onStateChange?.(event.data);
-        const isPlaying = event.data === 1;
-        setIsMainPlayerPlaying(isPlaying);
+        // Buffering (3) and unstarted (-1) are transitions, not a pause
+        if (event.data !== 3 && event.data !== -1) {
+          setIsMainPlayerPlaying(event.data === 1);
+        }
       }
     }
   }, [player, startSeconds, onStateChange, isPlayerReady, setIsMainPlayerPlaying, currentVideoId, isClipModeActive]);
@@ -678,6 +682,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     if (player && isPlayerReady && isPlayingRef.current) {
       fadeCleanupRef.current?.();
       fadeCleanupRef.current = null;
+      // A fade to volume 0 leaves the player muted, and setVolume alone doesn't unmute it.
+      player.unMute();
       player.setVolume(volume);
     }
   }, [player, isPlayerReady, volume]);

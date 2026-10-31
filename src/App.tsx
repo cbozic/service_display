@@ -283,6 +283,7 @@ const AppContent: React.FC = () => {
   const [audioDuckingPercentage, setAudioDuckingPercentage] = useState<number>(50);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const previousVolumeRef = useRef<number>(100);
+  const unduckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [backgroundPlaylistUrl, setBackgroundPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLNc6Yf0WBybl9EfntZafveKMipp8aPq9Y');
   const { backgroundVolume, setBackgroundVolume, backgroundPlayerRef, setBackgroundMuted, backgroundMuted } = useYouTube();
   const [usePlaylistMode, setUsePlaylistMode] = useState<boolean>(false);
@@ -1133,6 +1134,36 @@ const AppContent: React.FC = () => {
     handlePlaybackModeSkip(-5);
   }, [handlePlaybackModeSkip]);
 
+  const cancelUnduckFade = useCallback(() => {
+    if (unduckIntervalRef.current) {
+      clearInterval(unduckIntervalRef.current);
+      unduckIntervalRef.current = null;
+    }
+  }, []);
+
+  // Fade back to original volume over 3 seconds
+  const fadeOutDucking = useCallback(() => {
+    cancelUnduckFade();
+    const startVolume = videoVolume;
+    const targetVolume = preDuckVolume.current;
+    const steps = FADE_STEPS;
+    const stepDuration = 3000 / steps;
+    let currentStep = 0;
+
+    unduckIntervalRef.current = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+      const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
+      setVideoVolume(newVolume);
+
+      if (currentStep >= steps) {
+        cancelUnduckFade();
+        setIsDucking(false);
+        console.log('[App] Audio ducking state after disable:', false);
+      }
+    }, stepDuration);
+  }, [videoVolume, cancelUnduckFade]);
+
   const handleDuckingToggle = useCallback(() => {
     if (!isDucking) {
       // Instant duck down to the specified percentage
@@ -1140,26 +1171,9 @@ const AppContent: React.FC = () => {
       setVideoVolume(Math.round(videoVolume * (audioDuckingPercentage / 100)));
       setIsDucking(true);
     } else {
-      // Fade back to original volume over 3 seconds
-      const startVolume = videoVolume;
-      const targetVolume = preDuckVolume.current;
-      const steps = FADE_STEPS;
-      const stepDuration = 3000 / steps;
-      let currentStep = 0;
-
-      const fadeInterval = setInterval(() => {
-        currentStep++;
-        const progress = currentStep / steps;
-        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
-        setVideoVolume(newVolume);
-
-        if (currentStep >= steps) {
-          clearInterval(fadeInterval);
-          setIsDucking(false);
-        }
-      }, stepDuration);
+      fadeOutDucking();
     }
-  }, [isDucking, videoVolume, audioDuckingPercentage]);
+  }, [isDucking, videoVolume, audioDuckingPercentage, fadeOutDucking]);
 
   const handleEnableDucking = useCallback(() => {
     if (!isDucking && !isMuted) {
@@ -1177,33 +1191,22 @@ const AppContent: React.FC = () => {
   const handleDisableDucking = useCallback(() => {
     if (isDucking) {
       console.log('[App] Disabling audio ducking (current state:', isDucking, ')');
-      // Fade back to original volume over 3 seconds
-      const startVolume = videoVolume;
-      const targetVolume = preDuckVolume.current;
-      const steps = FADE_STEPS;
-      const stepDuration = 3000 / steps;
-      let currentStep = 0;
-
-      const fadeInterval = setInterval(() => {
-        currentStep++;
-        const progress = currentStep / steps;
-        const newVolume = Math.round(startVolume + (targetVolume - startVolume) * progress);
-        setVideoVolume(newVolume);
-
-        if (currentStep >= steps) {
-          clearInterval(fadeInterval);
-          setIsDucking(false);
-          console.log('[App] Audio ducking state after disable:', false);
-        }
-      }, stepDuration);
+      fadeOutDucking();
     } else {
       console.log('[App] Audio ducking already disabled, skipping disable');
     }
-  }, [isDucking, videoVolume]);
+  }, [isDucking, fadeOutDucking]);
 
   const handleToggleMute = useCallback(() => {
     if (!isMuted) {
-      previousVolumeRef.current = videoVolume;
+      // Muting during an un-duck fade remembers the level that fade was heading to
+      if (unduckIntervalRef.current) {
+        cancelUnduckFade();
+        setIsDucking(false);
+        previousVolumeRef.current = preDuckVolume.current;
+      } else {
+        previousVolumeRef.current = videoVolume;
+      }
       setVideoVolume(0);
       setIsMuted(true);
     } else {
@@ -1211,7 +1214,15 @@ const AppContent: React.FC = () => {
       setIsMuted(false);
       setVideoVolume(targetVolume);
     }
-  }, [isMuted, videoVolume]);
+  }, [isMuted, videoVolume, cancelUnduckFade]);
+
+  // A manual volume change wins over ducking and mute, and ends both
+  const handleManualVolumeChange = useCallback((newVolume: number) => {
+    cancelUnduckFade();
+    setIsDucking(false);
+    setIsMuted(false);
+    setVideoVolume(newVolume);
+  }, [cancelUnduckFade]);
 
   const handleVideoListError = useCallback((hasError: boolean) => {
     setUsePlaylistMode(hasError);
@@ -1460,12 +1471,12 @@ const AppContent: React.FC = () => {
         event.preventDefault();
         // Decrease volume by 5% of total (5 out of 100)
         const newVolume = Math.max(0, videoVolume - 5);
-        setVideoVolume(newVolume);
+        handleManualVolumeChange(newVolume);
       } else if (event.code === 'BracketRight' && !event.repeat && !isMuted) {
         event.preventDefault();
         // Increase volume by 5% of total (5 out of 100)
         const newVolume = Math.min(100, videoVolume + 5);
-        setVideoVolume(newVolume);
+        handleManualVolumeChange(newVolume);
       } else if (event.code === 'KeyR' && event.altKey && !event.repeat) {
         event.preventDefault();
         handleRestart();
@@ -1477,8 +1488,10 @@ const AppContent: React.FC = () => {
           console.log('< key pressed, unmuting background player');
           backgroundPlayerRef.current.unMute();
           setBackgroundMuted(false);
-          // Make sure we keep the current volume
-          backgroundPlayerRef.current.setVolume(backgroundVolume);
+          // Make sure we keep the current volume, unless the main video has it faded out
+          if (!isPlaying) {
+            backgroundPlayerRef.current.setVolume(backgroundVolume);
+          }
         } else {
           // Decrease background volume by 5% of total (5 out of 100)
           const newVolume = Math.max(0, backgroundVolume - 5);
@@ -1493,8 +1506,10 @@ const AppContent: React.FC = () => {
           console.log('> key pressed, unmuting background player');
           backgroundPlayerRef.current.unMute();
           setBackgroundMuted(false);
-          // Make sure we keep the current volume
-          backgroundPlayerRef.current.setVolume(backgroundVolume);
+          // Make sure we keep the current volume, unless the main video has it faded out
+          if (!isPlaying) {
+            backgroundPlayerRef.current.setVolume(backgroundVolume);
+          }
         } else {
           // Increase background volume by 5% of total (5 out of 100)
           const newVolume = Math.min(100, backgroundVolume + 5);
@@ -1551,7 +1566,7 @@ const AppContent: React.FC = () => {
     };
   }, [handlePlayPause, isPlayerReady, handleFullscreen, currentFrameIndex, handleFrameSelect, 
       handleSlideTransitionsToggle, handleEnableDucking, handleDisableDucking, handleEnablePip, 
-      handleDisablePip, handleToggleMute, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume, 
+      handleDisablePip, handleToggleMute, handleManualVolumeChange, isPlaying, isMuted, isPipMode, isDucking, videoVolume, backgroundVolume,
       setBackgroundVolume, backgroundMuted, setBackgroundMuted, backgroundPlayerRef, handleRestart, handleToggleHelp,
       // Add these new dependencies:
       handleQuickSeekResync, handleRapidPausePlay, handleQualityToggleResync, handlePlayerReload, handleTimedEventsToggle,
@@ -2008,7 +2023,7 @@ const AppContent: React.FC = () => {
             onEnablePip={handleEnablePip}
             onDisablePip={handleDisablePip}
             onRestart={handleRestart}
-            onVolumeChange={setVideoVolume}
+            onVolumeChange={handleManualVolumeChange}
             onDuckingToggle={handleDuckingToggle}
             onEnableDucking={handleEnableDucking}
             onDisableDucking={handleDisableDucking}
