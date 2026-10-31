@@ -69,6 +69,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   const volumeRef = useRef<number>(volume);
   const isPlayingRef = useRef<boolean>(isPlaying);
   const fadeCleanupRef = useRef<(() => void) | null>(null);
+  const isFadingInRef = useRef<boolean>(false);
   volumeRef.current = volume;
   isPlayingRef.current = isPlaying;
   const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
@@ -369,7 +370,10 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           setShowOverlay(false);
           player.unMute();
           // Use the imported fadeToVolume function instead
-          const cleanup = fadeToVolume(player, volumeRef.current, fadeDurationInSeconds);
+          isFadingInRef.current = true;
+          const cleanup = fadeToVolume(player, volumeRef.current, fadeDurationInSeconds, () => {
+            isFadingInRef.current = false;
+          });
           console.log('[ClipStartDebug] MainVideoFrame calling player.playVideo()');
           player.playVideo();
           setIsMainPlayerPlaying(true);
@@ -378,6 +382,7 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           fadeCleanupRef.current = cleanup;
           return () => {
             cleanup();
+            isFadingInRef.current = false;
             if (fadeCleanupRef.current === cleanup) fadeCleanupRef.current = null;
           };
         } catch (e) {
@@ -682,11 +687,43 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     if (player && isPlayerReady && isPlayingRef.current) {
       fadeCleanupRef.current?.();
       fadeCleanupRef.current = null;
+      isFadingInRef.current = false;
       // A fade to volume 0 leaves the player muted, and setVolume alone doesn't unmute it.
       player.unMute();
       player.setVolume(volume);
     }
   }, [player, isPlayerReady, volume]);
+
+  // Restore the chosen volume if the playing video drifts away from it. Requires two
+  // consecutive mismatches because getVolume can briefly report a stale value after a change.
+  useEffect(() => {
+    if (!player || !isPlayerReady) return;
+
+    let mismatches = 0;
+    const interval = setInterval(() => {
+      try {
+        const expected = volumeRef.current;
+        const isSteady = isPlayingRef.current && !isFadingInRef.current && expected > 0 && player.getPlayerState() === 1;
+        const muted = player.isMuted();
+        const actual = player.getVolume();
+        if (!isSteady || (!muted && Math.abs(actual - expected) <= 1)) {
+          mismatches = 0;
+          return;
+        }
+        mismatches++;
+        if (mismatches >= 2) {
+          console.warn('[VolumeWatchdog] Restoring main volume', { expected, actual, muted, time: player.getCurrentTime() });
+          player.unMute();
+          player.setVolume(expected);
+          mismatches = 0;
+        }
+      } catch (e) {
+        console.log('[VolumeWatchdog] Error checking volume:', e);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [player, isPlayerReady]);
 
   const instructionsOverlayStyle: React.CSSProperties = {
     position: 'absolute',

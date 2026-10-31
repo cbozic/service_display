@@ -403,6 +403,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Slider
               value={volume}
               onChange={handleVolumeChange}
+              // A focused slider swallows Space/M/D and turns arrow-key skips into volume changes
+              onChangeCommitted={() => (document.activeElement as HTMLElement | null)?.blur()}
               aria-labelledby="volume-slider"
               min={0}
               max={100}

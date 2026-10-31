@@ -108,6 +108,8 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
           <Slider
             value={sliderValue}
             onChange={handleVolumeChange}
+            // A focused slider swallows Space/M/D and turns arrow-key skips into volume changes
+            onChangeCommitted={() => (document.activeElement as HTMLElement | null)?.blur()}
             min={0.1}
             max={100}
             aria-label="Volume"
