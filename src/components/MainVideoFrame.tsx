@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './MainVideoFrame.css';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
 import { fadeToVolume } from '../utils/audioUtils';
-import { enableStorageAccess } from '../utils/youtubeUtils';
+import { enableStorageAccess, startPlaybackBehindCover } from '../utils/youtubeUtils';
 import { disableCaptions } from '../utils/youtubeAPI';
 
 import MainVideoOverlay from './MainVideoOverlay';
@@ -70,8 +70,13 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   const isPlayingRef = useRef<boolean>(isPlaying);
   const fadeCleanupRef = useRef<(() => void) | null>(null);
   const isFadingInRef = useRef<boolean>(false);
+  const isHoldingRef = useRef<boolean>(false);
+  const coverAvailableRef = useRef<boolean>(useOverlay && !isPipMode);
+  const isClipModeActiveRef = useRef<boolean>(isClipModeActive);
   volumeRef.current = volume;
   isPlayingRef.current = isPlaying;
+  coverAvailableRef.current = useOverlay && !isPipMode;
+  isClipModeActiveRef.current = isClipModeActive;
   const { setMainPlayersReady, setIsMainPlayerPlaying } = useYouTube();
 
   // Define getPlaylistId function before using it in hooks
@@ -366,24 +371,41 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
     if (player && isPlayerReady) {
       if (isPlaying) {
         try {
-          // Start fading out overlay immediately
-          setShowOverlay(false);
-          player.unMute();
-          // Use the imported fadeToVolume function instead
-          isFadingInRef.current = true;
-          const cleanup = fadeToVolume(player, volumeRef.current, fadeDurationInSeconds, () => {
-            isFadingInRef.current = false;
-          });
-          console.log('[ClipStartDebug] MainVideoFrame calling player.playVideo()');
-          player.playVideo();
+          const revealPlayback = () => {
+            isHoldingRef.current = false;
+            setShowOverlay(false);
+            player.unMute();
+            // Use the imported fadeToVolume function instead
+            isFadingInRef.current = true;
+            fadeCleanupRef.current = fadeToVolume(player, volumeRef.current, fadeDurationInSeconds, () => {
+              isFadingInRef.current = false;
+            });
+          };
+
+          console.log('[ClipStartDebug] MainVideoFrame starting playback');
+          let cancelHold = () => {};
+          if (coverAvailableRef.current) {
+            // Keep the overlay up until YouTube's on-play chrome has hidden itself.
+            // Clips skip the rewind: it could land in the previous clip and move the
+            // boundary monitor's current clip.
+            isHoldingRef.current = true;
+            isFadingInRef.current = true;
+            cancelHold = startPlaybackBehindCover(player, {
+              rewind: !isClipModeActiveRef.current,
+              onClear: revealPlayback,
+            });
+          } else {
+            revealPlayback();
+            player.playVideo();
+          }
           setIsMainPlayerPlaying(true);
 
-          // Store the cleanup function for later use
-          fadeCleanupRef.current = cleanup;
           return () => {
-            cleanup();
+            cancelHold();
+            isHoldingRef.current = false;
+            fadeCleanupRef.current?.();
+            fadeCleanupRef.current = null;
             isFadingInRef.current = false;
-            if (fadeCleanupRef.current === cleanup) fadeCleanupRef.current = null;
           };
         } catch (e) {
           console.log('Error starting playback:', e);
@@ -394,8 +416,9 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
           setShowOverlay(true);
           setIsMainPlayerPlaying(false);
           console.log('[ClipStartDebug] MainVideoFrame running pause branch');
-          // Use the imported fadeToVolume function instead
-          const cleanup = fadeToVolume(player, 0, fadeDurationInSeconds, () => {
+          // Use the imported fadeToVolume function instead. A player that's already muted
+          // (paused during the cover hold) must not unmute just to fade back out.
+          const cleanup = fadeToVolume(player, 0, player.isMuted() ? 0 : fadeDurationInSeconds, () => {
             if (player && isPlayerReady) {
               try {
                 console.log('[ClipStartDebug] MainVideoFrame pause-fade callback: calling pauseVideo()');
@@ -684,7 +707,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   // Apply slider volume changes directly. While playing, this cancels any in-flight
   // play/pause fade so the slider value wins; while paused the player stays faded out.
   useEffect(() => {
-    if (player && isPlayerReady && isPlayingRef.current) {
+    // During the cover hold the player stays muted; the reveal picks up the latest volume.
+    if (player && isPlayerReady && isPlayingRef.current && !isHoldingRef.current) {
       fadeCleanupRef.current?.();
       fadeCleanupRef.current = null;
       isFadingInRef.current = false;
