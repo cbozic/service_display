@@ -24,6 +24,7 @@ declare global {
             disablekb?: number;
             fs?: number;
             vq?: string;
+            channel?: string;
           };
           events?: {
             onReady?: (event: { target: any }) => void;

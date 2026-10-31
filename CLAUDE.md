@@ -15,7 +15,8 @@ Service Display is a React-based application for managing worship services and p
 - Layout uses flexlayout-react; the model is stored in memory and regenerated on experimental-feature toggles. The Display tab supports popout to a separate window.
 - Two synchronized players: the main display (fullscreen or PiP) and a monitor player without overlay. They are kept in sync via shared state and manual `seekTo()` calls.
 - Background music/video starts when the main video pauses and stops when it plays, via YouTubeContext state.
-- Playlist fetching (`src/utils/youtubeAPI.ts`) uses YouTube Data API v3 with no API key and falls back gracefully if the playlist is unavailable.
+- The Videos list (`src/components/MainVideoSelectionList.tsx`) tries YouTube Data API v3 with no API key, then fills from a hidden muted player that steps through the playlist. The tab doesn't mount until it's opened. The main player's default, the playlist's first video, is loaded separately in `MainVideoFrame`.
+- Live detection (`src/utils/liveStreamDetector.ts`) runs from `App` every minute while the default playlist is in use and the main video isn't playing. It loads the channel's `live_stream` embed in a hidden player, since a static page can't read YouTube's pages. A live video goes to the top of the list and becomes the default unless the operator has chosen a video, something has played, or the URL or clips set a video.
 - Player state codes: 1 = playing, 2 = paused, 5 = cued.
 
 ### Time-Based Events System

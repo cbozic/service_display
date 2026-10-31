@@ -26,6 +26,10 @@ interface MainVideoFrameProps {
   volume?: number;
   playlistUrl?: string;
   usePlaylistMode?: boolean;
+  // False holds back loading the playlist's first video until the parent knows
+  // whether something else, such as a live video, should be the default.
+  isDefaultVideoResolved?: boolean;
+  skipPlaylistDefault?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   isClipModeActive?: boolean;
   // When true, the slide image is suppressed inside the overlay, so the overlay
@@ -51,6 +55,8 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
   volume = 100,
   playlistUrl,
   usePlaylistMode = false,
+  isDefaultVideoResolved = true,
+  skipPlaylistDefault = false,
   onFullscreenChange,
   isClipModeActive = false,
   hideSlide = false
@@ -183,109 +189,114 @@ const MainVideoFrame: React.FC<MainVideoFrameProps> = ({
         enableStorageAccess(playerInstance);
         onPlayerReady?.(playerInstance);
         setMainPlayersReady(true);
-        
-        // Always try to load the first video from the playlist after initialization
-        if (!initializedRef.current && playlistUrl) {
-          console.log('[VideoFadeFrame] Initial load, attempting to load first video from playlist');
-          
-          // First, initialize with the default video ID
-          try {
-            playerInstance.cueVideoById({
-              videoId: video,
-              startSeconds: startSeconds
-            });
-          } catch (e) {
-            console.error('[VideoFadeFrame] Error cueing default video:', e);
-          }
-          
-          // Then, try to get the playlist ID and load the first video from it
-          const playlistId = getPlaylistId(playlistUrl);
-          if (playlistId) {
-            try {
-              // Use setTimeout to ensure this happens after the default video is loaded
-              setTimeout(() => {
-                console.log(`[VideoFadeFrame] Loading first video from playlist: ${playlistId}`);
-                
-                // If in playlist mode, load the entire playlist
-                if (usePlaylistMode) {
-                  playerInstance.loadPlaylist({
-                    list: playlistId,
-                    listType: 'playlist',
-                    index: 0,
-                    startSeconds: startSeconds
-                  });
-                } else {
-                  // Otherwise, just load the first video from the playlist
-                  playerInstance.cuePlaylist({
-                    list: playlistId,
-                    listType: 'playlist',
-                    index: 0
-                  });
-                  
-                  // Set a flag to handle the first cued event
-                  const firstCueHandledRef = {current: false};
-                  
-                  // Set up a timer to check and handle the first cued video
-                  const checkFirstVideoInterval = setInterval(() => {
-                    try {
-                      // Check if a video is cued (state 5)
-                      const playerState = playerInstance.getPlayerState();
-                      
-                      if (playerState === 5 && !firstCueHandledRef.current) {
-                        firstCueHandledRef.current = true;
-                        
-                        // Get the current video URL and extract ID
-                        const videoUrl = playerInstance.getVideoUrl();
-                        let videoId = '';
-                        
-                        if (videoUrl.includes('youtube.com/watch')) {
-                          const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
-                          videoId = urlParams.get('v') || '';
-                        } else if (videoUrl.includes('youtu.be/')) {
-                          videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-                        }
-                        
-                        if (videoId) {
-                          console.log(`[VideoFadeFrame] First video from playlist has ID: ${videoId}`);
-                          setCurrentVideoId(videoId);
-                          
-                          // Notify parent to update VideoConfigurationForm
-                          if (onStateChange) {
-                            const customEvent = {
-                              data: playerState,
-                              videoId: videoId
-                            };
-                            // @ts-ignore - We're extending the event data
-                            onStateChange(customEvent);
-                          }
-                        }
-                        
-                        // Clear the interval once we've handled the first video
-                        clearInterval(checkFirstVideoInterval);
-                      }
-                    } catch (err) {
-                      console.error('[VideoFadeFrame] Error checking for first video:', err);
-                      clearInterval(checkFirstVideoInterval);
-                    }
-                  }, 500); // Check every 500ms
-                  
-                  // Set a timeout to clear the interval if it takes too long
-                  setTimeout(() => {
-                    clearInterval(checkFirstVideoInterval);
-                  }, 10000); // 10 seconds max
-                }
-              }, 200);
-            } catch (e) {
-              console.error('[VideoFadeFrame] Error loading first video from playlist:', e);
-            }
-          }
-          initializedRef.current = true;
-        }
       } catch (e) {
         console.log('Error initializing player:', e);
       }
     }, 100);
-  }, [startSeconds, onPlayerReady, setMainPlayersReady, usePlaylistMode, playlistUrl, getPlaylistId, video, onStateChange]);
+  }, [startSeconds, onPlayerReady, setMainPlayersReady]);
+
+  // Load the first video from the playlist once the player is ready, unless the
+  // parent has chosen a different default. Runs at most once.
+  useEffect(() => {
+    if (!player || !isPlayerReady || !isDefaultVideoResolved || initializedRef.current || !playlistUrl) return;
+    initializedRef.current = true;
+    if (skipPlaylistDefault) return;
+
+    const playerInstance = player;
+    console.log('[VideoFadeFrame] Initial load, attempting to load first video from playlist');
+    
+    // First, initialize with the default video ID
+    try {
+      playerInstance.cueVideoById({
+        videoId: video,
+        startSeconds: startSeconds
+      });
+    } catch (e) {
+      console.error('[VideoFadeFrame] Error cueing default video:', e);
+    }
+    
+    // Then, try to get the playlist ID and load the first video from it
+    const playlistId = getPlaylistId(playlistUrl);
+    if (playlistId) {
+      try {
+        // Use setTimeout to ensure this happens after the default video is loaded
+        setTimeout(() => {
+          console.log(`[VideoFadeFrame] Loading first video from playlist: ${playlistId}`);
+          
+          // If in playlist mode, load the entire playlist
+          if (usePlaylistMode) {
+            playerInstance.loadPlaylist({
+              list: playlistId,
+              listType: 'playlist',
+              index: 0,
+              startSeconds: startSeconds
+            });
+          } else {
+            // Otherwise, just load the first video from the playlist
+            playerInstance.cuePlaylist({
+              list: playlistId,
+              listType: 'playlist',
+              index: 0
+            });
+            
+            // Set a flag to handle the first cued event
+            const firstCueHandledRef = {current: false};
+            
+            // Set up a timer to check and handle the first cued video
+            const checkFirstVideoInterval = setInterval(() => {
+              try {
+                // Check if a video is cued (state 5)
+                const playerState = playerInstance.getPlayerState();
+                
+                if (playerState === 5 && !firstCueHandledRef.current) {
+                  firstCueHandledRef.current = true;
+                  
+                  // Get the current video URL and extract ID
+                  const videoUrl = playerInstance.getVideoUrl();
+                  let videoId = '';
+                  
+                  if (videoUrl.includes('youtube.com/watch')) {
+                    const urlParams = new URLSearchParams(videoUrl.split('?')[1]);
+                    videoId = urlParams.get('v') || '';
+                  } else if (videoUrl.includes('youtu.be/')) {
+                    videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+                  }
+                  
+                  if (videoId) {
+                    console.log(`[VideoFadeFrame] First video from playlist has ID: ${videoId}`);
+                    setCurrentVideoId(videoId);
+                    
+                    // Notify parent to update VideoConfigurationForm
+                    if (onStateChange) {
+                      const customEvent = {
+                        data: playerState,
+                        videoId: videoId
+                      };
+                      // @ts-ignore - We're extending the event data
+                      onStateChange(customEvent);
+                    }
+                  }
+                  
+                  // Clear the interval once we've handled the first video
+                  clearInterval(checkFirstVideoInterval);
+                }
+              } catch (err) {
+                console.error('[VideoFadeFrame] Error checking for first video:', err);
+                clearInterval(checkFirstVideoInterval);
+              }
+            }, 500); // Check every 500ms
+            
+            // Set a timeout to clear the interval if it takes too long
+            setTimeout(() => {
+              clearInterval(checkFirstVideoInterval);
+            }, 10000); // 10 seconds max
+          }
+        }, 200);
+      } catch (e) {
+        console.error('[VideoFadeFrame] Error loading first video from playlist:', e);
+      }
+    }
+  }, [player, isPlayerReady, isDefaultVideoResolved, skipPlaylistDefault, startSeconds, usePlaylistMode, playlistUrl, getPlaylistId, video, onStateChange]);
 
   const onStateChangeHandler: YouTubeProps['onStateChange'] = useCallback((event: YouTubeEvent) => {
     if (!isPlayerReady || !player) return;

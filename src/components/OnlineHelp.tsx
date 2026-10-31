@@ -288,7 +288,7 @@ const OnlineHelp: React.FC<OnlineHelpProps> = ({ open, onClose }) => {
             <ListItem>
               <ListItemText
                 primary="Videos Playlist URL"
-                secondary="A YouTube playlist URL containing multiple videos that can be played in sequence. The first video from this list will be selected to be played in the main display. Even though this is a playlist, it's not intended to play more than one video from this list. Using a playlist that is regularly updated by its channel owner will allow you to always display the most recent video content in your main display."
+                secondary="A YouTube playlist URL containing multiple videos that can be played in sequence. The first video from this list will be selected to be played in the main display. With the default playlist, if the channel is streaming live, the live video appears at the top of the Videos tab and is selected instead. Even though this is a playlist, it's not intended to play more than one video from this list. Using a playlist that is regularly updated by its channel owner will allow you to always display the most recent video content in your main display."
                 primaryTypographyProps={{ sx: { fontSize: '1.1rem' } }}
                 secondaryTypographyProps={{ sx: secondaryTextStyle }}
               />

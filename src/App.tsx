@@ -27,6 +27,17 @@ import { TimeEventsProvider } from './contexts/TimeEventsContext';
 import { ClipPlaylistProvider, useClipPlaylist } from './contexts/ClipPlaylistContext';
 import { computeSequentialTimeData, getCumulativeElapsedTime } from './utils/clipTimeUtils';
 import { SLIDES_ALIASES, DEFAULT_REMOTE_ALIAS, resolveSlidesParam, SlidesSource } from './utils/slidesSource';
+import { checkChannelLive, LiveVideo } from './utils/liveStreamDetector';
+
+const DEFAULT_PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PLk-gIybirb957FH4Ke_QzRbaxjiOOfCv4';
+// The channel that owns the default playlist (@LakepointeChurch). A static page
+// can't resolve a playlist or @handle to a channel ID, so this is a constant and
+// live detection only runs while the default playlist is in use.
+const LIVE_CHANNEL_ID = 'UC5f7yO3WU_Ns0WDCQuP5bAw';
+const LIVE_CHECK_INTERVAL_MS = 60000;
+// The first check holds back the default video, so it gets a shorter limit.
+const FIRST_LIVE_CHECK_TIMEOUT_MS = 5000;
+const LIVE_CHECK_TIMEOUT_MS = 10000;
 
 // System-wide constants
 export const FADE_STEPS = 30; // Default fade steps for volume transitions
@@ -207,7 +218,14 @@ const AppContent: React.FC = () => {
   const [video, setVideo] = useState<string>(() => parseUrlInitialPosition().videoId || 'oQYRNeM-awo');
   const [startTimeInSeconds, setStartTimeInSeconds] = useState<string>(() => parseUrlInitialPosition().startTime || '0');
   const [overlaySlide, setOverlaySlide] = useState<string>();
-  const [playlistUrl, setPlaylistUrl] = useState<string>('https://www.youtube.com/playlist?list=PLk-gIybirb957FH4Ke_QzRbaxjiOOfCv4');
+  const [playlistUrl, setPlaylistUrl] = useState<string>(DEFAULT_PLAYLIST_URL);
+  const [detectedLiveVideo, setDetectedLiveVideo] = useState<LiveVideo | null>(null);
+  const [isFirstLiveCheckDone, setIsFirstLiveCheckDone] = useState<boolean>(false);
+  // The video the app chose by itself. While `video` still matches this, the
+  // operator hasn't picked anything, so a live video may replace it. Null when
+  // the URL asked for a specific video.
+  const autoDefaultVideoRef = useRef<string | null>(parseUrlInitialPosition().videoId ? null : video);
+  const hasPlayedRef = useRef<boolean>(false);
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -565,6 +583,11 @@ const AppContent: React.FC = () => {
       videoId = state.videoId;
       if (videoId !== video) {
         console.log(`[App] Updating video ID from player event: ${videoId}`);
+        // The playlist's first video replacing the initial default is still an
+        // automatic choice, not the operator's.
+        if (autoDefaultVideoRef.current === video) {
+          autoDefaultVideoRef.current = videoId;
+        }
         setVideo(videoId);
       }
 
@@ -1227,6 +1250,60 @@ const AppContent: React.FC = () => {
   const handleVideoListError = useCallback((hasError: boolean) => {
     setUsePlaylistMode(hasError);
   }, []);
+
+  const isLiveDetectionEnabled = playlistUrl === DEFAULT_PLAYLIST_URL;
+  const liveVideo = isLiveDetectionEnabled ? detectedLiveVideo : null;
+
+  const isPlayingForLiveCheckRef = useRef<boolean>(isPlaying);
+  isPlayingForLiveCheckRef.current = isPlaying;
+  if (isPlaying) {
+    hasPlayedRef.current = true;
+  }
+
+  // Check for a live video on load, then every minute so a stream that starts
+  // after the app is opened still shows up. Checks are skipped during playback
+  // so the hidden player can't compete with the service.
+  useEffect(() => {
+    if (!isLiveDetectionEnabled) return;
+
+    let cancelled = false;
+    let isChecking = false;
+
+    const runCheck = async (timeoutMs: number) => {
+      if (isChecking || isPlayingForLiveCheckRef.current) return;
+      isChecking = true;
+      const result = await checkChannelLive(LIVE_CHANNEL_ID, timeoutMs);
+      isChecking = false;
+      if (cancelled) return;
+      if (result) {
+        registerVideoTitle(result.videoId, result.title);
+      }
+      setDetectedLiveVideo(result);
+      setIsFirstLiveCheckDone(true);
+    };
+
+    runCheck(FIRST_LIVE_CHECK_TIMEOUT_MS);
+    const interval = setInterval(() => runCheck(LIVE_CHECK_TIMEOUT_MS), LIVE_CHECK_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isLiveDetectionEnabled, registerVideoTitle]);
+
+  // A live video only takes over while the app is still on its automatic default
+  // and nothing has played. It never replaces an operator's choice or a running video.
+  const shouldUseLiveAsDefault = liveVideo !== null
+    && !hasPlayedRef.current
+    && clips.length === 0
+    && autoDefaultVideoRef.current === video;
+
+  useEffect(() => {
+    if (shouldUseLiveAsDefault && liveVideo && liveVideo.videoId !== video) {
+      autoDefaultVideoRef.current = liveVideo.videoId;
+      setVideo(liveVideo.videoId);
+    }
+  }, [shouldUseLiveAsDefault, liveVideo, video]);
 
   const handleToggleHelp = useCallback(() => {
     setIsHelpOpen(prev => !prev);
@@ -1942,6 +2019,8 @@ const AppContent: React.FC = () => {
             volume={videoVolume}
             playlistUrl={playlistUrl}
             usePlaylistMode={usePlaylistMode}
+            isDefaultVideoResolved={!isLiveDetectionEnabled || isFirstLiveCheckDone}
+            skipPlaylistDefault={shouldUseLiveAsDefault}
             onFullscreenChange={setIsFullscreen}
             isClipModeActive={isClipModeActive}
             hideSlide={clipBlackoutMode}
@@ -1999,6 +2078,7 @@ const AppContent: React.FC = () => {
           setVideo={setVideo}
           playlistUrl={playlistUrl}
           currentVideo={video}
+          liveVideo={liveVideo}
           onError={handleVideoListError}
           onVideosLoaded={registerVideoTitles}
         />

@@ -7,6 +7,7 @@ interface MainVideoSelectionListProps {
   setVideo: (videoId: string) => void;
   playlistUrl: string;
   currentVideo: string;
+  liveVideo?: { videoId: string; title: string } | null;
   onError?: (hasError: boolean) => void;
   onVideosLoaded?: (videos: { videoId: string; title: string }[]) => void;
 }
@@ -17,7 +18,7 @@ interface VideoData {
   thumbnailUrl: string;
 }
 
-const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVideo, playlistUrl, currentVideo, onError, onVideosLoaded }) => {
+const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVideo, playlistUrl, currentVideo, liveVideo, onError, onVideosLoaded }) => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [error, setError] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -343,6 +344,19 @@ const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVide
     marginBottom: 1
   };
 
+  const liveBadgeStyle = {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    padding: '2px 8px',
+    borderRadius: '4px',
+    backgroundColor: '#d32f2f',
+    color: '#fff',
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    letterSpacing: '0.05em'
+  };
+
   const alertStyle = {
     backgroundColor: 'var(--dark-surface)',
     color: 'var(--dark-text)',
@@ -376,6 +390,35 @@ const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVide
 
   const playlistId = getPlaylistId(playlistUrl);
   const initialVideoId = getInitialVideoId(playlistUrl);
+
+  const renderVideoCard = (video: VideoData, isLive = false) => (
+    <Grid item xs={12} key={video.videoId}>
+      <Card
+        sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
+        onClick={() => handleVideoClick(video.videoId)}
+      >
+        <Box sx={{ position: 'relative' }}>
+          <CardMedia
+            component="img"
+            sx={mediaStyle}
+            image={video.thumbnailUrl}
+            alt={video.title}
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
+            }}
+          />
+          {isLive && (
+            <Box sx={liveBadgeStyle}>LIVE</Box>
+          )}
+        </Box>
+        <CardContent>
+          <Typography sx={titleStyle}>
+            {video.title}
+          </Typography>
+        </CardContent>
+      </Card>
+    </Grid>
+  );
 
   // YouTube player options for playlist
   const opts: YouTubeProps['opts'] = {
@@ -424,6 +467,16 @@ const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVide
       )}
       
       <Box sx={{ padding: 2, flex: '1 1 auto', overflowY: 'auto' }}>
+        {/* Shown above the playlist's states too, since the playlist fills slowly */}
+        {liveVideo && (
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            {renderVideoCard({
+              videoId: liveVideo.videoId,
+              title: liveVideo.title,
+              thumbnailUrl: `https://img.youtube.com/vi/${liveVideo.videoId}/maxresdefault.jpg`
+            }, true)}
+          </Grid>
+        )}
         {error ? (
           <Alert severity="info" sx={alertStyle}>
             <Typography variant="body1" sx={{ textAlign: 'left' }}>
@@ -439,29 +492,9 @@ const MainVideoSelectionList: React.FC<MainVideoSelectionListProps> = ({ setVide
           </Box>
         ) : (
           <Grid container spacing={2}>
-            {videos.map((video) => (
-              <Grid item xs={12} key={video.videoId}>
-                <Card 
-                  sx={video.videoId === currentVideo ? selectedCardStyle : cardStyle}
-                  onClick={() => handleVideoClick(video.videoId)}
-                >
-                  <CardMedia
-                    component="img"
-                    sx={mediaStyle}
-                    image={video.thumbnailUrl}
-                    alt={video.title}
-                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                      e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`;
-                    }}
-                  />
-                  <CardContent>
-                    <Typography sx={titleStyle}>
-                      {video.title}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+            {videos
+              .filter((video) => video.videoId !== liveVideo?.videoId)
+              .map((video) => renderVideoCard(video))}
           </Grid>
         )}
       </Box>
