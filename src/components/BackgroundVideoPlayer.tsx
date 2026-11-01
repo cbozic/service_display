@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubeEvent } from 'react-youtube';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useYouTube } from '../contexts/YouTubeContext';
 import { loadYouTubeAPI } from '../utils/youtubeAPI';
 import { FADE_STEPS } from '../App';
@@ -571,11 +571,29 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
             pointerEvents: 'none'
           }
         }}>
-          <YouTube
-            opts={opts}
-            onReady={onPlayerReady}
-            onStateChange={onStateChange}
-          />
+          {/* Sized by the iframe, which is shorter than the 16:9 box, so the cover matches the video */}
+          <Box sx={{ position: 'relative', '& iframe': { display: 'block' } }}>
+            <YouTube
+              opts={opts}
+              onReady={onPlayerReady}
+              onStateChange={onStateChange}
+            />
+            {/* YouTube draws its own play controls when stopped, and the iframe can't be clicked */}
+            {currentState !== 1 && currentState !== 3 && (
+              <Box sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#1e1e1e',
+                borderRadius: 1,
+                color: '#aaa'
+              }}>
+                {currentState === 2 && <Typography variant="body2">Paused</Typography>}
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </Box>
