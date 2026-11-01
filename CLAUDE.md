@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Service Display is a React-based application for managing worship services and presentations. It combines YouTube video playback, slide presentations, and background music into a synchronized experience. The app runs as a web application.
 
-`npm run build:docs` builds for GitHub Pages into `docs/` (committed; a GitHub Actions workflow deploys on push to main). Asset paths adapt via `getBasePath()`.
+A GitHub Actions workflow builds and deploys to GitHub Pages on push to main; build output is not committed. Asset paths adapt via `getBasePath()`.
 
 ## Architecture Notes
 

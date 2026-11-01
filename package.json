@@ -38,7 +38,6 @@
   "scripts": {
     "start": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:docs": "npm run build && rm -rf docs/* && cp -r build/* docs/",
     "preview": "vite preview",
     "test": "vitest"
   },

@@ -60,29 +60,22 @@ The web app runs in development mode at [http://localhost:3000](http://localhost
 ## Building for Production
 
 ```bash
-# Standard web build
 npm run build
-
-# Build for GitHub Pages (puts files in docs/ folder)
-npm run build:docs
 ```
 
-The standard web build creates files in the `build` folder, while the GitHub Pages build places them in the `docs` folder.
+The build creates files in the `build` folder, which is not committed.
 
 ## Deployment
 
 ### GitHub Pages
-This project is set up for GitHub Pages hosting. The optimized build is available in the `docs` folder.
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) builds the app and deploys it to GitHub Pages on every push to the main branch.
 
-The site is automatically deployed to GitHub Pages when:
-1. Changes are pushed to the main branch
-2. The GitHub Actions workflow runs successfully
-3. The built files in the docs folder are updated
-
-For manual deployment:
+To redeploy the current main branch without a new commit:
 ```bash
-npm run build:docs
+gh workflow run deploy.yml --ref main
 ```
+
+To roll back, revert the commit on main and push, or re-run an earlier deploy from the Actions tab.
 
 ## Testing
 
