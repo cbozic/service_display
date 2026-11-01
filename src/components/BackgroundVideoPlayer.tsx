@@ -36,8 +36,11 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const backgroundVolumeRef = useRef<number>(backgroundVolume);
   const isMainPlayerPlayingRef = useRef<boolean>(isMainPlayerPlaying);
+  const backgroundMutedRef = useRef<boolean>(backgroundMuted);
+  const previousMainPlayingRef = useRef<boolean>(isMainPlayerPlaying);
   backgroundVolumeRef.current = backgroundVolume;
   isMainPlayerPlayingRef.current = isMainPlayerPlaying;
+  backgroundMutedRef.current = backgroundMuted;
 
   const cancelFade = useCallback(() => {
     if (fadeIntervalRef.current) {
@@ -205,19 +208,35 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   // Effect to handle main video playing/paused state changes 
   // This controls background volume fading but not play state
   useEffect(() => {
+    const mainJustStarted = isMainPlayerPlaying && !previousMainPlayingRef.current;
+    previousMainPlayingRef.current = isMainPlayerPlaying;
+
     if (!player || !isPlayerReady) return;
-    
+
     console.log('[BackgroundVideoPlayer] Main player state changed. Main is playing:', isMainPlayerPlaying);
-    
+
     try {
-      if (isMainPlayerPlaying) {
-        // Main video is playing, fade out background music
+      if (mainJustStarted) {
+        // Main video just started, fade out background music
         console.log('[BackgroundVideoPlayer] Main video is playing, fading out background to 0');
         fadeBackgroundVolume(0, 2);
+      } else if (isMainPlayerPlaying) {
+        // Main video was already playing, so anything that started the background
+        // (such as the timed resume) must stay silent. Let a fade out that's still
+        // running finish.
+        if (!fadeIntervalRef.current) {
+          player.setVolume(0);
+        }
       } else {
         // Main video is paused, fade in background music
         console.log('[BackgroundVideoPlayer] Main video is paused, checking background player state');
-        
+
+        // Volume 0 doesn't mute a YouTube player, so this only catches a player
+        // left muted while the operator's setting is unmuted
+        if (!backgroundMutedRef.current && player.isMuted()) {
+          player.unMute();
+        }
+
         // Check if the background player should be playing (according to React state)
         // but isn't actually playing (according to YouTube player state)
         if (isPlaying) {
@@ -236,6 +255,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
               
               // Short delay to allow player to start before beginning fade
               setTimeout(() => {
+                if (isMainPlayerPlayingRef.current) return;
                 console.log('[BackgroundVideoPlayer] Now fading in background to', backgroundVolumeRef.current);
                 fadeBackgroundVolume(backgroundVolumeRef.current, 1);
               }, 100);

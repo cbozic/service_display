@@ -26,7 +26,7 @@ Registered in `resetTimeEvents()`, only trigger if `isAutomaticEventsEnabled` is
 - PiP enable at 5 seconds (conditional, see below)
 - PiP disable at 6.5 minutes
 - Background player pause at 15 minutes
-- Background player resume at 65 minutes (with retry logic)
+- Background player resume at 65 minutes (with retry logic). It starts silently at volume 0 and only a main video pause makes it audible. Don't call `unMute()` on it while the main video plays: at volume 0 that raises a YouTube player's volume to 5.
 
 ### Volume & Audio Management
 

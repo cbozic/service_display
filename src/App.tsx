@@ -229,6 +229,8 @@ const AppContent: React.FC = () => {
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<YouTubeEvent['target'] | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  isPlayingRef.current = isPlaying;
   // Suppresses the slide image inside the main video overlay so a clip's
   // "fade to black" transition shows only the solid-black backdrop.
   const [clipBlackoutMode, setClipBlackoutMode] = useState<boolean>(false);
@@ -884,7 +886,14 @@ const AppContent: React.FC = () => {
               if (backgroundPlayerRef?.current) {
                 try {
                   console.log(`[App] Attempting to unpause background video player (attempt ${attempts + 1})`);
-                  
+
+                  // Stay silent under the main video. Don't unmute here: unMute() at
+                  // volume 0 raises a YouTube player's volume to 5, and it would
+                  // override an operator's mute. The fade in on main pause makes it audible.
+                  if (isPlayingRef.current) {
+                    backgroundPlayerRef.current.setVolume?.(0);
+                  }
+
                   // First check if player is still accessible and in a valid state
                   try {
                     const playerState = backgroundPlayerRef.current.getPlayerState?.();
@@ -901,10 +910,6 @@ const AppContent: React.FC = () => {
                     console.warn('[App] Could not check player state:', stateError);
                   }
                   
-                  // First ensure player is unmuted and volume is set
-                  backgroundPlayerRef.current.unMute?.();
-                  
-                  // Then attempt to play video
                   backgroundPlayerRef.current.playVideo();
                   console.log('[App] Background video player unpause command sent');
                   
@@ -1254,8 +1259,6 @@ const AppContent: React.FC = () => {
   const isLiveDetectionEnabled = playlistUrl === DEFAULT_PLAYLIST_URL;
   const liveVideo = isLiveDetectionEnabled ? detectedLiveVideo : null;
 
-  const isPlayingForLiveCheckRef = useRef<boolean>(isPlaying);
-  isPlayingForLiveCheckRef.current = isPlaying;
   if (isPlaying) {
     hasPlayedRef.current = true;
   }
@@ -1270,7 +1273,7 @@ const AppContent: React.FC = () => {
     let isChecking = false;
 
     const runCheck = async (timeoutMs: number) => {
-      if (isChecking || isPlayingForLiveCheckRef.current) return;
+      if (isChecking || isPlayingRef.current) return;
       isChecking = true;
       const result = await checkChannelLive(LIVE_CHANNEL_ID, timeoutMs);
       isChecking = false;
