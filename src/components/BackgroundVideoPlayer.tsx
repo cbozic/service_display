@@ -222,7 +222,7 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
         fadeBackgroundVolume(0, 2);
       } else if (isMainPlayerPlaying) {
         // Main video was already playing, so anything that started the background
-        // (such as the timed resume) must stay silent. Let a fade out that's still
+        // (such as a track skip) must stay silent. Let a fade out that's still
         // running finish.
         if (!fadeIntervalRef.current) {
           player.setVolume(0);

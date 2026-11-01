@@ -25,13 +25,13 @@ Registered in `resetTimeEvents()`, only trigger if `isAutomaticEventsEnabled` is
 - Fullscreen activation at 1 second
 - PiP enable at 5 seconds (conditional, see below)
 - PiP disable at 6.5 minutes
-- Background player pause at 15 minutes
-- Background player resume at 65 minutes (with retry logic). It starts silently at volume 0 and only a main video pause makes it audible. Don't call `unMute()` on it while the main video plays: at volume 0 that raises a YouTube player's volume to 5.
+- Background player pause at 15 minutes. Nothing resumes it automatically, on purpose: the operator presses play when they want it back.
 
 ### Volume & Audio Management
 
 - **Audio ducking**: instantly drops main volume to a percentage (default 50%), then fades back over 3 seconds when disabled.
 - **`fadeToVolume()`** (`src/utils/audioUtils.ts`) does stepped transitions (default 30 steps). It is for play/pause fades only. The volume slider sets volume directly in `MainVideoFrame` and cancels any in-flight fade; do not make the play/pause effect depend on `volume`, or every slider tick restarts a fade and fights the slider.
+- **YouTube `unMute()`**: at volume 0 it raises the player's volume to 5, so don't call it on the background player while the main video plays without setting the volume back to 0.
 
 ## Important Implementation Details
 
@@ -46,13 +46,6 @@ PiP events only register if:
 2. Video duration exceeds 65 minutes (3900 seconds)
 
 This prevents PiP from activating for shorter videos or outside service times.
-
-### Background Player Resume Retry Logic
-
-At 65 minutes, background players resume with retry mechanisms (up to 3 attempts) because:
-1. Autoplay policies may block playback
-2. Player state may be uninitialized
-3. A synthetic click event is dispatched to satisfy user interaction requirements
 
 ### Volume Management During Mute
 
