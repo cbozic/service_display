@@ -567,40 +567,53 @@ const BackgroundVideoPlayer: React.FC<BackgroundPlayerProps> = ({
   }
 
   return (
-    <Box sx={{ 
-      height: '100%', 
+    <Box sx={{
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
       backgroundColor: '#282c34',
-      justifyContent: 'center',  // Center vertically
-      alignItems: 'center'       // Center horizontally
+      alignItems: 'center',
+      overflow: 'hidden'
     }}>
-      <Box sx={{ 
-        width: '80%',           // Limit width to look better centered
-        maxWidth: '600px',      // Maximum width
+      <Box sx={{
+        width: '80%',
+        maxWidth: '600px',
+        height: '100%',
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
+        justifyContent: 'center',
         gap: 2,
-        alignItems: 'center'    // Center controls horizontally
+        alignItems: 'center'
       }}>
-        <BackgroundPlayerControls 
-          volume={backgroundMuted ? 0 : backgroundVolume}
-          isPlaying={isPlaying}
-          onPlayPauseToggle={handlePlayPauseToggle}
-          onVolumeChange={handleVolumeChange}
-          onSkipNext={handleSkipNext}
-        />
-        <Box sx={{ 
-          position: 'relative',
-          width: '100%',        // Take full width of parent
-          aspectRatio: '16/9',  // Maintain video aspect ratio
-          pointerEvents: 'none',
-          '& iframe': {
-            pointerEvents: 'none'
-          }
+        <Box sx={{ width: '100%', flexShrink: 0 }}>
+          <BackgroundPlayerControls
+            volume={backgroundMuted ? 0 : backgroundVolume}
+            isPlaying={isPlaying}
+            onPlayPauseToggle={handlePlayPauseToggle}
+            onVolumeChange={handleVolumeChange}
+            onSkipNext={handleSkipNext}
+          />
+        </Box>
+        {/* Takes 16:9 when there's room and gives up height first, so the controls never get pushed out */}
+        <Box sx={{
+          width: '100%',
+          aspectRatio: '16/9',
+          minHeight: 0,
+          flexShrink: 1,
+          containerType: 'size',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          pointerEvents: 'none'
         }}>
-          {/* Sized by the iframe, which is shorter than the 16:9 box, so the cover matches the video */}
-          <Box sx={{ position: 'relative', '& iframe': { display: 'block' } }}>
+          <Box sx={{
+            position: 'relative',
+            width: 'min(100cqw, calc(100cqh * 16 / 9))',
+            aspectRatio: '16/9',
+            '& > div:first-of-type, & iframe': { display: 'block', width: '100%', height: '100%' },
+            '& iframe': { pointerEvents: 'none' }
+          }}>
             <YouTube
               opts={opts}
               onReady={onPlayerReady}

@@ -35,6 +35,8 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
 
   const buttonSize = size === 'small' ? 'small' : 'medium';
   const sliderWidth = size === 'small' ? 100 : 120;
+  const buttonWidth = size === 'small' ? 34 : 40;
+  const rowGap = 16; // Matches the row's gap of 2
 
   // Custom PopperProps for tooltips to ensure high z-index
   const tooltipPopperProps = {
@@ -63,13 +65,17 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
       gap: 2, 
       p: 1,
       borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-      width: '100%'
+      width: '100%',
+      boxSizing: 'border-box'
     }}>
       <Box sx={{ 
         display: 'flex', 
         alignItems: 'center', 
         gap: 2,
-        justifyContent: 'center'
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        width: '100%',
+        maxWidth: sliderWidth + 2 * buttonWidth + 2 * rowGap
       }}>
         <Tooltip 
           title={isPlaying ? "Pause background music" : "Play background music"} 
@@ -113,7 +119,8 @@ const BackgroundPlayerControls: React.FC<BackgroundPlayerControlsProps> = ({
             min={0.1}
             max={100}
             aria-label="Volume"
-            sx={{ width: sliderWidth }}
+            // Narrow panels squeeze the slider, then wrap, rather than pushing the buttons out
+            sx={{ flex: '1 1 40px', minWidth: 40 }}
           />
         </Tooltip>
         <Tooltip 
