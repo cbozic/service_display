@@ -1383,6 +1383,8 @@ const AppContent: React.FC = () => {
         // Skip to next track in background player
         if (backgroundPlayerRef?.current) {
           try {
+            // Skipping starts playback, so it unmutes like the play button
+            setBackgroundMuted(false);
             backgroundPlayerRef.current.nextVideo();
           } catch (error) {
             console.error('[App] Error skipping to next track:', error);
@@ -1396,6 +1398,7 @@ const AppContent: React.FC = () => {
             const playlist = backgroundPlayerRef.current.getPlaylist();
             if (playlist && playlist.length > 0) {
               const randomIndex = Math.floor(Math.random() * playlist.length);
+              setBackgroundMuted(false);
               backgroundPlayerRef.current.playVideoAt(randomIndex);
             }
           } catch (error) {
